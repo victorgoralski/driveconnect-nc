@@ -106,20 +106,25 @@ async function login(email, password, userType) {
 }
 
 async function signup(email, password, name, userType) {
-    const { data, error } = await sb.auth.signUp({ email, password });
+    const { data, error } = await sb.auth.signUp({
+        email, password,
+        options: { data: { name, user_type: userType } }
+    });
     if (error) { notif('❌ ' + error.message, '', 'red'); return; }
 
-    // Créer le profil dans users
-    const { error: profileError } = await sb.from('users').insert({
+    // Attendre que le trigger crée le profil
+    await new Promise(r => setTimeout(r, 1000));
+
+    // Mettre à jour le profil avec le nom si pas encore fait
+    await sb.from('users').upsert({
         id: data.user.id,
         email, name,
         user_type: userType
-    });
-    if (profileError) { notif('❌ Erreur création profil', profileError.message, 'red'); return; }
+    }, { onConflict: 'id' });
 
     // Si moniteur, créer le profil instructeur
     if (userType === 'instructor') {
-        await sb.from('instructors').insert({
+        await sb.from('instructors').upsert({
             id: data.user.id,
             user_id: data.user.id,
             name, email,
@@ -128,7 +133,7 @@ async function signup(email, password, name, userType) {
             verified: false, is_online: false,
             lat: NOUMEA.lat, lng: NOUMEA.lng,
             visibility_penalty: 0
-        });
+        }, { onConflict: 'id' });
     }
 
     const { data: profile } = await sb.from('users').select('*').eq('id', data.user.id).single();
