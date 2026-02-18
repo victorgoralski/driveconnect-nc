@@ -708,6 +708,76 @@ document.addEventListener('submit', async function(e){
     }
 });
 
+
+// ========== ADMIN DASHBOARD ==========
+let adminData = { users: [], instructors: [], bookings: [], slots: [] };
+let adminTab = 'overview';
+
+async function loadAdminData() {
+    const [u, i, b, s] = await Promise.all([
+        sb.from('users').select('*').order('created_at', { ascending: false }),
+        sb.from('instructors').select('*'),
+        sb.from('bookings').select('*').order('created_at', { ascending: false }),
+        sb.from('slots').select('*')
+    ]);
+    adminData.users = u.data || [];
+    adminData.instructors = i.data || [];
+    adminData.bookings = b.data || [];
+    adminData.slots = s.data || [];
+    document.getElementById('app').innerHTML = AdminDashboard();
+}
+
+function AdminDashboard() {
+    const totalRevenue = adminData.bookings.filter(b=>b.status==='confirmed'&&b.payment_status==='paid').reduce((s,b)=>s+(b.amount||0),0);
+    const totalCommission = Math.round(totalRevenue * COMMISSION);
+    const tabs = [{id:'overview',label:'📊 Vue globale'},{id:'users',label:'👥 Utilisateurs'},{id:'instructors',label:'🚗 Moniteurs'},{id:'bookings',label:'📋 Réservations'},{id:'danger',label:'⚠️ Danger Zone'}];
+    return `<div class="min-h-screen bg-gray-900 text-white">
+        <header class="bg-gray-800 border-b border-gray-700 sticky top-0 z-40">
+            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🛡️</span>
+                    <div><h1 class="text-xl font-extrabold text-orange-400">Admin Panel</h1><p class="text-xs text-gray-400">DriveConnect NC</p></div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-400">👋 ${currentUser.name}</span>
+                    <button onclick="showView('student-dashboard')" class="px-3 py-2 text-sm bg-orange-500 hover:bg-orange-600 rounded-xl">🚗 App</button>
+                    <button onclick="logout()" class="px-3 py-2 text-sm text-gray-400 hover:bg-gray-700 rounded-xl">Déconnexion</button>
+                </div>
+            </div>
+        </header>
+        <div class="container mx-auto px-4 py-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-gray-800 rounded-2xl p-5 border border-gray-700"><p class="text-gray-400 text-sm">Utilisateurs</p><p class="text-3xl font-extrabold">${adminData.users.length}</p></div>
+                <div class="bg-gray-800 rounded-2xl p-5 border border-gray-700"><p class="text-gray-400 text-sm">Moniteurs</p><p class="text-3xl font-extrabold text-orange-400">${adminData.instructors.length}</p></div>
+                <div class="bg-gray-800 rounded-2xl p-5 border border-gray-700"><p class="text-gray-400 text-sm">Réservations</p><p class="text-3xl font-extrabold text-green-400">${adminData.bookings.length}</p></div>
+                <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5"><p class="text-orange-200 text-sm">Commission totale</p><p class="text-3xl font-extrabold">${totalCommission.toLocaleString()} XPF</p></div>
+            </div>
+            <div class="bg-gray-800 rounded-3xl overflow-hidden border border-gray-700">
+                <div class="flex border-b border-gray-700 overflow-x-auto">
+                    ${tabs.map(t=>`<button onclick="switchAdminTab('${t.id}')" class="px-6 py-4 font-semibold whitespace-nowrap text-sm transition ${adminTab===t.id?'text-orange-400 border-b-2 border-orange-400 bg-gray-700':'text-gray-400 hover:text-white'}">${t.label}</button>`).join('')}
+                </div>
+                <div class="p-6">${getAdminTabContent()}</div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function getAdminTabContent() {
+    if (adminTab==='overview') return `<h3 class="font-bold text-lg mb-4">📋 Dernières réservations</h3><div class="space-y-3">${adminData.bookings.slice(0,10).map(b=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${b.student_name||'?'} → ${b.instructor_name||'?'}</p><p class="text-sm text-gray-400">📅 ${b.date} à ${b.time} · ${b.amount||0} XPF</p></div><span class="px-3 py-1 rounded-full text-xs font-bold ${b.status==='confirmed'?'bg-green-900 text-green-400':b.status==='cancelled'?'bg-red-900 text-red-400':'bg-yellow-900 text-yellow-400'}">${b.status}</span></div>`).join('')||'<p class="text-gray-400">Aucune réservation</p>'}</div>`;
+    if (adminTab==='users') return `<h3 class="font-bold text-lg mb-4">👥 Utilisateurs (${adminData.users.length})</h3><div class="space-y-2">${adminData.users.map(u=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${u.name||'?'} ${u.is_admin?'🛡️':''}</p><p class="text-sm text-gray-400">${u.email}</p></div><div class="flex gap-2"><span class="px-2 py-1 rounded-full text-xs font-bold ${u.user_type==='student'?'bg-blue-900 text-blue-400':'bg-orange-900 text-orange-400'}">${u.user_type||'?'}</span>${!u.is_admin?`<button onclick="adminDeleteUser('${u.id}')" class="text-red-400 text-xs">🗑️</button>`:''}</div></div>`).join('')||'<p class="text-gray-400">Aucun</p>'}</div>`;
+    if (adminTab==='instructors') return `<h3 class="font-bold text-lg mb-4">🚗 Moniteurs (${adminData.instructors.length})</h3><div class="space-y-2">${adminData.instructors.map(i=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${i.name||'?'}</p><p class="text-sm text-gray-400">📍 ${i.location||'?'} · ⭐ ${i.rating||0} · ${i.hourly_rate||0} XPF/h</p>${i.penalty_until&&new Date(i.penalty_until)>new Date()?'<p class="text-xs text-red-400">⚠️ Pénalisé</p>':''}</div><div class="flex gap-2"><span class="px-2 py-1 rounded-full text-xs ${i.is_online?'bg-green-900 text-green-400':'bg-gray-600 text-gray-400'}">${i.is_online?'🟢':'⚫'}</span><button onclick="adminVerifyInstructor('${i.id}',${!i.verified})" class="text-xs px-2 py-1 rounded-lg ${i.verified?'bg-green-800 text-green-400':'bg-gray-600 text-gray-300'}">${i.verified?'✅':'Vérifier'}</button>${i.penalty_until?`<button onclick="adminRemovePenalty('${i.id}')" class="text-xs px-2 py-1 bg-red-900 text-red-400 rounded-lg">Lever</button>`:''}</div></div>`).join('')||'<p class="text-gray-400">Aucun</p>'}</div>`;
+    if (adminTab==='bookings') return `<h3 class="font-bold text-lg mb-4">📋 Réservations (${adminData.bookings.length})</h3><div class="space-y-2">${adminData.bookings.map(b=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${b.student_name||'?'} → ${b.instructor_name||'?'}</p><p class="text-sm text-gray-400">📅 ${b.date} · ${b.amount||0} XPF · Net: ${b.net||0} XPF</p></div><span class="px-3 py-1 rounded-full text-xs font-bold ${b.status==='confirmed'?'bg-green-900 text-green-400':b.status==='cancelled'?'bg-red-900 text-red-400':'bg-yellow-900 text-yellow-400'}">${b.status}</span></div>`).join('')||'<p class="text-gray-400">Aucune</p>'}</div>`;
+    if (adminTab==='danger') return `<h3 class="font-bold text-lg mb-4 text-red-400">⚠️ Zone Danger</h3><div class="space-y-4"><div class="bg-red-900/30 border border-red-700 rounded-xl p-4"><p class="font-bold text-red-400 mb-1">Nettoyer les créneaux passés</p><p class="text-sm text-gray-400 mb-3">Supprime tous les créneaux dont la date est dépassée.</p><button onclick="adminCleanSlots()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold">🗑️ Nettoyer</button></div><div class="bg-gray-700 rounded-xl p-4"><p class="text-sm text-gray-400">👥 ${adminData.users.length} users · 🚗 ${adminData.instructors.length} moniteurs · 📋 ${adminData.bookings.length} réservations · 📅 ${adminData.slots.length} créneaux</p></div></div>`;
+    return '';
+}
+
+window.switchAdminTab = (t) => { adminTab = t; document.getElementById('app').innerHTML = AdminDashboard(); };
+window.adminVerifyInstructor = async (id, v) => { await sb.from('instructors').update({verified:v}).eq('id',id); notif(v?'✅ Vérifié':'Retiré','','green'); await loadAdminData(); };
+window.adminRemovePenalty = async (id) => { await sb.from('instructors').update({penalty_until:null,visibility_penalty:0}).eq('id',id); notif('✅ Pénalité levée','','green'); await loadAdminData(); };
+window.adminDeleteUser = async (id) => { if(!confirm('Supprimer ?')) return; await sb.from('users').delete().eq('id',id); notif('Supprimé','','red'); await loadAdminData(); };
+window.adminCleanSlots = async () => { if(!confirm('Supprimer créneaux passés ?')) return; const t=new Date().toISOString().split('T')[0]; await sb.from('slots').delete().lt('date',t); notif('✅ Nettoyé','','green'); await loadAdminData(); };
+
+
 function render() {
     if(map){map.remove();map=null;iMarkers=[];}
     const app=document.getElementById('app');
@@ -717,6 +787,7 @@ function render() {
         case 'instructor-login':    app.innerHTML=LoginPage('instructor'); setupLoginForm('instructor'); break;
         case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>initMap(),100); break;
         case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>initMap(),100); break;
+        case 'admin':               loadAdminData(); break;
     }
 }
 
@@ -724,22 +795,24 @@ function render() {
 async function boot() {
     document.getElementById('app').innerHTML = '<div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center"><div class="text-center"><div class="text-5xl mb-4">🚗</div><p class="text-xl font-bold text-orange-600">DriveConnect NC</p><p class="text-gray-400 mt-2">Connexion à la base de données...</p><div class="mt-4 w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div></div></div>';
 
-    // Vérifier session Supabase active
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
         const { data: profile } = await sb.from('users').select('*').eq('id', session.user.id).single();
         if (profile) {
             currentUser = { ...profile, ...session.user };
-            currentView = profile.user_type === 'student' ? 'student-dashboard' : 'instructor-dashboard';
+            if (profile.is_admin) {
+                currentView = 'admin';
+            } else {
+                currentView = profile.user_type === 'student' ? 'student-dashboard' : 'instructor-dashboard';
+            }
         }
     }
 
     await loadData();
     render();
 
-    // Rafraîchir les données toutes les 15 secondes
     setInterval(async () => {
-        if (!document.hidden) {
+        if (!document.hidden && currentView !== 'admin') {
             await loadData();
             if (currentUser) render();
         }
