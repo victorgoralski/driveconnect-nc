@@ -146,7 +146,10 @@ async function signup(email, password, name, userType) {
 
 // ========== HOME ====================
 function HomePage() {
-    return `<div class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 flex items-center justify-center">
+    return `<div class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 flex items-center justify-center relative">
+        <div class="absolute top-4 right-4">
+            <a href="/legal.html" class="text-sm text-gray-400 hover:text-orange-500 font-medium transition">📋 CGU & Confidentialité</a>
+        </div>
         <div class="text-center max-w-3xl px-4">
             <h1 class="text-6xl font-extrabold mb-4 gradient-text">DriveConnect NC</h1>
             <p class="text-xl text-gray-400 mb-16">La plateforme de cours de conduite à Nouméa</p>
