@@ -146,10 +146,7 @@ async function signup(email, password, name, userType) {
 
 // ========== HOME ====================
 function HomePage() {
-    return `<div class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 flex items-center justify-center relative">
-        <div class="absolute top-4 right-4">
-            <a href="/legal.html" class="text-sm text-gray-400 hover:text-orange-500 font-medium transition">📋 CGU & Confidentialité</a>
-        </div>
+    return `<div class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 flex items-center justify-center">
         <div class="text-center max-w-3xl px-4">
             <h1 class="text-6xl font-extrabold mb-4 gradient-text">DriveConnect NC</h1>
             <p class="text-xl text-gray-400 mb-16">La plateforme de cours de conduite à Nouméa</p>
@@ -162,6 +159,10 @@ function HomePage() {
                     <div class="text-5xl mb-4">🚗</div><h3 class="text-2xl font-bold mb-2">Je suis moniteur</h3>
                     <p class="text-gray-400 text-sm">Gérez vos créneaux et revenus</p>
                 </button>
+            </div>
+            <div class="flex justify-center gap-4 mt-12">
+                <a href="/legal.html" onclick="event.preventDefault();window.location.href='/legal.html?tab=privacy'" class="bg-white border-2 border-orange-100 px-6 py-3 rounded-2xl shadow hover:shadow-md transition text-sm font-semibold text-gray-600 hover:text-orange-500">🔒 Politique de confidentialité</a>
+                <a href="/legal.html" onclick="event.preventDefault();window.location.href='/legal.html?tab=terms'" class="bg-white border-2 border-orange-100 px-6 py-3 rounded-2xl shadow hover:shadow-md transition text-sm font-semibold text-gray-600 hover:text-orange-500">📋 CGU</a>
             </div>
         </div>
     </div>`;
