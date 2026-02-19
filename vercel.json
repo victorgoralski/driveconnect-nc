@@ -1,0 +1,7 @@
+{
+  "outputDirectory": "driveconnect/public",
+  "routes": [
+    { "src": "/legal.html", "dest": "/legal.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
