@@ -161,8 +161,8 @@ function HomePage() {
                 </button>
             </div>
             <div class="flex justify-center gap-4 mt-10">
-                <a href="/legal.html" class="bg-white border border-gray-200 px-5 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-orange-500 transition shadow-sm">🔒 Confidentialité</a>
-                <a href="/legal.html" class="bg-white border border-gray-200 px-5 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-orange-500 transition shadow-sm">📋 CGU</a>
+                <button onclick="showView('privacy')" class="bg-white border border-gray-200 px-5 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-orange-500 transition shadow-sm">🔒 Confidentialité</button>
+                <button onclick="showView('terms')" class="bg-white border border-gray-200 px-5 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-orange-500 transition shadow-sm">📋 CGU</button>
             </div>
         </div>
     </div>`;
@@ -782,6 +782,76 @@ window.adminDeleteUser = async (id) => { if(!confirm('Supprimer ?')) return; awa
 window.adminCleanSlots = async () => { if(!confirm('Supprimer créneaux passés ?')) return; const t=new Date().toISOString().split('T')[0]; await sb.from('slots').delete().lt('date',t); notif('✅ Nettoyé','','green'); await loadAdminData(); };
 
 
+
+// ========== PAGES LÉGALES ==========
+function LegalPage(tab) {
+    const privacy = `
+        <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">🔒 Politique de confidentialité</h2>
+        <p style="color:#6b7280;margin-bottom:1.5rem">Dernière mise à jour : Février 2026</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Données collectées</h3>
+        <p style="margin-bottom:1rem">Nous collectons votre nom, email, type de compte, et pour les moniteurs votre position GPS en temps réel.</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Hébergement</h3>
+        <p style="margin-bottom:1rem"><strong>Supabase</strong> — base de données et authentification (Corée du Sud).<br><strong>Vercel</strong> — hébergement de l'application web.<br><strong>PayPal</strong> — traitement des paiements. Vos données bancaires ne sont jamais stockées sur nos serveurs.</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Cookies</h3>
+        <p style="margin-bottom:1rem">Nous utilisons uniquement des cookies fonctionnels essentiels (session Supabase). Aucun cookie publicitaire ou tracking tiers.</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">GPS</h3>
+        <p style="margin-bottom:1rem">Le partage de position est optionnel et réservé aux moniteurs. Les données GPS ne sont pas conservées après la session.</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Droit de suppression</h3>
+        <p style="margin-bottom:1rem">Vous pouvez demander la suppression de toutes vos données à tout moment en nous contactant. Nous répondons sous 30 jours.</p>
+
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:1rem;margin-top:1.5rem">
+            <p style="font-weight:600;color:#ea580c">Contact</p>
+            <p style="color:#374151">📧 privacy@driveconnect-nc.app<br>📞 +687 84.40.22</p>
+        </div>`;
+
+    const terms = `
+        <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">📋 Conditions Générales d'Utilisation</h2>
+        <p style="color:#6b7280;margin-bottom:1.5rem">Dernière mise à jour : Février 2026</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Objet de la plateforme</h3>
+        <p style="margin-bottom:1rem">DriveConnect NC est une plateforme de mise en relation entre élèves et moniteurs de conduite à Nouméa, Nouvelle-Calédonie.</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Rôle de DriveConnect</h3>
+        <p style="margin-bottom:1rem">DriveConnect NC agit comme intermédiaire technique. Nous ne sommes pas employeur des moniteurs et prélevons une commission de 2% sur chaque transaction.</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Responsabilité des moniteurs</h3>
+        <p style="margin-bottom:1rem">Les moniteurs doivent être titulaires des diplômes légaux requis, disposer d'un véhicule assuré, et honorer les créneaux réservés.</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Politique d'annulation</h3>
+        <p style="margin-bottom:0.5rem">• Plus de 48h avant le cours → remboursement 100%</p>
+        <p style="margin-bottom:0.5rem">• Entre 24h et 48h → remboursement 50%</p>
+        <p style="margin-bottom:1rem">• Moins de 24h → aucun remboursement</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Paiements</h3>
+        <p style="margin-bottom:1rem">Tous les paiements sont traités via PayPal. Les remboursements sont effectués sous 5 à 10 jours ouvrés.</p>
+
+        <h3 style="font-weight:700;margin-bottom:0.5rem">Suspension de compte</h3>
+        <p style="margin-bottom:1rem">DriveConnect NC peut suspendre tout compte en cas de violation des CGU, fausse déclaration, comportement abusif ou fraude avérée.</p>
+
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:1rem;margin-top:1.5rem">
+            <p style="font-weight:600;color:#ea580c">Contact</p>
+            <p style="color:#374151">📧 legal@driveconnect-nc.app<br>📞 +687 84.40.22</p>
+        </div>`;
+
+    return `<div class="min-h-screen bg-gray-50">
+        <div class="max-w-2xl mx-auto px-4 py-8">
+            <button onclick="showView('home')" class="mb-6 text-orange-500 font-semibold flex items-center gap-2">← Retour</button>
+            <div class="flex gap-3 mb-8">
+                <button onclick="showView('privacy')" class="px-5 py-2 rounded-xl font-semibold text-sm transition ${tab==='privacy'?'bg-orange-500 text-white':'bg-white border border-gray-200 text-gray-500'}"}>🔒 Confidentialité</button>
+                <button onclick="showView('terms')" class="px-5 py-2 rounded-xl font-semibold text-sm transition ${tab==='terms'?'bg-orange-500 text-white':'bg-white border border-gray-200 text-gray-500'}"}>📋 CGU</button>
+            </div>
+            <div class="bg-white rounded-3xl shadow-sm p-8" style="line-height:1.7">
+                ${tab==='privacy' ? privacy : terms}
+            </div>
+        </div>
+    </div>`;
+}
+
 function render() {
     if(map){map.remove();map=null;iMarkers=[];}
     const app=document.getElementById('app');
@@ -792,6 +862,8 @@ function render() {
         case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>initMap(),100); break;
         case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>initMap(),100); break;
         case 'admin':               loadAdminData(); break;
+        case 'privacy':             app.innerHTML=LegalPage('privacy'); break;
+        case 'terms':               app.innerHTML=LegalPage('terms'); break;
     }
 }
 
