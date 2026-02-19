@@ -555,6 +555,23 @@ function showPaymentModal(slot, instructor, prices) {
     document.body.style.overflow = 'hidden';
     modal.addEventListener('click', e => { if(e.target===modal){modal.remove();document.body.style.overflow='';}});
 
+
+async function sendNotification(type, data) {
+    try {
+        const session = await sb.auth.getSession();
+        await fetch('https://nnmdvepfyccnehzbvpfn.supabase.co/functions/v1/send-email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + session.data.session.access_token
+            },
+            body: JSON.stringify({ type, ...data })
+        });
+    } catch(e) {
+        console.warn('Notification error:', e);
+    }
+}
+
     async function completeBooking(paymentStatus, orderId) {
         const { error } = await sb.from('slots').update({ available: false }).eq('id', slot.id);
         if (error) { notif('❌ Erreur slot', error.message, 'red'); return; }
@@ -577,6 +594,14 @@ function showPaymentModal(slot, instructor, prices) {
         DB.bookings.push(booking);
         modal.remove(); document.body.style.overflow='';
         notif('✅ Réservation confirmée !', `Cours avec ${instructor.name} le ${slot.date}`, 'green');
+        sendNotification('confirmation', {
+            studentEmail: currentUser.email,
+            studentName: currentUser.name,
+            instructorName: instructor.name,
+            date: slot.date,
+            time: slot.time,
+            amount: slot.price
+        });
         render();
     }
 
@@ -636,6 +661,16 @@ window.cancelStudent = async function(bookingId) {
     if (!confirm(`Annuler ce cours ?\n\n${pol.label}\nRemboursement : ${refund} XPF`)) return;
 
     await sb.from('bookings').update({ status:'cancelled', cancelled_by:'student', refund_amount:refund, cancelled_at:new Date().toISOString() }).eq('id', bookingId);
+    const cancelledBooking = DB.bookings.find(b=>b.id===bookingId);
+    if (cancelledBooking) {
+        sendNotification('cancellation', {
+            studentEmail: currentUser.email,
+            studentName: currentUser.name,
+            instructorName: cancelledBooking.instructor_name,
+            date: cancelledBooking.date,
+            time: cancelledBooking.time
+        });
+    }
     if (pol.pct>=50) await sb.from('slots').update({ available:true }).eq('id', b.slot_id);
 
     await loadData();
