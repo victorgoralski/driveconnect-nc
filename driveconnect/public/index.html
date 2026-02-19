@@ -585,7 +585,38 @@ function showPaymentModal(slot, instructor, prices) {
             paypal.Buttons({
                 style:{layout:'vertical',color:'gold',label:'pay',height:48},
                 createOrder:(d,a)=>a.order.create({purchase_units:[{amount:{value:(slot.price/100).toFixed(2),currency_code:'USD'}}]}),
-                onApprove:(d,a)=>a.order.capture().then(()=>completeBooking('paid',d.orderID)),
+                onApprove: async (d, a) => {
+                    const capture = await a.order.capture();
+                    if (capture.status !== 'COMPLETED') {
+                        notif('❌ Paiement non complété', '', 'red');
+                        return;
+                    }
+                    // Vérification côté serveur via Edge Function
+                    try {
+                        const res = await fetch('https://nnmdvepfyccnehzbvpfn.supabase.co/functions/v1/verify-paypal', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + (await sb.auth.getSession()).data.session.access_token
+                            },
+                            body: JSON.stringify({
+                                orderId: d.orderID,
+                                slotId: pendingSlot.id,
+                                studentId: currentUser.id,
+                                instructorId: pendingSlot.instructor_id,
+                                amount: pendingSlot.price
+                            })
+                        });
+                        const result = await res.json();
+                        if (result.error) {
+                            notif('❌ ' + result.error, '', 'red');
+                            return;
+                        }
+                    } catch(e) {
+                        console.warn('Edge function error, continuing:', e);
+                    }
+                    completeBooking('paid', d.orderID);
+                },
                 onError:()=>notif('❌ Erreur PayPal','','red')
             }).render('#paypal-btns');
         } catch(e) {}
