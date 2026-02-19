@@ -29,6 +29,41 @@ const SUPABASE_URL = 'https://nnmdvepfyccnehzbvpfn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ubWR2ZXBmeWNjbmVoemJ2cGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNTE4NjMsImV4cCI6MjA4NjkyNzg2M30.fCvcy_YdRs_Sn0AZobiq0OfGGm9mYJPKwEo9VPte1fY';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ========== SÉCURITÉ ==========
+function sanitize(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .trim();
+}
+
+function validateEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateInput(name, email, password) {
+    if (!name || name.trim().length < 2) { notif('❌ Nom invalide', 'Minimum 2 caractères', 'red'); return false; }
+    if (!validateEmail(email)) { notif('❌ Email invalide', 'Format incorrect', 'red'); return false; }
+    if (!password || password.length < 6) { notif('❌ Mot de passe trop court', 'Minimum 6 caractères', 'red'); return false; }
+    return true;
+}
+
+async function checkDoubleBooking(instructorId, date, time) {
+    const { data } = await sb.from('bookings')
+        .select('id')
+        .eq('instructor_id', instructorId)
+        .eq('date', date)
+        .eq('time', time)
+        .eq('status', 'confirmed');
+    return data && data.length > 0;
+}
+
+
+
 const COMMISSION = 0.02;
 const NOUMEA = { lat: -22.2758, lng: 166.4580 };
 
@@ -106,6 +141,9 @@ async function login(email, password, userType) {
 }
 
 async function signup(email, password, name, userType) {
+    if (!validateInput(name, email, password)) return;
+    name = sanitize(name);
+    email = email.trim().toLowerCase();
     const { data, error } = await sb.auth.signUp({
         email, password,
         options: { data: { name, user_type: userType } }
