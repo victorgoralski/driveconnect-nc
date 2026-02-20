@@ -2,7 +2,9 @@
   "outputDirectory": "driveconnect/public",
   "routes": [
     { "src": "/legal.html", "dest": "/legal.html" },
+    { "src": "/legal-2.html", "dest": "/legal-2.html" },
     { "src": "/landing.html", "dest": "/landing.html" },
+    { "src": "/app.html", "dest": "/app.html" },
     { "src": "/sw.js", "dest": "/sw.js" },
     { "src": "/manifest.json", "dest": "/manifest.json" },
     { "src": "/(.*)", "dest": "/index.html" }
