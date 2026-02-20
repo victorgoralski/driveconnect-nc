@@ -1161,6 +1161,10 @@ window.showRating = function(bookingId, instructorId, instructorName) {
 let chatSubscription = null;
 
 window.openChat = async function(bookingId, otherUserId, otherName) {
+    // Corriger le null si otherName est vide
+    if (!otherName || otherName === 'null' || otherName === 'undefined') {
+        otherName = 'Votre contact';
+    }
     // Fermer subscription précédente
     if (chatSubscription) {
         chatSubscription.unsubscribe();
@@ -1195,15 +1199,23 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
     // Charger les messages existants
     await loadMessages(bookingId);
 
-    // Souscrire aux nouveaux messages en temps réel
+    // Souscrire aux nouveaux messages - Broadcast pour instantané + postgres_changes pour fiabilité
     chatSubscription = sb.channel('chat-' + bookingId)
+        .on('broadcast', { event: 'new_message' }, (payload) => {
+            // Message reçu instantanément via broadcast
+            if (payload.payload.sender_id !== currentUser.id) {
+                appendMessage(payload.payload);
+            }
+        })
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'messages',
             filter: 'booking_id=eq.' + bookingId
         }, (payload) => {
-            appendMessage(payload.new);
+            // Éviter les doublons pour les messages de l'autre personne
+            const existing = document.querySelector('[data-msg-id="' + payload.new.id + '"]');
+            if (!existing) appendMessage(payload.new);
         })
         .subscribe();
 }
@@ -1256,15 +1268,34 @@ function appendMessage(msg) {
 
 window.sendMessage = async function(bookingId) {
     const input = document.getElementById('chat-input');
-    const content = input?.value?.trim();
-    if (!content) return;
+    const msgContent = input?.value?.trim();
+    if (!msgContent) return;
     input.value = '';
 
-    const { error } = await sb.from('messages').insert({
+    const msg = {
         booking_id: bookingId,
         sender_id: currentUser.id,
-        sender_name: currentUser.name,
-        content: sanitize(content)
+        sender_name: currentUser.name || 'Moi',
+        content: sanitize(msgContent),
+        created_at: new Date().toISOString()
+    };
+
+    // Afficher immédiatement côté envoyeur
+    appendMessage(msg);
+
+    // Broadcaster pour l'autre personne (instantané)
+    sb.channel('chat-' + bookingId).send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: msg
+    });
+
+    // Sauvegarder en base (persistant)
+    const { error } = await sb.from('messages').insert({
+        booking_id: msg.booking_id,
+        sender_id: msg.sender_id,
+        sender_name: msg.sender_name,
+        content: msg.content
     });
 
     if (error) notif('❌ Erreur envoi', error.message, 'red');
