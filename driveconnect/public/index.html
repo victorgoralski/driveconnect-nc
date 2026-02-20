@@ -433,7 +433,7 @@ function StudentDashboard() {
                     const hasPenalty=i.penalty_until&&new Date(i.penalty_until)>now;
                     const availableSlots=DB.slots.filter(s=>s.instructor_id===i.id).length;
                     const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-                    return `<div class="instructor-card fade-in" onclick="focusInstructor('${i.id}')" style="animation-delay:${idx*0.05}s">
+                    return `<div class="instructor-card fade-in" onclick="showInstructorProfile('${i.id}')" style="animation-delay:${idx*0.05}s">
                         <div class="instructor-card-header">
                             <div class="flex justify-between items-start mb-4">
                                 <span class="badge ${i.is_online?'badge-online':'badge-gray'}">${i.is_online?'● En ligne':'○ Hors ligne'}</span>
@@ -945,7 +945,7 @@ function initMap() {
 }
 
 window.centerOnMe=()=>{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],15);notif('📍 Localisé !','','blue');},()=>{});};
-window.focusInstructor=(id)=>{const i=DB.instructors.find(x=>x.id===id);if(i&&map){map.setView([i.lat,i.lng],15);iMarkers.find(m=>m.id===id)?.marker.openPopup();}};
+window.focusInstructor=(id)=>{ showInstructorProfile(id); };
 
 window.startTracking=()=>{
     if(!navigator.geolocation){notif('❌ GPS indisponible','','red');return;}
@@ -1479,6 +1479,133 @@ async function uploadAvatar(file) {
     await loadData();
     render();
 }
+
+
+
+// ========== PROFIL PUBLIC MONITEUR ==========
+window.focusInstructor = function(id) { window.showInstructorProfile(id); };
+
+window.showInstructorProfile = function(instructorId) {
+    const inst = DB.instructors.find(x => x.id === instructorId);
+    if (!inst) return;
+    const slots = DB.slots.filter(s => s.instructor_id === instructorId && s.available);
+    const initials = (inst.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const stars = inst.rating ? Math.round(inst.rating) : 0;
+
+    // Supprimer modal existant
+    document.getElementById('profile-modal')?.remove();
+
+    // Créer overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'profile-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center';
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    // Créer panel
+    const panel = document.createElement('div');
+    panel.style.cssText = 'width:100%;max-width:480px;border-radius:24px 24px 0 0;overflow:hidden;max-height:90vh;overflow-y:auto;background:var(--surface)';
+
+    // Header sombre
+    const header = document.createElement('div');
+    header.style.cssText = 'background:linear-gradient(135deg,#1A1A1A,#2D2D2D);padding:24px;position:relative';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '&#x2715;';
+    closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px';
+    closeBtn.onclick = () => overlay.remove();
+
+    const avatarDiv = document.createElement('div');
+    avatarDiv.style.cssText = 'width:72px;height:72px;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:white;background:var(--primary);flex-shrink:0';
+    if (inst.avatar_url) {
+        const img = document.createElement('img');
+        img.src = inst.avatar_url;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover';
+        img.alt = inst.name;
+        avatarDiv.appendChild(img);
+    } else {
+        avatarDiv.textContent = initials;
+    }
+
+    const infoDiv = document.createElement('div');
+    infoDiv.innerHTML = '<h2 style="font-size:20px;font-weight:700;color:white;margin-bottom:4px">' + inst.name + (inst.verified ? ' <span style="background:#DCFCE7;color:#16A34A;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600">✓ Vérifié</span>' : '') + '</h2>' +
+        '<p style="color:rgba(255,255,255,0.5);font-size:13px">📍 ' + (inst.location || 'Nouméa') + '</p>' +
+        '<p style="color:#F59E0B;font-size:14px;margin-top:4px">' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + (inst.rating ? ' <span style="color:rgba(255,255,255,0.7)">' + inst.rating.toFixed(1) + '</span>' : '') + ' <span style="color:rgba(255,255,255,0.3);font-size:12px">(' + (inst.total_reviews || 0) + ' avis)</span></p>';
+
+    const flexRow = document.createElement('div');
+    flexRow.style.cssText = 'display:flex;align-items:center;gap:16px';
+    flexRow.appendChild(avatarDiv);
+    flexRow.appendChild(infoDiv);
+    header.appendChild(closeBtn);
+    header.appendChild(flexRow);
+
+    // Stats bar
+    const statsBar = document.createElement('div');
+    statsBar.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;padding:20px;border-bottom:1px solid var(--border)';
+    const statsData = [
+        { val: (inst.hourly_rate || 0).toLocaleString(), label: 'XPF/heure' },
+        { val: inst.experience || '—', label: 'ans exp.' },
+        { val: slots.length, label: 'créneaux' }
+    ];
+    statsData.forEach((s, i) => {
+        const cell = document.createElement('div');
+        cell.style.cssText = 'text-align:center' + (i > 0 ? ';border-left:1px solid var(--border)' : '');
+        cell.innerHTML = '<p style="font-size:22px;font-weight:700;color:' + (i === 0 ? 'var(--primary)' : 'var(--text)') + '">' + s.val + '</p><p style="font-size:12px;color:var(--text-muted);margin-top:4px">' + s.label + '</p>';
+        statsBar.appendChild(cell);
+    });
+
+    // Statut en ligne
+    const statusBar = document.createElement('div');
+    statusBar.style.cssText = 'padding:12px 20px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)';
+    statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:' + (inst.is_online ? '#22C55E' : '#9CA3AF') + '"></div><p style="font-size:14px;font-weight:500;color:var(--text)">' + (inst.is_online ? 'En ligne maintenant' : 'Hors ligne') + '</p>';
+
+    // Créneaux
+    const slotsSection = document.createElement('div');
+    slotsSection.style.cssText = 'padding:20px';
+    const slotsTitle = document.createElement('h3');
+    slotsTitle.style.cssText = 'font-weight:700;font-size:16px;color:var(--text);margin-bottom:16px';
+    slotsTitle.textContent = 'Créneaux disponibles';
+    slotsSection.appendChild(slotsTitle);
+
+    if (slots.length === 0) {
+        const empty = document.createElement('p');
+        empty.style.cssText = 'text-align:center;color:var(--text-muted);font-size:14px;padding:32px 0';
+        empty.textContent = 'Aucun créneau disponible pour le moment';
+        slotsSection.appendChild(empty);
+    } else {
+        slots.forEach(s => {
+            const slotCard = document.createElement('div');
+            slotCard.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px;border-radius:16px;margin-bottom:8px;background:var(--bg);border:1px solid var(--border)';
+            const slotInfo = document.createElement('div');
+            slotInfo.innerHTML = '<p style="font-weight:600;font-size:14px;color:var(--text)">' + s.date + ' à ' + s.time + '</p><p style="font-size:12px;color:var(--text-muted);margin-top:2px">Durée : ' + s.duration + 'h</p>';
+            const slotRight = document.createElement('div');
+            slotRight.style.cssText = 'display:flex;align-items:center;gap:12px';
+            const price = document.createElement('p');
+            price.style.cssText = 'font-weight:700;color:var(--primary)';
+            price.textContent = s.price.toLocaleString() + ' XPF';
+            const bookBtn = document.createElement('button');
+            bookBtn.className = 'btn-primary';
+            bookBtn.style.cssText = 'padding:8px 16px;font-size:13px';
+            bookBtn.textContent = 'Réserver';
+            bookBtn.onclick = () => {
+                overlay.remove();
+                window.bookSlot(s.id, instructorId);
+            };
+            slotRight.appendChild(price);
+            slotRight.appendChild(bookBtn);
+            slotCard.appendChild(slotInfo);
+            slotCard.appendChild(slotRight);
+            slotsSection.appendChild(slotCard);
+        });
+    }
+
+    panel.appendChild(header);
+    panel.appendChild(statsBar);
+    panel.appendChild(statusBar);
+    panel.appendChild(slotsSection);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+}
+
 
 boot();
 </script>
