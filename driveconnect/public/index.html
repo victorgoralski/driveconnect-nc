@@ -2,8 +2,16 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>DriveConnect NC</title>
+    <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
+    <meta name="theme-color" content="#f97316">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="DriveConnect">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -19,6 +27,20 @@
         .tab-btn.active { color: #f97316; border-bottom: 3px solid #f97316; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         .fade-in { animation: fadeIn 0.3s ease forwards; }
+        /* PWA MOBILE */
+        * { -webkit-tap-highlight-color: transparent; }
+        body { overscroll-behavior-y: contain; }
+        input, textarea, select { font-size: 16px !important; } /* Empêche le zoom iOS */
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        @media (max-width: 640px) {
+            .container { padding-left: 1rem !important; padding-right: 1rem !important; }
+            h1 { font-size: 1.75rem !important; }
+            .text-6xl { font-size: 2.5rem !important; }
+            .p-10 { padding: 1.5rem !important; }
+            .rounded-3xl { border-radius: 1.25rem !important; }
+            .grid.md\:grid-cols-2 { grid-template-columns: 1fr !important; }
+            .grid.md\:grid-cols-3 { grid-template-columns: 1fr 1fr !important; }
+        }
         /* MODE SOMBRE */
         .dark body { background: #0f172a !important; color: #e2e8f0 !important; }
         .dark .bg-white { background: #1e293b !important; }
@@ -1023,6 +1045,11 @@ function render() {
 }
 
 // ========== DÉMARRAGE ==========
+// ========== SERVICE WORKER PWA ==========
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
 async function boot() {
     document.getElementById('app').innerHTML = '<div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center"><div class="text-center"><div class="text-5xl mb-4">🚗</div><p class="text-xl font-bold text-orange-600">DriveConnect NC</p><p class="text-gray-400 mt-2">Connexion à la base de données...</p><div class="mt-4 w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div></div></div>';
 
