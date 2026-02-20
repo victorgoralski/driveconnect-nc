@@ -433,7 +433,6 @@ function StudentDashboard() {
                     const hasPenalty=i.penalty_until&&new Date(i.penalty_until)>now;
                     const availableSlots=DB.slots.filter(s=>s.instructor_id===i.id).length;
                     const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-                    const stars = i.rating ? '★'.repeat(Math.round(i.rating)) + '☆'.repeat(5-Math.round(i.rating)) : '';
                     return `<div class="instructor-card fade-in" onclick="focusInstructor('${i.id}')" style="animation-delay:${idx*0.05}s">
                         <div class="instructor-card-header">
                             <div class="flex justify-between items-start mb-4">
@@ -441,7 +440,9 @@ function StudentDashboard() {
                                 ${idx===0?'<span class="badge badge-yellow">⭐ Top</span>':''}
                                 ${hasPenalty?'<span class="badge badge-red">⚠ Pénalisé</span>':''}
                             </div>
-                            <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white mb-3" style="background:var(--primary)">${initials}</div>
+                            <div class="w-16 h-16 rounded-2xl overflow-hidden mb-3 flex items-center justify-center text-xl font-bold text-white" style="background:var(--primary)">
+                                ${i.avatar_url ? '<img src="'+i.avatar_url+'" class="w-full h-full object-cover" alt="'+i.name+'">' : initials}
+                            </div>
                             <h3 class="font-bold text-lg text-white mb-1">${i.name}</h3>
                             <p class="text-sm" style="color:rgba(255,255,255,0.5)">📍 ${i.location||'Nouméa'}</p>
                         </div>
@@ -617,13 +618,45 @@ function EarningsTab(myBookings) {
 }
 
 function SettingsTab(profile) {
-    return `<form id="settings-form" class="space-y-4">
-        <div><label class="block text-sm font-medium mb-2">Localisation</label><input type="text" id="s-loc" value="${profile.location||''}" class="w-full px-4 py-3 border rounded-xl outline-none focus:border-orange-400" placeholder="Quartier / Ville"></div>
-        <div><label class="block text-sm font-medium mb-2">Téléphone</label><input type="tel" id="s-phone" value="${profile.phone_number||''}" class="w-full px-4 py-3 border rounded-xl outline-none focus:border-orange-400" placeholder="+687 XX XX XX"></div>
-        <div><label class="block text-sm font-medium mb-2">Tarif horaire (XPF)</label><input type="number" id="s-rate" value="${profile.hourly_rate||4500}" class="w-full px-4 py-3 border rounded-xl outline-none focus:border-orange-400"></div>
-        <div><label class="block text-sm font-medium mb-2">Années d'expérience</label><input type="number" id="s-exp" value="${profile.experience||0}" class="w-full px-4 py-3 border rounded-xl outline-none focus:border-orange-400"></div>
-        <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 rounded-xl font-bold">💾 Sauvegarder</button>
-    </form>`;
+    const avatarUrl = profile.avatar_url || '';
+    return `<div class="space-y-6">
+        <!-- Photo de profil -->
+        <div class="flex flex-col items-center gap-4 p-5 rounded-2xl" style="background:var(--bg);border:1.5px dashed var(--border)">
+            <div id="avatar-preview" class="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center text-3xl font-bold text-white" style="background:var(--primary)">
+                ${avatarUrl ? '<img src="'+avatarUrl+'" class="w-full h-full object-cover" alt="Photo profil">' : profile.name.charAt(0).toUpperCase()}
+            </div>
+            <div class="text-center">
+                <p class="font-semibold text-sm mb-1" style="color:var(--text)">Photo de profil</p>
+                <p class="text-xs mb-3" style="color:var(--text-muted)">Ajoutez une photo pour être reconnaissable par vos élèves</p>
+                <label class="btn-primary cursor-pointer" style="padding:10px 20px;font-size:13px;display:inline-block">
+                    📷 Choisir une photo
+                    <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="previewAvatar(event)">
+                </label>
+            </div>
+            ${!avatarUrl ? '<p class="text-xs font-medium" style="color:#DC2626">⚠️ Photo requise pour être visible par les élèves</p>' : '<p class="text-xs font-medium" style="color:#059669">✅ Photo ajoutée</p>'}
+        </div>
+
+        <!-- Infos profil -->
+        <form id="settings-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold mb-2" style="color:var(--text)">Localisation</label>
+                <input type="text" id="s-loc" value="${profile.location||''}" class="input-field" placeholder="Quartier / Ville">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-2" style="color:var(--text)">Téléphone</label>
+                <input type="tel" id="s-phone" value="${profile.phone_number||''}" class="input-field" placeholder="+687 XX XX XX">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-2" style="color:var(--text)">Tarif horaire (XPF)</label>
+                <input type="number" id="s-rate" value="${profile.hourly_rate||4500}" class="input-field">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-2" style="color:var(--text)">Années d'expérience</label>
+                <input type="number" id="s-exp" value="${profile.experience||0}" class="input-field">
+            </div>
+            <button type="submit" class="btn-primary w-full text-center" style="font-size:15px">Sauvegarder</button>
+        </form>
+    </div>`;
 }
 
 // ========== ACTIONS CRÉNEAUX ==========
@@ -1399,6 +1432,49 @@ window.sendMessage = async function(bookingId) {
     });
 
     if (error) notif('❌ Erreur envoi', error.message, 'red');
+}
+
+
+// ========== AVATAR ==========
+window.previewAvatar = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { notif('❌ Fichier trop lourd', 'Maximum 5MB', 'red'); return; }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('avatar-preview');
+        if (preview) preview.innerHTML = '<img src="'+e.target.result+'" class="w-full h-full object-cover" alt="Preview">';
+    };
+    reader.readAsDataURL(file);
+
+    // Upload immédiat
+    uploadAvatar(file);
+}
+
+async function uploadAvatar(file) {
+    const ext = file.name.split('.').pop();
+    const path = currentUser.id + '/avatar.' + ext;
+
+    notif('⏳ Upload en cours...', '', 'orange');
+
+    const { data, error } = await sb.storage.from('avatars').upload(path, file, {
+        upsert: true,
+        contentType: file.type
+    });
+
+    if (error) { notif('❌ Erreur upload', error.message, 'red'); return; }
+
+    const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+    const avatarUrl = urlData.publicUrl + '?t=' + Date.now();
+
+    await sb.from('instructors').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
+    await sb.from('users').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
+
+    currentUser.avatar_url = avatarUrl;
+    notif('✅ Photo mise à jour !', 'Visible par tous les élèves', 'green');
+    await loadData();
+    render();
 }
 
 boot();
