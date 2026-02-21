@@ -24,9 +24,8 @@
 
     <!-- STYLES LANDING -->
     <style id="landing-styles">
-#landing-page {
 
-        :root {
+        #landing-page {
             --orange: #FF5A1F;
             --orange-light: #FF8C42;
             --dark: #0D0D0D;
@@ -41,7 +40,7 @@
 
         html { scroll-behavior: smooth; }
 
-        body {
+        #landing-page {
             background: var(--dark);
             color: var(--text);
             font-family: 'Cabinet Grotesk', sans-serif;
@@ -649,7 +648,7 @@
         .star:hover { transform: scale(1.2); }
     </style>
 </head>
-<body>
+<body style="background:#0D0D0D;margin:0;padding:0">
 
 <!-- ========== LANDING PAGE ========== -->
 <div id="landing-page">
@@ -2503,9 +2502,7 @@ window.showInstructorProfile = function(instructorId) {
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 }
-
-
-boot();
+// boot() sera appelé par showApp()
 </script>
 
 </div>
@@ -2554,10 +2551,15 @@ const sbCheck = supabase.createClient(SUPABASE_URL_CHECK, SUPABASE_KEY_CHECK);
 
 
 // Montrer l'app quand on clique sur "Commencer"
+let appBooted = false;
 function showApp() {
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.body.classList.add('app-mode');
+    if (!appBooted) {
+        appBooted = true;
+        boot();
+    }
 }
 
 // Remplacer les liens /app.html par showApp()
