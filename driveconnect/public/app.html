@@ -1185,7 +1185,30 @@ function render() {
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
+const VAPID_PUBLIC = 'BMjTOVHtirDedvOuVi151Q7lrkGvJM0h8tmgwHxrfbPzXc0-P4LQufCwlfXYw5pKLV6-SIKeTMVZNAQMxVtjqHU';
 
+async function subscribeToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: VAPID_PUBLIC });
+        const { endpoint, keys } = sub.toJSON();
+        await sb.from('push_subscriptions').upsert({ user_id: currentUser.id, endpoint, p256dh: keys.p256dh, auth: keys.auth }, { onConflict: 'user_id,endpoint' });
+    } catch(e) { console.error('Push:', e); }
+}
+
+async function sendPushToUser(userId, title, body) {
+    try {
+        const token = (await sb.auth.getSession()).data.session?.access_token;
+        await fetch('https://nnmdvepfyccnehzbvpfn.supabase.co/functions/v1/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ user_id: userId, title, body, url: '/app.html' })
+        });
+    } catch(e) { console.error(e); }
+}
 async function boot() {
     document.getElementById('app').innerHTML = '<div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center"><div class="text-center"><div class="text-5xl mb-4">🚗</div><p class="text-xl font-bold text-orange-600">DriveConnect NC</p><p class="text-gray-400 mt-2">Connexion à la base de données...</p><div class="mt-4 w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div></div></div>';
 
@@ -1200,7 +1223,8 @@ async function boot() {
                 currentView = profile.user_type === 'student' ? 'student-dashboard' : 'instructor-dashboard';
             }
         }
-    }
+}
+    subscribeToPush();
 
     await loadData();
     render();
