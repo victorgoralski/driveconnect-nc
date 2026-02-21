@@ -656,7 +656,29 @@ function SettingsTab(profile) {
             </div>
             <button type="submit" class="btn-primary w-full text-center" style="font-size:15px">Sauvegarder</button>
         </form>
-    </div>`;
+    </div> <div class="card p-6 mt-4">
+    <h3 class="font-bold text-lg mb-1" style="color:var(--text)">🎁 Parrainage</h3>
+    <p class="text-sm mb-4" style="color:var(--text-muted)">Parrainez un moniteur → <strong>1% de commission en moins</strong> pendant 10 cours.</p>
+    <div class="mb-4">
+        <p class="text-xs font-semibold mb-2" style="color:var(--text-muted)">VOTRE CODE</p>
+        <div class="flex gap-2 items-center">
+            <div id="referral-code-display" class="flex-1 p-3 rounded-xl font-mono font-bold text-lg text-center" style="background:var(--bg);border:2px dashed var(--primary);color:var(--primary);letter-spacing:4px">...</div>
+            <button onclick="copyReferralCode()" class="btn-secondary px-4 py-3 rounded-xl">📋</button>
+        </div>
+    </div>
+    <button onclick="shareReferralLink()" class="btn-primary w-full mb-4" style="padding:12px">🔗 Partager mon lien</button>
+    <div class="grid grid-cols-2 gap-3">
+        <div class="p-3 rounded-xl text-center" style="background:var(--bg)">
+            <p class="text-2xl font-bold" id="referral-count">0</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">Filleuls</p>
+        </div>
+        <div class="p-3 rounded-xl text-center" style="background:var(--bg)">
+            <p class="text-2xl font-bold" style="color:var(--primary)" id="referral-savings">0</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">XPF économisés</p>
+        </div>
+    </div>
+    <div id="referral-list" class="mt-4 space-y-2"></div>
+</div>`;
 }
 
 // ========== ACTIONS CRÉNEAUX ==========
