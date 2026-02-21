@@ -1233,6 +1233,60 @@ async function sendPushToUser(userId, title, body) {
         });
     } catch(e) { console.error(e); }
 }
+// ===== PARRAINAGE =====
+async function loadReferralData() {
+    if (!currentUser || currentUser.user_type !== 'instructor') return;
+    const { data: instructor } = await sb.from('instructors').select('referral_code').eq('id', currentUser.id).single();
+    if (instructor?.referral_code) {
+        const el = document.getElementById('referral-code-display');
+        if (el) el.textContent = instructor.referral_code;
+    }
+    const { data: referrals } = await sb.from('referrals').select('*, referred:referred_id(name)').eq('referrer_id', currentUser.id).eq('status', 'active');
+    if (referrals) {
+        const countEl = document.getElementById('referral-count');
+        if (countEl) countEl.textContent = referrals.length;
+        const savingsEl = document.getElementById('referral-savings');
+        if (savingsEl) savingsEl.textContent = (referrals.reduce((s, r) => s + r.bonus_courses_remaining * 450, 0)).toLocaleString();
+        const listEl = document.getElementById('referral-list');
+        if (listEl && referrals.length > 0) listEl.innerHTML = referrals.map(r => `<div class="flex justify-between items-center p-3 rounded-xl" style="background:var(--bg)"><p class="text-sm font-semibold">${r.referred?.name||'Moniteur'}</p><span class="text-xs" style="color:var(--primary)">${r.bonus_courses_remaining} cours restants</span></div>`).join('');
+    }
+}
+
+async function copyReferralCode() {
+    const code = document.getElementById('referral-code-display')?.textContent;
+    if (!code || code === '...') return;
+    await navigator.clipboard.writeText(code);
+    notif('✅ Copié !', 'Code de parrainage copié', 'green');
+}
+
+async function shareReferralLink() {
+    const code = document.getElementById('referral-code-display')?.textContent;
+    if (!code || code === '...') return;
+    const link = `https://driveconnect-nc.vercel.app/app.html?ref=${code}`;
+    if (navigator.share) {
+        await navigator.share({ title: 'DriveConnect NC', text: `Rejoins DriveConnect NC avec mon code ${code} 🚗`, url: link });
+    } else {
+        await navigator.clipboard.writeText(link);
+        notif('✅ Lien copié !', link, 'green');
+    }
+}
+
+async function applyReferralCode(newInstructorId, referralCode) {
+    if (!referralCode || referralCode.length !== 8) return;
+    const code = referralCode.toUpperCase().trim();
+    const { data: referrer } = await sb.from('instructors').select('id, name').eq('referral_code', code).single();
+    if (!referrer) { notif('⚠️ Code invalide', 'Ce code de parrainage n\'existe pas', 'yellow'); return; }
+    await sb.from('referrals').insert({ referrer_id: referrer.id, referred_id: newInstructorId, referral_code: code, status: 'active', bonus_courses_remaining: 10, commission_discount: 1 });
+    sendPushToUser(referrer.id, '🎉 Nouveau filleul !', `Un nouveau moniteur a rejoint DriveConnect avec votre code !`);
+    notif('✅ Code appliqué !', `Parrain : ${referrer.name}. 1% de commission en moins pendant 10 cours.`, 'green');
+}
+
+function checkReferralInUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) localStorage.setItem('pending_referral', ref.toUpperCase());
+}
+
 async function boot() {
     document.getElementById('app').innerHTML = '<div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center"><div class="text-center"><div class="text-5xl mb-4">🚗</div><p class="text-xl font-bold text-orange-600">DriveConnect NC</p><p class="text-gray-400 mt-2">Connexion à la base de données...</p><div class="mt-4 w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div></div></div>';
 
@@ -1249,6 +1303,8 @@ async function boot() {
         }
 }
     subscribeToPush();
+    checkReferralInUrl();
+    loadReferralData();
 
     await loadData();
     render();
