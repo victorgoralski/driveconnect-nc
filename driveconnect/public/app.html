@@ -795,6 +795,8 @@ async function sendNotification(type, data) {
         }).select().single();
 
         if (bError) { notif('❌ Erreur réservation', bError.message, 'red'); return; }
+sendPushToUser(instructor.id, '🎉 Nouvelle réservation !', 
+    `${currentUser.name} a réservé le ${slot.date} à ${slot.time}`);
 
         DB.slots = DB.slots.filter(s=>s.id!==slot.id);
         DB.bookings.push(booking);
