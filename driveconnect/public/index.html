@@ -599,6 +599,71 @@
         .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
         .tab-btn:hover { color: var(--text); }
 
+        
+        /* ===== UBER DRIVER STYLE ===== */
+        .uber-earnings-card {
+            background: linear-gradient(135deg, #1C1C1C 0%, #2D2D2D 100%);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid #2D2D2D;
+        }
+        .uber-stat-card {
+            background: #111;
+            border: 1px solid #1C1C1C;
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .uber-stat-card:hover { border-color: #333; }
+        .uber-stat-label { color: #555; font-size: 0.75rem; margin-bottom: 4px; }
+        .uber-stat-value { color: #FFF; font-size: 1.8rem; font-weight: 800; line-height: 1; }
+        .uber-stat-sub { color: #444; font-size: 0.7rem; margin-top: 4px; }
+        .uber-section {
+            background: #111;
+            border: 1px solid #1C1C1C;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .uber-request-card {
+            background: #161616;
+            border: 1px solid #2D2D2D;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 12px;
+        }
+        /* Override card/input styles en mode dark forcé (dashboard moniteur) */
+        .uber-section .card { background: #1C1C1C; border-color: #2D2D2D; }
+        .uber-section input, .uber-section select, .uber-section textarea {
+            background: #1C1C1C !important;
+            border-color: #333 !important;
+            color: #FFF !important;
+        }
+        .uber-section .input-field { background: #1C1C1C; border-color: #333; color: #FFF; }
+        .uber-section label { color: #999 !important; }
+        .uber-section h3 { color: #FFF !important; }
+        .uber-section p { color: #888; }
+        .uber-section .font-bold { color: #FFF; }
+        .uber-section .text-gray-400 { color: #555 !important; }
+        .uber-section .text-gray-500 { color: #555 !important; }
+        .uber-section .border-gray-100 { border-color: #1C1C1C !important; }
+        .uber-section .bg-gray-50 { background: #161616 !important; }
+        .uber-section .bg-white { background: #111 !important; }
+        .uber-section .bg-orange-500 { background: #FF5A1F !important; }
+        .uber-section .text-orange-600 { color: #FF5A1F !important; }
+        .uber-section .text-orange-500 { color: #FF5A1F !important; }
+        .uber-section .text-green-600 { color: #00C853 !important; }
+        .uber-section .bg-green-100 { background: rgba(0,200,83,0.1) !important; }
+        .uber-section .text-green-700 { color: #00C853 !important; }
+        .uber-section .bg-red-100 { background: rgba(255,50,50,0.1) !important; }
+        .uber-section .text-red-600 { color: #FF4444 !important; }
+        .uber-section .bg-yellow-100 { background: rgba(255,200,0,0.1) !important; }
+        .uber-section .text-yellow-700 { color: #FFD700 !important; }
+        .uber-section .tab-btn { color: #666; background: none; }
+        .uber-section .tab-btn.active { color: #FFF; border-bottom-color: #FF5A1F; }
+
         /* ANIMATIONS */
         @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
         @keyframes slideIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
@@ -646,311 +711,6 @@
         .stars { display:flex; gap:4px; }
         .star { font-size:1.5rem; cursor:pointer; transition: transform 0.1s; }
         .star:hover { transform: scale(1.2); }
-
-        /* ===== INSTRUCTOR DASHBOARD REDESIGN ===== */
-        .dash-header {
-            background: rgba(255,255,255,0.96);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-bottom: 1px solid #F0F0F0;
-            position: sticky; top: 0; z-index: 50;
-            padding: 0 24px;
-        }
-        .dark .dash-header {
-            background: rgba(18,18,18,0.96);
-            border-bottom-color: #2A2A2A;
-        }
-        .dash-header-inner {
-            max-width: 1100px; margin: 0 auto;
-            height: 60px; display: flex; align-items: center;
-            justify-content: space-between; gap: 16px;
-        }
-        .dash-logo {
-            font-size: 17px; font-weight: 800; letter-spacing: -0.4px;
-            color: var(--text);
-        }
-        .dash-logo span { color: var(--primary); }
-        .status-pill {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 7px 14px; border-radius: 100px;
-            font-size: 12px; font-weight: 700; letter-spacing: 0.2px;
-            border: 1.5px solid; cursor: pointer; transition: all 0.2s;
-        }
-        .status-pill.online {
-            color: #16A34A; border-color: #86EFAC;
-            background: #F0FDF4;
-        }
-        .status-pill.offline {
-            color: #6B7280; border-color: #E5E7EB;
-            background: #F9FAFB;
-        }
-        .dark .status-pill.offline {
-            color: #9CA3AF; border-color: #3A3A3A; background: #1E1E1E;
-        }
-        .status-dot {
-            width: 7px; height: 7px; border-radius: 50%;
-            background: currentColor;
-        }
-        .status-pill.online .status-dot {
-            animation: blink 2s ease-in-out infinite;
-        }
-        @keyframes blink {
-            0%,100%{opacity:1} 50%{opacity:0.4}
-        }
-        .dash-actions { display: flex; align-items: center; gap: 8px; }
-        .icon-btn {
-            width: 36px; height: 36px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; cursor: pointer; border: none;
-            background: var(--bg); transition: all 0.2s;
-            color: var(--text-muted);
-        }
-        .icon-btn:hover { background: var(--border); }
-        .logout-btn {
-            font-size: 13px; font-weight: 600; padding: 7px 14px;
-            border-radius: 100px; border: 1.5px solid var(--border);
-            background: transparent; cursor: pointer; color: var(--text-muted);
-            transition: all 0.2s;
-        }
-        .logout-btn:hover { border-color: var(--text-muted); color: var(--text); }
-
-        /* MAIN LAYOUT */
-        .dash-body {
-            max-width: 1100px; margin: 0 auto;
-            padding: 28px 20px 60px;
-        }
-        @media(min-width:768px){ .dash-body { padding: 36px 24px 80px; } }
-
-        /* REVENUE HERO CARD */
-        .revenue-hero {
-            border-radius: 24px; padding: 28px;
-            background: linear-gradient(135deg, #111 0%, #222 100%);
-            position: relative; overflow: hidden; margin-bottom: 16px;
-        }
-        .revenue-hero::before {
-            content:'';
-            position:absolute; top:-80px; right:-80px;
-            width:220px;height:220px;border-radius:50%;
-            background: radial-gradient(circle, rgba(255,90,31,0.18) 0%, transparent 70%);
-        }
-        .revenue-hero::after {
-            content:'';
-            position:absolute; bottom:-40px; left:30%;
-            width:160px;height:160px;border-radius:50%;
-            background: radial-gradient(circle, rgba(255,90,31,0.1) 0%, transparent 70%);
-        }
-        .revenue-label {
-            font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
-            text-transform: uppercase; color: rgba(255,255,255,0.4);
-            margin-bottom: 10px;
-        }
-        .revenue-amount {
-            font-size: 42px; font-weight: 900; color: white;
-            letter-spacing: -2px; line-height: 1; margin-bottom: 8px;
-        }
-        .revenue-amount span {
-            font-size: 18px; font-weight: 400;
-            color: rgba(255,255,255,0.35); letter-spacing: 0;
-        }
-        .revenue-sub { font-size: 13px; color: rgba(255,255,255,0.35); }
-        .revenue-badge {
-            position: absolute; top: 24px; right: 24px;
-            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
-            color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 700;
-            padding: 5px 12px; border-radius: 100px; letter-spacing: 0.5px;
-        }
-
-        /* STAT CARDS ROW */
-        .stats-row {
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 12px; margin-bottom: 20px;
-        }
-        .stat-card {
-            background: white; border-radius: 18px;
-            border: 1px solid #F0F0F0; padding: 18px 16px;
-            transition: all 0.2s; cursor: default;
-        }
-        .dark .stat-card { background: #1C1C1E; border-color: #2C2C2E; }
-        .stat-card.clickable { cursor: pointer; }
-        .stat-card.clickable:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-        .stat-card-icon {
-            width: 34px; height: 34px; border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; margin-bottom: 12px;
-        }
-        .stat-icon-blue { background: #EFF6FF; }
-        .stat-icon-purple { background: #F5F3FF; }
-        .stat-icon-orange { background: #FFF7ED; }
-        .stat-card-value {
-            font-size: 26px; font-weight: 800; color: var(--text);
-            letter-spacing: -1px; line-height: 1;
-        }
-        .stat-card-value.accent { color: var(--primary); }
-        .stat-card-label {
-            font-size: 11px; color: var(--text-muted); margin-top: 4px;
-            font-weight: 500;
-        }
-        .stat-card-sub {
-            font-size: 10px; color: var(--text-muted); margin-top: 2px;
-        }
-
-        /* MAP CARD */
-        .map-card {
-            background: white; border-radius: 20px;
-            border: 1px solid #F0F0F0;
-            overflow: hidden; margin-bottom: 20px;
-        }
-        .dark .map-card { background: #1C1C1E; border-color: #2C2C2E; }
-        .map-card-header {
-            padding: 18px 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #F5F5F5;
-        }
-        .dark .map-card-header { border-bottom-color: #2C2C2E; }
-        .map-card-title {
-            font-size: 15px; font-weight: 700; color: var(--text);
-        }
-        .map-card-sub {
-            font-size: 11px; color: var(--text-muted); margin-top: 2px;
-        }
-        .gps-btn {
-            display: inline-flex; align-items: center; gap: 6px;
-            background: var(--primary); color: white;
-            padding: 9px 16px; border-radius: 12px; border: none;
-            font-size: 12px; font-weight: 700; cursor: pointer;
-            transition: all 0.2s; font-family: 'DM Sans', sans-serif;
-        }
-        .gps-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
-
-        /* TABS REDESIGN */
-        .tabs-card {
-            background: white; border-radius: 20px;
-            border: 1px solid #F0F0F0; overflow: hidden;
-        }
-        .dark .tabs-card { background: #1C1C1E; border-color: #2C2C2E; }
-        .tabs-nav {
-            display: flex; overflow-x: auto;
-            border-bottom: 1px solid #F0F0F0;
-            scrollbar-width: none; -webkit-overflow-scrolling: touch;
-            padding: 0 8px;
-        }
-        .tabs-nav::-webkit-scrollbar { display: none; }
-        .dark .tabs-nav { border-bottom-color: #2C2C2E; }
-        .tab-pill {
-            flex-shrink: 0; padding: 0 16px; height: 52px;
-            display: flex; align-items: center; gap: 6px;
-            font-size: 13px; font-weight: 600; cursor: pointer;
-            border: none; background: transparent; border-bottom: 2px solid transparent;
-            color: var(--text-muted); transition: all 0.2s;
-            white-space: nowrap; font-family: 'DM Sans', sans-serif;
-            margin-bottom: -1px;
-        }
-        .tab-pill.active { color: var(--primary); border-bottom-color: var(--primary); }
-        .tab-pill:hover:not(.active) { color: var(--text); }
-        .tab-pill-icon { font-size: 15px; }
-        .tab-body { padding: 24px 20px; }
-        @media(min-width:640px){ .tab-body { padding: 28px; } }
-
-        /* SLOT ITEMS */
-        .slot-item {
-            border: 1.5px solid #F0F0F0; border-radius: 16px;
-            padding: 16px; transition: all 0.2s;
-        }
-        .dark .slot-item { border-color: #2C2C2E; }
-        .slot-item.booked { border-color: #BFDBFE; background: #EFF6FF; }
-        .dark .slot-item.booked { border-color: #1D4ED8; background: rgba(29,78,216,0.12); }
-        .slot-date { font-size: 14px; font-weight: 700; color: var(--text); }
-        .slot-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-        .slot-student { font-size: 12px; color: #2563EB; margin-top: 4px; font-weight: 600; }
-        .slot-status-badge {
-            font-size: 11px; font-weight: 700;
-            padding: 4px 10px; border-radius: 100px;
-        }
-        .add-slot-btn {
-            width: 100%; padding: 14px;
-            border: 2px dashed #E5E7EB; border-radius: 16px;
-            background: transparent; cursor: pointer;
-            font-size: 13px; font-weight: 600; color: var(--text-muted);
-            transition: all 0.2s; font-family: 'DM Sans', sans-serif;
-            margin-top: 8px;
-        }
-        .add-slot-btn:hover { border-color: var(--primary); color: var(--primary); background: #FFF7ED; }
-
-        /* BOOKING ITEMS */
-        .booking-item {
-            border: 1.5px solid #F0F0F0; border-radius: 16px;
-            padding: 16px; transition: background 0.2s;
-        }
-        .dark .booking-item { border-color: #2C2C2E; }
-        .booking-student { font-size: 14px; font-weight: 700; color: var(--text); }
-        .booking-info { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
-        .booking-amount { font-size: 14px; font-weight: 700; color: var(--primary); }
-
-        /* EARNINGS */
-        .earnings-hero {
-            background: linear-gradient(135deg, #FF5A1F, #FF8C42);
-            border-radius: 18px; padding: 22px;
-            color: white; margin-bottom: 16px;
-        }
-        .earnings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-        .earnings-mini {
-            background: white; border: 1px solid #F0F0F0;
-            border-radius: 16px; padding: 16px;
-        }
-        .dark .earnings-mini { background: #1C1C1E; border-color: #2C2C2E; }
-        .month-bar {
-            background: #F5F5F5; border-radius: 12px; padding: 14px 16px;
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 8px;
-        }
-        .dark .month-bar { background: #252525; }
-        .month-bar-track {
-            height: 3px; background: #E5E7EB; border-radius: 2px;
-            margin-top: 6px; overflow: hidden;
-        }
-        .dark .month-bar-track { background: #3A3A3A; }
-        .month-bar-fill { height: 100%; background: var(--primary); border-radius: 2px; }
-
-        /* SETTINGS */
-        .settings-section { margin-bottom: 24px; }
-        .settings-label {
-            font-size: 11px; font-weight: 700; letter-spacing: 1px;
-            text-transform: uppercase; color: var(--text-muted);
-            margin-bottom: 12px; display: block;
-        }
-        .avatar-upload-zone {
-            border-radius: 18px; padding: 24px;
-            border: 2px dashed #E5E7EB; background: #FAFAFA;
-            display: flex; flex-direction: column; align-items: center;
-            gap: 12px; text-align: center;
-        }
-        .dark .avatar-upload-zone { border-color: #3A3A3A; background: #1A1A1A; }
-
-        /* SECTION HEADER */
-        .section-hdr {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 16px;
-        }
-        .section-hdr h3 {
-            font-size: 16px; font-weight: 700; color: var(--text);
-        }
-
-        /* ACTION BTNS IN SLOTS */
-        .danger-link {
-            font-size: 11px; color: #EF4444; font-weight: 600;
-            background: none; border: none; cursor: pointer;
-            padding: 4px 0; font-family: 'DM Sans', sans-serif;
-        }
-        .danger-link:hover { text-decoration: underline; }
-
-        /* EMPTY STATES */
-        .empty-state {
-            text-align: center; padding: 48px 24px;
-            color: var(--text-muted);
-        }
-        .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
-        .empty-state-text { font-size: 14px; font-weight: 500; }
-
     </style>
 </head>
 <body style="background:#0D0D0D;margin:0;padding:0">
@@ -1255,7 +1015,7 @@ const NOUMEA = { lat: -22.2758, lng: 166.4580 };
 
 let currentUser = null;
 let currentView = 'home';
-let currentTab  = 'slots';
+let currentTab  = 'home';
 let map = null, userMarker = null, iMarkers = [], watchId = null;
 
 // Cache local pour éviter trop de requêtes
@@ -1562,160 +1322,205 @@ function InstructorDashboard() {
     const myBookings = DB.bookings;
     const profile = DB.instructors.find(x=>x.id===currentUser.id) || {};
     const mySlots = DB.slots.filter(s=>s.instructor_id===currentUser.id);
-    const paidBookings = myBookings.filter(b=>b.status==='confirmed'&&b.payment_status==='paid');
-    const totalNet = paidBookings.reduce((s,b)=>s+(b.net||0),0);
-    const confirmedCount = myBookings.filter(b=>b.status==='confirmed').length;
-    const pendingCount = myBookings.filter(b=>b.status==='pending').length;
-    const initials = (currentUser.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-    const avatarHtml = profile.avatar_url
-        ? `<img src="${profile.avatar_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover" alt="avatar">`
-        : `<div style="width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white">${initials}</div>`;
-    const tabs = [{id:'slots',icon:'📅',label:'Créneaux'},{id:'bookings',icon:'📋',label:'Réservations'},{id:'earnings',icon:'💰',label:'Revenus'},{id:'settings',icon:'⚙️',label:'Paramètres'}];
-    return `<div class="min-h-screen" style="background:var(--bg)">
+    const confirmed = myBookings.filter(b=>b.status==='confirmed'&&b.payment_status==='paid');
+    const totalNet = confirmed.reduce((s,b)=>s+(b.net||0),0);
+    const pending = myBookings.filter(b=>b.status==='pending');
 
-        <!-- HEADER -->
-        <header class="dash-header">
-            <div class="dash-header-inner">
-                <div class="dash-logo">Drive<span>Connect</span></div>
-                <div class="dash-actions">
-                    <button onclick="toggleOnline()" class="status-pill ${profile.is_online?'online':'offline'}">
-                        <div class="status-dot"></div>
-                        ${profile.is_online ? 'En ligne' : 'Hors ligne'}
+    // Revenus aujourd'hui
+    const today = new Date().toISOString().substr(0,10);
+    const todayNet = confirmed.filter(b=>b.date===today).reduce((s,b)=>s+(b.net||0),0);
+
+    // Revenus cette semaine
+    const weekStart = new Date(); weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+    const weekNet = confirmed.filter(b=>new Date(b.date)>=weekStart).reduce((s,b)=>s+(b.net||0),0);
+
+    // Prochains cours confirmés
+    const upcoming = myBookings.filter(b=>b.status==='confirmed'&&new Date(b.date)>=new Date())
+        .sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+
+    const tabIcons = [{id:'home',icon:'🏠',label:'Accueil'},{id:'bookings',icon:'📋',label:'Trajets'},{id:'earnings',icon:'💰',label:'Revenus'},{id:'slots',icon:'📅',label:'Créneaux'},{id:'settings',icon:'⚙️',label:'Compte'}];
+
+    const pendingCards = pending.length === 0 ? '' : pending.map(b => {
+        return '<div class="uber-request-card fade-in">' +
+            '<div class="flex justify-between items-start mb-3">' +
+            '<div>' +
+            '<p style="color:#FFF;font-weight:800;font-size:1.1rem">' + (b.student_name||'\u00c9l\u00e8ve') + '</p>' +
+            '<p style="color:#666;font-size:0.85rem">\ud83d\udcc5 ' + b.date + ' \u00e0 ' + b.time + ' \u00b7 ' + b.duration + 'h</p>' +
+            '</div>' +
+            '<div class="text-right">' +
+            '<p style="color:#00C853;font-weight:800;font-size:1.2rem">' + (b.net||0) + ' XPF</p>' +
+            '<p style="color:#555;font-size:0.75rem">net pour vous</p>' +
+            '</div>' +
+            '</div>' +
+            '<div class="flex gap-3">' +
+            '<button class="uber-reject-btn flex-1 py-3 rounded-2xl font-bold text-sm" data-bid="' + b.id + '" style="background:#1C1C1C;color:#9CA3AF;border:1px solid #333">\u2715 Refuser</button>' +
+            '<button class="uber-confirm-btn flex-1 py-3 rounded-2xl font-bold text-sm" data-bid="' + b.id + '" style="background:#00C853;color:#000">\u2713 Accepter</button>' +
+            '</div>' +
+            '</div>';
+    }).join('');
+
+    const upcomingCards = upcoming.length === 0 ?
+        '<div class="text-center py-8"><p class="text-4xl mb-2">🎯</p><p style="color:#666">Aucun cours à venir<br><span style="color:#444;font-size:0.8rem">Ajoutez des créneaux pour recevoir des demandes</span></p></div>' :
+        upcoming.map(b => {
+            return '<div class="flex items-center gap-4 py-4" style="border-bottom:1px solid #1C1C1C">' +
+                '<div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#1C1C1C">' +
+                '<span class="text-xl">👨‍🎓</span>' +
+                '</div>' +
+                '<div class="flex-1">' +
+                '<p class="font-bold text-white">' + (b.student_name||'Élève') + '</p>' +
+                '<p style="color:#666;font-size:0.8rem">📅 ' + b.date + ' à ' + b.time + ' · ' + b.duration + 'h</p>' +
+                '</div>' +
+                '<div class="text-right">' +
+                '<p class="font-bold" style="color:#00C853">' + (b.net||0) + ' XPF</p>' +
+                '<button class="uber-chat-btn" data-bid="' + b.id + '" data-sid="' + b.student_id + '" data-sname="' + (b.student_name||'') + '" style="color:#888;font-size:0.75rem">💬 Chat</button>' +
+                '</div>' +
+                '</div>';
+        }).join('');
+
+    const homeTab = '<div>' +
+        // Carte revenus style Uber
+        '<div class="uber-earnings-card mb-6">' +
+        '<div class="flex justify-between items-start mb-6">' +
+        '<div>' +
+        '<p style="color:rgba(255,255,255,0.5);font-size:0.8rem">Revenus totaux nets</p>' +
+        '<p class="font-bold" style="font-size:2.5rem;color:#FFF;line-height:1">' + totalNet.toLocaleString() + ' <span style="font-size:1rem;color:rgba(255,255,255,0.4)">XPF</span></p>' +
+        '</div>' +
+        '<div class="w-12 h-12 rounded-full flex items-center justify-center" style="background:rgba(255,255,255,0.1)">' +
+        '<span class="text-2xl">💳</span>' +
+        '</div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+        '<div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:16px">' +
+        '<p style="color:rgba(255,255,255,0.4);font-size:0.75rem">Aujourd&#39;hui</p>' +
+        '<p class="font-bold text-white text-xl">' + todayNet.toLocaleString() + ' XPF</p>' +
+        '</div>' +
+        '<div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:16px">' +
+        '<p style="color:rgba(255,255,255,0.4);font-size:0.75rem">Cette semaine</p>' +
+        '<p class="font-bold text-white text-xl">' + weekNet.toLocaleString() + ' XPF</p>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+
+        // Stats rapides
+        '<div class="grid grid-cols-3 gap-3 mb-6">' +
+        '<div class="uber-stat-card">' +
+        '<p class="uber-stat-label">Cours</p>' +
+        '<p class="uber-stat-value">' + confirmed.length + '</p>' +
+        '<p class="uber-stat-sub">confirmés</p>' +
+        '</div>' +
+        '<div class="uber-stat-card" onclick="switchTab(\'slots\')">' +
+        '<p class="uber-stat-label">Créneaux</p>' +
+        '<p class="uber-stat-value">' + mySlots.length + '</p>' +
+        '<p class="uber-stat-sub">disponibles</p>' +
+        '</div>' +
+        '<div class="uber-stat-card" onclick="showMyReviews()" style="cursor:pointer">' +
+        '<p class="uber-stat-label">Note</p>' +
+        '<p class="uber-stat-value" style="color:#FFD700">' + (profile.rating ? profile.rating.toFixed(1) : '—') + '</p>' +
+        '<p class="uber-stat-sub">' + (profile.total_reviews||0) + ' avis ›</p>' +
+        '</div>' +
+        '</div>' +
+
+        // Demandes en attente
+        (pending.length > 0 ? '<div class="uber-section mb-6"><div class="flex items-center gap-2 mb-4"><div class="w-2 h-2 rounded-full animate-pulse" style="background:#FFD700"></div><h3 class="font-bold text-white">' + pending.length + ' demande(s) en attente</h3></div>' + pendingCards + '</div>' : '') +
+
+        // Prochains cours
+        '<div class="uber-section">' +
+        '<div class="flex justify-between items-center mb-4">' +
+        '<h3 class="font-bold text-white">Prochains cours</h3>' +
+        '<button id="uber-slots-btn" style="color:#888;font-size:0.85rem;background:none;border:none;cursor:pointer">Gérer ›</button>' +
+        '</div>' +
+        upcomingCards +
+        '</div>' +
+        '</div>';
+
+    const tabContent = currentTab === 'home' ? homeTab :
+        currentTab === 'bookings' ? '<div class="uber-section">' + BookingsTab(myBookings) + '</div>' :
+        currentTab === 'earnings' ? '<div class="uber-section">' + EarningsTab(myBookings) + '</div>' :
+        currentTab === 'slots' ? '<div class="uber-section">' + SlotsTab(mySlots) + '</div>' :
+        currentTab === 'settings' ? '<div class="uber-section">' + SettingsTab(profile) + '</div>' : '';
+
+    return `<div class="min-h-screen pb-24" style="background:#000;color:#FFF">
+        <!-- Header style Uber Driver -->
+        <header style="background:#000;padding:16px 20px;position:sticky;top:0;z-index:100;border-bottom:1px solid #1C1C1C">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg" style="background:#1C1C1C;color:#FFF">
+                        ${(currentUser.name||'?')[0].toUpperCase()}
+                    </div>
+                    <div>
+                        <p class="font-bold text-white text-sm">${currentUser.name||'Moniteur'}</p>
+                        <p style="color:#666;font-size:0.75rem">${profile.location||'Nouvelle-Calédonie'}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleOnline()" class="font-bold text-sm px-4 py-2 rounded-full transition-all ${profile.is_online ? 'text-black' : 'text-white'}" style="${profile.is_online ? 'background:#00C853' : 'background:#1C1C1C;border:1px solid #333'}">
+                        ${profile.is_online ? '● En ligne' : '○ Hors ligne'}
                     </button>
-                    <button onclick="toggleDark()" class="icon-btn" id="dark-btn" title="Mode sombre">🌙</button>
-                    ${avatarHtml}
-                    <button onclick="logout()" class="logout-btn">Sortir</button>
+                    <button onclick="toggleDark()" class="w-9 h-9 flex items-center justify-center rounded-full" style="background:#1C1C1C" id="dark-btn">🌙</button>
                 </div>
             </div>
         </header>
 
-        <!-- BODY -->
-        <div class="dash-body">
-
-            <!-- REVENUE HERO -->
-            <div class="revenue-hero">
-                <div class="revenue-badge">Tableau de bord</div>
-                <div class="revenue-label">Revenus nets totaux</div>
-                <div class="revenue-amount">${totalNet.toLocaleString()} <span>XPF</span></div>
-                <div class="revenue-sub">${paidBookings.length} cours payés${pendingCount > 0 ? ' &nbsp;·&nbsp; ' + pendingCount + ' en attente' : ''}</div>
-            </div>
-
-            <!-- STATS CARDS -->
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="stat-card-icon stat-icon-blue">📋</div>
-                    <div class="stat-card-value">${confirmedCount}</div>
-                    <div class="stat-card-label">Réservations</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-icon stat-icon-purple">📅</div>
-                    <div class="stat-card-value">${mySlots.length}</div>
-                    <div class="stat-card-label">Créneaux actifs</div>
-                </div>
-                <div class="stat-card clickable" onclick="showMyReviews()">
-                    <div class="stat-card-icon stat-icon-orange">⭐</div>
-                    <div class="stat-card-value accent">${profile.rating ? profile.rating.toFixed(1) : '—'}</div>
-                    <div class="stat-card-label">Note / 5</div>
-                    <div class="stat-card-sub">${profile.total_reviews || 0} avis ›</div>
-                </div>
-            </div>
-
-            <!-- MAP -->
-            <div class="map-card">
-                <div class="map-card-header">
-                    <div>
-                        <div class="map-card-title">Ma position</div>
-                        <div class="map-card-sub" id="gps-status">GPS non actif — activez pour apparaître sur la carte</div>
-                    </div>
-                    <button onclick="startTracking()" class="gps-btn">
-                        📡 Partager GPS
-                    </button>
-                </div>
-                <div id="map" style="height:300px;width:100%"></div>
-            </div>
-
-            <!-- TABS -->
-            <div class="tabs-card">
-                <div class="tabs-nav">
-                    ${tabs.map(t=>`<button onclick="switchTab('${t.id}')" class="tab-pill ${currentTab===t.id?'active':''}"><span class="tab-pill-icon">${t.icon}</span>${t.label}</button>`).join('')}
-                </div>
-                <div class="tab-body">${getTabContent(profile, myBookings, mySlots)}</div>
-            </div>
-
+        <!-- Contenu principal -->
+        <div style="padding:20px">
+            ${tabContent}
         </div>
+
+        <!-- Barre de navigation bas style Uber -->
+        <nav style="position:fixed;bottom:0;left:0;right:0;background:#000;border-top:1px solid #1C1C1C;padding:8px 0;z-index:200">
+            <div class="flex justify-around">
+                ${tabIcons.map(t=>'<button class="uber-nav-btn" data-tab="'+t.id+'" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 16px;background:none;border:none;cursor:pointer;opacity:'+(( currentTab||'home')===t.id?'1':'0.4')+'"><span style="font-size:1.3rem">'+t.icon+'</span><span style="color:#FFF;font-size:0.65rem;font-weight:600">'+t.label+'</span></button>').join('')}
+            </div>
+        </nav>
     </div>`;
 }
 
-function getTabContent(profile, myBookings, mySlots) {
-    if (currentTab==='slots') return SlotsTab(mySlots);
-    if (currentTab==='bookings') return BookingsTab(myBookings);
-    if (currentTab==='earnings') return EarningsTab(myBookings);
-    if (currentTab==='settings') return SettingsTab(profile);
-    return '';
-}
 
 function SlotsTab(mySlots) {
-    const slotsHtml = mySlots.length === 0
-        ? `<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">Aucun créneau pour l'instant</div></div>`
-        : mySlots.map(s => {
-            const booking = DB.bookings.find(b=>b.slot_id===s.id&&b.status!=='cancelled');
-            return `<div class="slot-item${booking?' booked':''} fade-in">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-                    <div style="flex:1">
-                        <div class="slot-date">${s.date} &nbsp;·&nbsp; ${s.time}</div>
-                        <div class="slot-meta">⏱ ${s.duration}h &nbsp;·&nbsp; ${s.price.toLocaleString()} XPF</div>
-                        ${booking?`<div class="slot-student">👨‍🎓 ${booking.student_name}</div>`:''}
-                    </div>
-                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
-                        ${booking
-                            ? `<span class="slot-status-badge" style="background:#DBEAFE;color:#1D4ED8">🔒 Réservé</span>
-                               <button onclick="cancelInstructor('${booking.id}')" class="danger-link">Annuler</button>`
-                            : `<button onclick="deleteSlot('${s.id}')" class="danger-link">🗑 Supprimer</button>`
-                        }
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
-
-    return `<div class="section-hdr">
-        <h3>Mes créneaux</h3>
-        <button onclick="showAddSlot()" class="btn-primary" style="padding:9px 18px;font-size:13px;border-radius:12px">+ Ajouter</button>
+    return `<div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg">Mes créneaux</h3>
+        <button onclick="showAddSlot()" class="bg-orange-500 text-white px-4 py-2 rounded-xl font-semibold text-sm">+ Ajouter</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px">${slotsHtml}</div>
-    <button onclick="showAddSlot()" class="add-slot-btn">+ Ajouter un créneau</button>`;
-}
-
-function BookingsTab(myBookings) {
-    const sorted = [...myBookings].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-    if (sorted.length === 0) return `<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Aucune réservation pour l'instant</div></div>`;
-    return `<div style="display:flex;flex-direction:column;gap:10px">
-        ${sorted.map(b=>{
-            const statusCfg = b.status==='confirmed'
-                ? {bg:'#ECFDF5',color:'#059669',label:'✓ Confirmé'}
-                : b.status==='cancelled'
-                ? {bg:'#FEF2F2',color:'#DC2626',label:'✕ Annulé'}
-                : {bg:'#FFFBEB',color:'#D97706',label:'⏳ En attente'};
-            return `<div class="booking-item fade-in">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-                    <div style="flex:1">
-                        <div class="booking-student">👨‍🎓 ${b.student_name||'Élève'}</div>
-                        <div class="booking-info">${b.date} à ${b.time} &nbsp;·&nbsp; ${b.duration}h</div>
-                        <div class="booking-amount">${(b.net||0).toLocaleString()} XPF nets</div>
-                        ${b.payment_status==='paid'?'<div style="font-size:11px;color:#059669;margin-top:2px;font-weight:600">✓ Payé</div>':''}
+    <div class="space-y-3">
+        ${mySlots.length===0?'<div class="text-center py-12 text-gray-400"><p class="text-4xl mb-3">📅</p><p>Aucun créneau · Ajoutez-en un !</p></div>':mySlots.map(s=>{
+            const booking=DB.bookings.find(b=>b.slot_id===s.id&&b.status!=='cancelled');
+            return `<div class="border ${booking?'border-blue-200 bg-blue-50':'border-gray-100'} rounded-2xl p-4 fade-in">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="font-bold">${s.date} à ${s.time}</p>
+                        <p class="text-sm text-gray-400">⏱️ ${s.duration}h · 💰 ${s.price} XPF</p>
+                        ${booking?`<p class="text-xs text-blue-600 mt-1">👨‍🎓 ${booking.student_name}</p>`:''}
                     </div>
-                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
-                        <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:100px;background:${statusCfg.bg};color:${statusCfg.color}">${statusCfg.label}</span>
-                        ${b.status==='pending'
-                            ? `<div style="display:flex;gap:6px">
-                                <button onclick="confirmB('${b.id}')" style="font-size:11px;background:#059669;color:white;padding:5px 10px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:700">✓ Oui</button>
-                                <button onclick="rejectB('${b.id}')" style="font-size:11px;background:#DC2626;color:white;padding:5px 10px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:700">✕ Non</button>
-                               </div>` : ''}
-                        ${b.status==='confirmed'
-                            ? `<button onclick="openChat('${b.id}','${b.student_id}','${b.student_name}')" style="font-size:11px;background:#EFF6FF;color:#2563EB;padding:5px 12px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:700">💬 Chat</button>` : ''}
+                    <div>
+                        ${booking?`<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">🔒 Réservé</span>
+                        <button onclick="cancelInstructor('${booking.id}')" class="block mt-2 text-xs text-red-500 hover:underline">Annuler</button>`:
+                        `<button onclick="deleteSlot('${s.id}')" class="text-xs text-red-400 hover:underline">🗑️ Supprimer</button>`}
                     </div>
                 </div>
             </div>`;
         }).join('')}
+    </div>`;
+}
+
+function BookingsTab(myBookings) {
+    const sorted = [...myBookings].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    return `<div class="space-y-3">
+        ${sorted.length===0?`<div class="text-center py-12 text-gray-400"><p class="text-4xl mb-3">📋</p><p>Aucune réservation</p></div>`:sorted.map(b=>`
+        <div class="border border-gray-100 rounded-2xl p-4 fade-in">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="font-bold">👨‍🎓 ${b.student_name||'Élève'}</p>
+                    <p class="text-sm text-gray-400">📅 ${b.date} à ${b.time} · ${b.duration}h</p>
+                    <p class="text-sm font-semibold text-orange-600">${b.net||0} XPF nets</p>
+                    ${b.payment_status==='paid'?'<p class="text-xs text-green-600">✅ Payé</p>':''}
+                </div>
+                <div class="text-right">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${b.status==='confirmed'?'bg-green-100 text-green-700':b.status==='cancelled'?'bg-red-100 text-red-600':'bg-yellow-100 text-yellow-700'}">${b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':'⏳ En attente'}</span>
+                    ${b.status==='pending'?'<div class="mt-2 flex gap-2"><button onclick="confirmB(\''+b.id+'\')" class="text-xs bg-green-500 text-white px-2 py-1 rounded-lg">✅</button><button onclick="rejectB(\''+b.id+'\')" class="text-xs bg-red-500 text-white px-2 py-1 rounded-lg">❌</button></div>':''}
+                    ${b.status==='confirmed'?'<button onclick="openChat(\''+b.id+'\',\''+b.student_id+'\',\''+b.student_name+'\')" class="mt-1 text-xs bg-blue-500 text-white px-3 py-1 rounded-lg">💬 Chat</button>':''}
+                </div>
+            </div>
+        </div>`).join('')}
     </div>`;
 }
 
@@ -1729,117 +1534,97 @@ function EarningsTab(myBookings) {
     const avgPerCourse = paid.length > 0 ? Math.round(total/paid.length) : 0;
     const cancelled = myBookings.filter(b=>b.status==='cancelled').length;
     const completionRate = myBookings.length > 0 ? Math.round((paid.length/myBookings.length)*100) : 0;
-    const rateColor = completionRate>=80?'#16A34A':completionRate>=50?'#D97706':'#DC2626';
+    const rateColor = completionRate>=80?'text-green-500':completionRate>=50?'text-orange-500':'text-red-500';
     const maxVal = Object.values(months).length > 0 ? Math.max(...Object.values(months)) : 1;
     const monthsHTML = Object.entries(months).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,v])=>{
         const pct = Math.min(100, Math.round(v/maxVal*100));
-        return `<div class="month-bar">
-            <div style="flex:1">
-                <div style="font-size:13px;font-weight:600;color:var(--text)">${m}</div>
-                <div class="month-bar-track"><div class="month-bar-fill" style="width:${pct}%"></div></div>
-            </div>
-            <div style="font-size:14px;font-weight:700;color:var(--primary);margin-left:16px">${v.toLocaleString()} XPF</div>
-        </div>`;
-    }).join('') || `<div class="empty-state"><div class="empty-state-icon">💰</div><div class="empty-state-text">Aucun revenu pour l'instant</div></div>`;
-
+        return '<div class="flex justify-between items-center border border-gray-100 rounded-xl p-4"><div><p class="font-semibold">'+m+'</p><div class="w-full bg-gray-100 rounded-full h-1.5 mt-2"><div class="bg-orange-500 h-1.5 rounded-full" style="width:'+pct+'%"></div></div></div><p class="font-bold text-orange-600">'+v.toLocaleString()+' XPF</p></div>';
+    }).join('') || '<p class="text-gray-400 text-center py-8">Aucun revenu pour l&#39;instant</p>';
     return `<div>
-        <div class="earnings-hero">
-            <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;opacity:0.7;margin-bottom:8px">Total revenus nets</div>
-            <div style="font-size:38px;font-weight:900;letter-spacing:-1px;line-height:1">${total.toLocaleString()} <span style="font-size:16px;font-weight:400;opacity:0.7">XPF</span></div>
-            <div style="font-size:12px;opacity:0.6;margin-top:8px">Brut : ${totalGross.toLocaleString()} XPF &nbsp;·&nbsp; Commission : ${totalCommission.toLocaleString()} XPF</div>
-        </div>
-        <div class="earnings-grid">
-            <div class="earnings-mini">
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Moy. par cours</div>
-                <div style="font-size:24px;font-weight:800;color:var(--primary);letter-spacing:-1px">${avgPerCourse.toLocaleString()}</div>
-                <div style="font-size:11px;color:var(--text-muted)">XPF nets</div>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white col-span-2">
+                <p class="text-orange-200 text-sm">Total revenus nets</p>
+                <p class="text-4xl font-extrabold">${total.toLocaleString()} XPF</p>
+                <p class="text-orange-200 text-xs mt-1">Brut: ${totalGross.toLocaleString()} XPF · Commission: ${totalCommission.toLocaleString()} XPF</p>
             </div>
-            <div class="earnings-mini">
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Taux de complétion</div>
-                <div style="font-size:24px;font-weight:800;color:${rateColor};letter-spacing:-1px">${completionRate}%</div>
-                <div style="font-size:11px;color:var(--text-muted)">${cancelled} annulation(s)</div>
+            <div class="bg-white border border-gray-100 rounded-2xl p-4">
+                <p class="text-gray-400 text-xs mb-1">Moy. par cours</p>
+                <p class="text-2xl font-extrabold text-orange-500">${avgPerCourse.toLocaleString()}</p>
+                <p class="text-gray-400 text-xs">XPF nets</p>
+            </div>
+            <div class="bg-white border border-gray-100 rounded-2xl p-4">
+                <p class="text-gray-400 text-xs mb-1">Taux complétion</p>
+                <p class="text-2xl font-extrabold ${rateColor}">${completionRate}%</p>
+                <p class="text-gray-400 text-xs">${cancelled} annulation(s)</p>
             </div>
         </div>
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Par mois</div>
-        <div style="display:flex;flex-direction:column;gap:0">${monthsHTML}</div>
+        <h3 class="font-bold mb-3">📅 Par mois</h3>
+        <div class="space-y-3">${monthsHTML}</div>
     </div>`;
 }
 
 function SettingsTab(profile) {
     const avatarUrl = profile.avatar_url || '';
-    return `<div>
-        <!-- Photo profil -->
-        <div class="settings-section">
-            <span class="settings-label">Photo de profil</span>
-            <div class="avatar-upload-zone">
-                <div id="avatar-preview" style="width:80px;height:80px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:white;background:var(--primary)">
-                    ${avatarUrl ? '<img src="'+avatarUrl+'" style="width:100%;height:100%;object-fit:cover" alt="Photo profil">' : profile.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                    <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Photo de profil</div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Aidez vos élèves à vous reconnaître</div>
-                    <label class="btn-primary" style="padding:9px 18px;font-size:13px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border-radius:12px">
-                        📷 Choisir une photo
-                        <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="previewAvatar(event)">
-                    </label>
-                </div>
-                <div style="font-size:12px;font-weight:600;${avatarUrl ? 'color:#059669' : 'color:#DC2626'}">
-                    ${!avatarUrl ? '⚠️ Photo requise pour être visible par les élèves' : '✓ Photo ajoutée'}
-                </div>
+    return `<div class="space-y-6">
+        <!-- Photo de profil -->
+        <div class="flex flex-col items-center gap-4 p-5 rounded-2xl" style="background:var(--bg);border:1.5px dashed var(--border)">
+            <div id="avatar-preview" class="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center text-3xl font-bold text-white" style="background:var(--primary)">
+                ${avatarUrl ? '<img src="'+avatarUrl+'" class="w-full h-full object-cover" alt="Photo profil">' : profile.name.charAt(0).toUpperCase()}
             </div>
+            <div class="text-center">
+                <p class="font-semibold text-sm mb-1" style="color:var(--text)">Photo de profil</p>
+                <p class="text-xs mb-3" style="color:var(--text-muted)">Ajoutez une photo pour être reconnaissable par vos élèves</p>
+                <label class="btn-primary cursor-pointer" style="padding:10px 20px;font-size:13px;display:inline-block">
+                    📷 Choisir une photo
+                    <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="previewAvatar(event)">
+                </label>
+            </div>
+            ${!avatarUrl ? '<p class="text-xs font-medium" style="color:#DC2626">⚠️ Photo requise pour être visible par les élèves</p>' : '<p class="text-xs font-medium" style="color:#059669">✅ Photo ajoutée</p>'}
         </div>
 
         <!-- Infos profil -->
-        <div class="settings-section">
-            <span class="settings-label">Informations</span>
-            <form id="settings-form" style="display:flex;flex-direction:column;gap:14px">
-                <div>
-                    <label style="display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">Localisation</label>
-                    <input type="text" id="s-loc" value="${profile.location||''}" class="input-field" placeholder="Quartier / Ville">
-                </div>
-                <div>
-                    <label style="display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">Téléphone</label>
-                    <input type="tel" id="s-phone" value="${profile.phone_number||''}" class="input-field" placeholder="+687 XX XX XX">
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                    <div>
-                        <label style="display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">Tarif horaire (XPF)</label>
-                        <input type="number" id="s-rate" value="${profile.hourly_rate||4500}" class="input-field">
-                    </div>
-                    <div>
-                        <label style="display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">Années d'expérience</label>
-                        <input type="number" id="s-exp" value="${profile.experience||0}" class="input-field">
-                    </div>
-                </div>
-                <button type="submit" class="btn-primary w-full text-center" style="font-size:15px;border-radius:14px;padding:15px">Sauvegarder les modifications</button>
-            </form>
-        </div>
-
-        <!-- Parrainage -->
-        <div style="background:var(--bg);border-radius:18px;padding:20px;border:1.5px solid var(--border)">
-            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">🎁 Parrainage</div>
-            <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Parrainez un moniteur → <strong style="color:var(--text)">1% de commission en moins</strong> pendant 10 cours.</div>
-            <div style="margin-bottom:14px">
-                <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">Votre code</div>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <div id="referral-code-display" style="flex:1;padding:12px 16px;border-radius:12px;font-family:monospace;font-size:18px;font-weight:800;text-align:center;background:var(--surface);border:2px dashed var(--primary);color:var(--primary);letter-spacing:4px">...</div>
-                    <button onclick="copyReferralCode()" class="btn-secondary" style="padding:12px 14px;border-radius:12px">📋</button>
-                </div>
+        <form id="settings-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold mb-2" style="color:var(--text)">Localisation</label>
+                <input type="text" id="s-loc" value="${profile.location||''}" class="input-field" placeholder="Quartier / Ville">
             </div>
-            <button onclick="shareReferralLink()" class="btn-primary w-full" style="padding:12px;border-radius:12px;margin-bottom:12px">🔗 Partager mon lien de parrainage</button>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <div style="padding:14px;border-radius:14px;text-align:center;background:var(--surface);border:1px solid var(--border)">
-                    <div style="font-size:24px;font-weight:800;color:var(--text)" id="referral-count">0</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Filleuls</div>
-                </div>
-                <div style="padding:14px;border-radius:14px;text-align:center;background:var(--surface);border:1px solid var(--border)">
-                    <div style="font-size:24px;font-weight:800;color:var(--primary)" id="referral-savings">0</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">XPF économisés</div>
-                </div>
+            <div>
+                <label class="block text-sm font-semibold mb-2" style="color:var(--text)">Téléphone</label>
+                <input type="tel" id="s-phone" value="${profile.phone_number||''}" class="input-field" placeholder="+687 XX XX XX">
             </div>
-            <div id="referral-list" style="margin-top:12px;display:flex;flex-direction:column;gap:6px"></div>
+            <div>
+                <label class="block text-sm font-semibold mb-2" style="color:var(--text)">Tarif horaire (XPF)</label>
+                <input type="number" id="s-rate" value="${profile.hourly_rate||4500}" class="input-field">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-2" style="color:var(--text)">Années d'expérience</label>
+                <input type="number" id="s-exp" value="${profile.experience||0}" class="input-field">
+            </div>
+            <button type="submit" class="btn-primary w-full text-center" style="font-size:15px">Sauvegarder</button>
+        </form>
+    </div> <div class="card p-6 mt-4">
+    <h3 class="font-bold text-lg mb-1" style="color:var(--text)">🎁 Parrainage</h3>
+    <p class="text-sm mb-4" style="color:var(--text-muted)">Parrainez un moniteur → <strong>1% de commission en moins</strong> pendant 10 cours.</p>
+    <div class="mb-4">
+        <p class="text-xs font-semibold mb-2" style="color:var(--text-muted)">VOTRE CODE</p>
+        <div class="flex gap-2 items-center">
+            <div id="referral-code-display" class="flex-1 p-3 rounded-xl font-mono font-bold text-lg text-center" style="background:var(--bg);border:2px dashed var(--primary);color:var(--primary);letter-spacing:4px">...</div>
+            <button onclick="copyReferralCode()" class="btn-secondary px-4 py-3 rounded-xl">📋</button>
         </div>
-    </div>`;
+    </div>
+    <button onclick="shareReferralLink()" class="btn-primary w-full mb-4" style="padding:12px">🔗 Partager mon lien</button>
+    <div class="grid grid-cols-2 gap-3">
+        <div class="p-3 rounded-xl text-center" style="background:var(--bg)">
+            <p class="text-2xl font-bold" id="referral-count">0</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">Filleuls</p>
+        </div>
+        <div class="p-3 rounded-xl text-center" style="background:var(--bg)">
+            <p class="text-2xl font-bold" style="color:var(--primary)" id="referral-savings">0</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">XPF économisés</p>
+        </div>
+    </div>
+    <div id="referral-list" class="mt-4 space-y-2"></div>
+</div>`;
 }
 
 // ========== ACTIONS CRÉNEAUX ==========
@@ -2358,7 +2143,7 @@ function render() {
         case 'student-login':       app.innerHTML=LoginPage('student');    setupLoginForm('student');    break;
         case 'instructor-login':    app.innerHTML=LoginPage('instructor'); setupLoginForm('instructor'); break;
         case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>initMap(),100); break;
-        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>initMap(),100); break;
+        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();setupUberListeners();},100); break;
         case 'admin':               loadAdminData(); break;
         case 'privacy':             app.innerHTML=LegalPage('privacy'); break;
         case 'terms':               app.innerHTML=LegalPage('terms'); break;
@@ -2409,7 +2194,7 @@ async function showMyReviews() {
             </div>
             ${r.comment ? `<p class="text-sm" style="color:var(--text-muted)">"${r.comment}"</p>` : ''}
             <p class="text-xs mt-2" style="color:var(--text-muted)">${new Date(r.created_at).toLocaleDateString('fr-FR')}</p>
-        </div>`).join('') : '<p class="text-center py-8" style="color:var(--text-muted)">Aucun avis pour l'instant</p>';
+        </div>`).join('') : '<p class="text-center py-8" style="color:var(--text-muted)">Aucun avis pour l&#39;instant</p>';
     modal.innerHTML = `<div class="rounded-3xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto" style="background:var(--surface)">
         <div class="flex justify-between items-center mb-4">
             <h3 class="font-bold text-lg" style="color:var(--text)">⭐ Mes avis (${reviews?.length || 0})</h3>
@@ -2434,7 +2219,7 @@ async function checkPendingRatings() {
     if (unrated && unrated.length > 0) {
         const b = unrated[0];
         setTimeout(() => {
-            notif('⭐ Comment s'est passé votre cours ?', `Avec ${b.instructor_name} le ${b.date}`, 'orange');
+            notif('⭐ Comment s&#39;est pass&#233; votre cours ?', `Avec ${b.instructor_name} le ${b.date}`, 'orange');
             setTimeout(() => showRating(b.id, b.instructor_id, b.instructor_name), 3000);
         }, 2000);
     }
@@ -2930,7 +2715,29 @@ function showApp() {
     document.body.classList.add('app-mode');
     if (!appBooted) {
         appBooted = true;
-        boot();
+        
+function setupUberListeners() {
+    // Boutons accept/reject dans les demandes en attente
+    document.querySelectorAll('.uber-reject-btn').forEach(btn => {
+        btn.onclick = () => rejectB(btn.dataset.bid);
+    });
+    document.querySelectorAll('.uber-confirm-btn').forEach(btn => {
+        btn.onclick = () => confirmB(btn.dataset.bid);
+    });
+    // Boutons chat dans les prochains cours
+    document.querySelectorAll('.uber-chat-btn').forEach(btn => {
+        btn.onclick = () => openChat(btn.dataset.bid, btn.dataset.sid, btn.dataset.sname);
+    });
+    // Bouton gérer les créneaux
+    const slotsBtn = document.getElementById('uber-slots-btn');
+    if (slotsBtn) slotsBtn.onclick = () => switchTab('slots');
+    // Navigation bas
+    document.querySelectorAll('.uber-nav-btn').forEach(btn => {
+        btn.onclick = () => switchTab(btn.dataset.tab);
+    });
+}
+
+boot();
     }
 }
 
