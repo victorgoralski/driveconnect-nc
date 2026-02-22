@@ -722,7 +722,7 @@
 <!-- NAV -->
 <nav>
     <div class="nav-logo">Drive<span>Connect</span> NC</div>
-    <a href="/app.html" class="nav-cta">Commencer →</a>
+    <a href="#" class="nav-cta" onclick="showApp(); return false;">Commencer →</a>
 </nav>
 
 <!-- HERO -->
@@ -734,11 +734,11 @@
     </h1>
     <p class="hero-sub">Trouvez un moniteur de conduite qualifié près de chez vous, payez en ligne, et prenez la route.</p>
     <div class="hero-btns">
-        <a href="/app.html" class="btn-hero-primary">
+        <a href="#" class="btn-hero-primary" onclick="showApp('student-login'); return false;">
             Trouver un moniteur
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
-        <a href="/app.html" class="btn-hero-secondary">Je suis moniteur</a>
+        <a href="#" class="btn-hero-secondary" onclick="showApp('instructor-login'); return false;">Je suis moniteur</a>
     </div>
     <div class="scroll-hint">
         <div class="scroll-line"></div>
@@ -811,7 +811,7 @@
         <p class="section-label reveal">Pour les élèves</p>
         <h2 class="section-title reveal reveal-delay-1">Trouvez, réservez,<br>conduisez.</h2>
         <p class="section-sub reveal reveal-delay-2">En quelques clics, choisissez le moniteur qui vous convient selon sa note, son tarif et sa localisation.</p>
-        <a href="/app.html" class="btn-hero-primary reveal reveal-delay-3" style="display:inline-flex">
+        <a href="#" class="btn-hero-primary reveal reveal-delay-3" style="display:inline-flex" onclick="showApp('student-login'); return false;">
             Créer un compte élève →
         </a>
     </div>
@@ -855,7 +855,7 @@
         <p class="section-label reveal">Pour les moniteurs</p>
         <h2 class="section-title reveal reveal-delay-1">Gérez votre activité<br>sans effort.</h2>
         <p class="section-sub reveal reveal-delay-2">Créez votre profil, publiez vos créneaux, recevez les paiements. On s'occupe du reste avec seulement 2% de commission.</p>
-        <a href="/app.html" class="btn-hero-primary reveal reveal-delay-3" style="display:inline-flex">
+        <a href="#" class="btn-hero-primary reveal reveal-delay-3" style="display:inline-flex" onclick="showApp('instructor-login'); return false;">
             Devenir moniteur →
         </a>
     </div>
@@ -924,16 +924,16 @@
         <h2 class="cta-title">Prêt à prendre<br>la route ?</h2>
         <p class="cta-sub">Rejoignez DriveConnect NC dès aujourd'hui.</p>
     </div>
-    <a href="/app.html" class="cta-btn">Commencer maintenant →</a>
+    <a href="#" class="cta-btn" onclick="showApp(); return false;">Commencer maintenant →</a>
 </div>
 
 <!-- FOOTER -->
 <footer>
     <div style="font-weight:700">DriveConnect <span style="color:var(--orange)">NC</span></div>
     <div>
-        <a href="/legal-2.html">Confidentialité</a>
-        <a href="/legal-2.html">CGU</a>
-        <a href="/app.html">Accéder à l'app</a>
+        <a href="/legal.html#privacy" onclick="window.open('/legal.html#privacy','_blank'); return false;">Confidentialité</a>
+        <a href="/legal.html#terms" onclick="window.open('/legal.html#terms','_blank'); return false;">CGU</a>
+        <a href="#" onclick="showApp(); return false;">Accéder à l'app</a>
     </div>
 </footer>
 
@@ -1207,6 +1207,19 @@ function LoginPage(type) {
                 </div>
                 <input type="email" id="email" required class="input-field" placeholder="Adresse email">
                 <input type="password" id="password" required minlength="6" class="input-field" placeholder="Mot de passe">
+                <!-- CGU - visible en mode inscription -->
+                <div id="legal-check" style="display:none;padding:12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px">
+                    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+                        <input type="checkbox" id="legal-accept" style="margin-top:3px;accent-color:#FF5A1F;width:18px;height:18px;flex-shrink:0">
+                        <span style="font-size:13px;color:#374151;line-height:1.5">
+                            J&#39;ai lu et j&#39;accepte les
+                            <a href="/legal.html#terms" target="_blank" style="color:#FF5A1F;font-weight:700;text-decoration:underline">CGU</a>
+                            et la
+                            <a href="/legal.html#privacy" target="_blank" style="color:#FF5A1F;font-weight:700;text-decoration:underline">Politique de confidentialit&#233;</a>
+                            de DriveConnect NC
+                        </span>
+                    </label>
+                </div>
                 <button type="submit" class="btn-primary w-full text-center mt-2" style="font-size:16px">
                     <span id="submit-text">Se connecter</span>
                 </button>
@@ -1894,8 +1907,40 @@ window.deleteSlot = async (id) => {
 };
 
 // ========== GPS & CARTE ==========
+let mapRealtimeChannel = null;
+
+function updateMapMarkers() {
+    if (!map) return;
+    const now = new Date();
+    sortedInstructors().forEach(i => {
+        if (!i.lat) return;
+        const existing = iMarkers.find(m => m.id === i.id);
+        if (existing) {
+            existing.marker.setLatLng([i.lat, i.lng]);
+        }
+    });
+}
+
+function subscribeMapRealtime() {
+    if (mapRealtimeChannel) { mapRealtimeChannel.unsubscribe(); mapRealtimeChannel = null; }
+    mapRealtimeChannel = sb.channel('map-instructors-rt')
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'instructors'
+        }, (payload) => {
+            const idx = DB.instructors.findIndex(i => i.id === payload.new.id);
+            if (idx >= 0) {
+                DB.instructors[idx] = { ...DB.instructors[idx], ...payload.new };
+            }
+            updateMapMarkers();
+        })
+        .subscribe();
+}
+
 function initMap() {
     if (map){map.remove();map=null;iMarkers=[];}
+    if (mapRealtimeChannel){mapRealtimeChannel.unsubscribe();mapRealtimeChannel=null;}
     map=L.map('map').setView([NOUMEA.lat,NOUMEA.lng],13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
     const now=new Date();
@@ -1912,23 +1957,38 @@ function initMap() {
         iMarkers.push({id:i.id,marker});
     });
     if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{const ic=L.divIcon({html:`<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5)"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});if(userMarker)map.removeLayer(userMarker);userMarker=L.marker([pos.coords.latitude,pos.coords.longitude],{icon:ic}).addTo(map).bindPopup('📍 Ma position');map.setView([pos.coords.latitude,pos.coords.longitude],14);},()=>{});}
+    subscribeMapRealtime();
 }
 
 window.centerOnMe=()=>{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],15);notif('📍 Localisé !','','blue');},()=>{});};
 window.focusInstructor=(id)=>{ showInstructorProfile(id); };
 
 window.startTracking=()=>{
-    if(!navigator.geolocation){notif('❌ GPS indisponible','','red');return;}
+    if(!navigator.geolocation){notif('\u274c GPS indisponible','','red');return;}
     if(watchId)navigator.geolocation.clearWatch(watchId);
+    notif('\ud83d\udccd GPS activé','Position partagée en temps réel','green');
     watchId=navigator.geolocation.watchPosition(async pos=>{
-        await sb.from('instructors').update({lat:pos.coords.latitude,lng:pos.coords.longitude,is_online:true}).eq('id',currentUser.id);
-        const ic=L.divIcon({html:`<div style="background:#f97316;width:48px;height:48px;border-radius:50%;border:3px solid white;box-shadow:0 4px 15px rgba(249,115,22,0.5);display:flex;align-items:center;justify-content:center;font-size:22px;">🚗</div>`,className:'',iconSize:[48,48],iconAnchor:[24,24]});
-        if(userMarker)map.removeLayer(userMarker);
-        userMarker=L.marker([pos.coords.latitude,pos.coords.longitude],{icon:ic}).addTo(map);
-        map.setView([pos.coords.latitude,pos.coords.longitude],15);
+        const lat=pos.coords.latitude,lng=pos.coords.longitude;
+        await sb.from('instructors').update({lat,lng,is_online:true}).eq('id',currentUser.id);
+        const idx=DB.instructors.findIndex(i=>i.id===currentUser.id);
+        if(idx>=0){DB.instructors[idx].lat=lat;DB.instructors[idx].lng=lng;DB.instructors[idx].is_online=true;}
+        if(map){
+            const ic=L.divIcon({html:'<div style="background:#f97316;width:48px;height:48px;border-radius:50%;border:3px solid white;box-shadow:0 4px 15px rgba(249,115,22,0.5);display:flex;align-items:center;justify-content:center;font-size:22px;">\ud83d\ude97</div>',className:'',iconSize:[48,48],iconAnchor:[24,24]});
+            if(userMarker)userMarker.setLatLng([lat,lng]);
+            else{userMarker=L.marker([lat,lng],{icon:ic}).addTo(map);}
+            map.setView([lat,lng],15);
+        }
         const el=document.getElementById('gps-status');
-        if(el)el.textContent='🟢 GPS actif — Position partagée avec les élèves';
-    },err=>notif('❌ GPS',err.message,'red'),{enableHighAccuracy:true});
+        if(el){
+            const acc=Math.round(pos.coords.accuracy);
+            el.textContent='\ud83d\udfe2 GPS actif \u2014 Position partagée (précision: '+acc+'m)';
+            el.style.color='#22c55e';
+        }
+    },err=>{
+        const el=document.getElementById('gps-status');
+        if(el){el.textContent='\u274c GPS erreur: '+err.message;el.style.color='#ef4444';}
+        notif('\u274c GPS',err.message,'red');
+    },{enableHighAccuracy:true,maximumAge:0,timeout:10000});
 };
 
 window.toggleOnline=async ()=>{
@@ -1959,6 +2019,10 @@ window.toggleSignup=(type)=>{
     const s=document.getElementById('name-field').style.display==='none';
     document.getElementById('name-field').style.display=s?'block':'none';
     document.getElementById('name').required=s;
+    const lc=document.getElementById('legal-check');
+    if(lc) lc.style.display=s?'block':'none';
+    const la=document.getElementById('legal-accept');
+    if(la&&!s) la.checked=false;
     document.getElementById('form-title').textContent=s?'Créer un compte':'Se connecter';
     document.getElementById('submit-text').textContent=s?"S'inscrire":'Se connecter';
     document.getElementById('toggle-text').textContent=s?'Déjà un compte ?':"Pas de compte ?";
@@ -1970,14 +2034,23 @@ function setupLoginForm(type) {
         const email=document.getElementById('email').value;
         const password=document.getElementById('password').value;
         const isSignup=document.getElementById('name-field').style.display!=='none';
-        const btn = document.getElementById('submit-text');
-        btn.textContent='⏳ Chargement...';
         if(isSignup){
-            await signup(email, password, document.getElementById('name').value, type);
-        } else {
-            await login(email, password, type);
+            const accepted=document.getElementById('legal-accept')?.checked;
+            if(!accepted){
+                notif('\u274c CGU obligatoires','Vous devez accepter les CGU et la politique de confidentialit\u00e9','red');
+                const lc=document.getElementById('legal-check');
+                if(lc){lc.style.border='2px solid #DC2626';setTimeout(()=>lc.style.border='1px solid #FED7AA',2000);}
+                return;
+            }
         }
-        if(document.getElementById('submit-text')) btn.textContent=isSignup?"S'inscrire":'Se connecter';
+        const btn=document.getElementById('submit-text');
+        btn.textContent='\u23f3 Chargement...';
+        if(isSignup){
+            await signup(email,password,document.getElementById('name').value,type);
+        }else{
+            await login(email,password,type);
+        }
+        if(document.getElementById('submit-text'))btn.textContent=isSignup?"S'inscrire":'Se connecter';
     };
 }
 
@@ -2137,6 +2210,7 @@ function LegalPage(tab) {
 
 function render() {
     if(map){map.remove();map=null;iMarkers=[];}
+    if(typeof mapRealtimeChannel!=='undefined'&&mapRealtimeChannel){mapRealtimeChannel.unsubscribe();mapRealtimeChannel=null;}
     const app=document.getElementById('app');
     switch(currentView){
         case 'home':                app.innerHTML=HomePage(); break;
@@ -2238,8 +2312,13 @@ async function boot() {
             } else {
                 currentView = profile.user_type === 'student' ? 'student-dashboard' : 'instructor-dashboard';
             }
+            _pendingView = null; // connecté → ignorer pendingView
         }
-}
+    } else if (_pendingView) {
+        // Pas connecté → aller vers la vue demandée (inscription/connexion)
+        currentView = _pendingView;
+        _pendingView = null;
+    }
     subscribeToPush();
 
     await loadData();
@@ -2248,9 +2327,15 @@ async function boot() {
     setInterval(async () => {
         if (!document.hidden && currentView !== 'admin') {
             await loadData();
-            if (currentUser) render();
+            if (currentUser) {
+                if (currentView === 'student-dashboard' && map && iMarkers.length > 0) {
+                    updateMapMarkers();
+                } else {
+                    render();
+                }
+            }
         }
-    }, 15000);
+    }, 10000);
 }
 
 
@@ -2673,10 +2758,14 @@ const SUPABASE_KEY_CHECK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
 const sbCheck = supabase.createClient(SUPABASE_URL_CHECK, SUPABASE_KEY_CHECK);
 
 (async () => {
-    const { data: { session } } = await sbCheck.auth.getSession();
-    if (session) {
-        // Déjà connecté → aller directement à l'app
-        showApp();
+    try {
+        const { data: { session } } = await sbCheck.auth.getSession();
+        if (session) {
+            // Déjà connecté → aller directement à l'app SANS délai
+            showApp();
+        }
+    } catch(e) {
+        console.warn('Session check error:', e);
     }
 })();
 
@@ -2707,45 +2796,43 @@ const sbCheck = supabase.createClient(SUPABASE_URL_CHECK, SUPABASE_KEY_CHECK);
     });
 
 
-// Montrer l'app quand on clique sur "Commencer"
+// ===== AFFICHER L'APP (1 seul clic) =====
 let appBooted = false;
-function showApp() {
+let _pendingView = null;
+
+function showApp(targetView) {
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.body.classList.add('app-mode');
+    if (targetView) _pendingView = targetView;
     if (!appBooted) {
         appBooted = true;
-        
+        setupUberListeners();
+        boot();
+    } else if (_pendingView && !currentUser) {
+        showView(_pendingView);
+        _pendingView = null;
+    }
+}
+
 function setupUberListeners() {
-    // Boutons accept/reject dans les demandes en attente
     document.querySelectorAll('.uber-reject-btn').forEach(btn => {
         btn.onclick = () => rejectB(btn.dataset.bid);
     });
     document.querySelectorAll('.uber-confirm-btn').forEach(btn => {
         btn.onclick = () => confirmB(btn.dataset.bid);
     });
-    // Boutons chat dans les prochains cours
     document.querySelectorAll('.uber-chat-btn').forEach(btn => {
         btn.onclick = () => openChat(btn.dataset.bid, btn.dataset.sid, btn.dataset.sname);
     });
-    // Bouton gérer les créneaux
     const slotsBtn = document.getElementById('uber-slots-btn');
     if (slotsBtn) slotsBtn.onclick = () => switchTab('slots');
-    // Navigation bas
     document.querySelectorAll('.uber-nav-btn').forEach(btn => {
         btn.onclick = () => switchTab(btn.dataset.tab);
     });
 }
 
-boot();
-    }
-}
-
-// Remplacer les liens /app.html par showApp()
-document.querySelectorAll('a[href*="app.html"], .nav-cta').forEach(a => {
-    a.href = '#';
-    a.onclick = (e) => { e.preventDefault(); showApp(); };
-});
+// Liens landing gérés directement via onclick
 </script>
 
 </body>
