@@ -1789,7 +1789,9 @@ async function sendNotification(type, data) {
         if (error) { notif('❌ Erreur slot', error.message, 'red'); return; }
 
         const completionCode = generateCompletionCode();
-        const { data: booking, error: bError } = await sb.from('bookings').insert({
+
+        // Essai 1 : INSERT avec completion_code
+        let { data: booking, error: bError } = await sb.from('bookings').insert({
             slot_id: slot.id,
             student_id: currentUser.id,
             student_name: currentUser.name,
@@ -1802,14 +1804,33 @@ async function sendNotification(type, data) {
             completion_code: completionCode
         }).select().single();
 
-        if (bError) { notif('❌ Erreur réservation', bError.message, 'red'); return; }
-sendPushToUser(instructor.id, '🎉 Nouvelle réservation !', 
-    `${currentUser.name} a réservé le ${slot.date} à ${slot.time}`);
+        // Essai 2 : si la colonne n'existe pas encore dans Supabase → retry sans
+        if (bError && bError.message && bError.message.includes('completion_code')) {
+            console.warn('Colonne completion_code absente, retry sans:', bError.message);
+            ({ data: booking, error: bError } = await sb.from('bookings').insert({
+                slot_id: slot.id,
+                student_id: currentUser.id,
+                student_name: currentUser.name,
+                instructor_id: instructor.id,
+                instructor_name: instructor.name,
+                date: slot.date, time: slot.time, duration: slot.duration,
+                amount: slot.price, commission: prices.commission, net: prices.net,
+                status: 'confirmed', payment_status: paymentStatus,
+                paypal_order_id: orderId
+            }).select().single());
+        }
 
+        if (bError) { notif('\u274c Erreur r\u00e9servation', bError.message, 'red'); return; }
+sendPushToUser(instructor.id, '\ud83c\udf89 Nouvelle r\u00e9servation !', 
+    `${currentUser.name} a r\u00e9serv\u00e9 le ${slot.date} \u00e0 ${slot.time}`);
+
+        // Injecter le code localement dans l'objet booking
+        if (booking) booking.completion_code = completionCode;
         DB.slots = DB.slots.filter(s=>s.id!==slot.id);
         DB.bookings.push(booking);
         modal.remove(); document.body.style.overflow='';
-        showCodeModal(completionCode, instructor.name, slot.date, slot.time);
+        // Délai pour éviter que render() couvre la modal
+        setTimeout(() => showCodeModal(completionCode, instructor.name, slot.date, slot.time), 200);
         sendNotification('confirmation', {
             studentEmail: currentUser.email,
             studentName: currentUser.name,
