@@ -354,6 +354,19 @@ function LoginPage(type) {
                 </div>
                 <input type="email" id="email" required class="input-field" placeholder="Adresse email">
                 <input type="password" id="password" required minlength="6" class="input-field" placeholder="Mot de passe">
+                <!-- CGU visible en mode inscription -->
+                <div id="legal-check" style="display:none;padding:12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px">
+                    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+                        <input type="checkbox" id="legal-accept" style="margin-top:3px;accent-color:#FF5A1F;width:18px;height:18px;flex-shrink:0">
+                        <span style="font-size:13px;color:#374151;line-height:1.5">
+                            J&#39;ai lu et j&#39;accepte les
+                            <a href="/legal.html#terms" target="_blank" style="color:#FF5A1F;font-weight:700;text-decoration:underline">CGU</a>
+                            et la
+                            <a href="/legal.html#privacy" target="_blank" style="color:#FF5A1F;font-weight:700;text-decoration:underline">Politique de confidentialit&#233;</a>
+                            de DriveConnect NC
+                        </span>
+                    </label>
+                </div>
                 <button type="submit" class="btn-primary w-full text-center mt-2" style="font-size:16px">
                     <span id="submit-text">Se connecter</span>
                 </button>
@@ -948,8 +961,47 @@ window.deleteSlot = async (id) => {
 };
 
 // ========== GPS & CARTE ==========
+let mapRealtimeChannel = null;
+
+function updateMapMarkers() {
+    if (!map) return;
+    const now = new Date();
+    sortedInstructors().forEach(i => {
+        if (!i.lat) return;
+        const existing = iMarkers.find(m => m.id === i.id);
+        if (existing) {
+            existing.marker.setLatLng([i.lat, i.lng]);
+            // Mettre à jour popup si ouverte
+            const hasPenalty = i.penalty_until && new Date(i.penalty_until) > now;
+            const color = hasPenalty ? '#f87171' : i.is_online ? '#22c55e' : '#9ca3af';
+            const slots = DB.slots.filter(s => s.instructor_id === i.id).length;
+            existing.marker.setPopupContent('<div style="text-align:center;padding:10px;min-width:180px"><p style="font-weight:800;font-size:15px">'+i.name+'</p><p style="color:#f97316;margin:4px 0">⭐ '+(i.rating||'N/A')+'</p><p style="color:#6b7280;font-size:13px">📍 '+i.location+'</p><p style="font-weight:700;color:#f97316;font-size:17px;margin:6px 0">'+i.hourly_rate+' XPF/h</p><p style="font-size:12px;color:#6b7280;margin-bottom:8px">📆 '+slots+' créneaux</p><span style="background:'+(i.is_online?'#dcfce7':'#f3f4f6')+';color:'+(i.is_online?'#16a34a':'#6b7280')+';padding:3px 10px;border-radius:20px;font-size:12px;display:block;margin-bottom:10px">'+(i.is_online?'🟢 Disponible':'⚫ Hors ligne')+'</span><button onclick="showSlots(\''+i.id+'\')" style="background:#f97316;color:white;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer;width:100%">📅 Voir créneaux</button></div>');
+        }
+    });
+}
+
+function subscribeMapRealtime() {
+    if (mapRealtimeChannel) { mapRealtimeChannel.unsubscribe(); mapRealtimeChannel = null; }
+    mapRealtimeChannel = sb.channel('map-instructors-rt')
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'instructors'
+        }, (payload) => {
+            const idx = DB.instructors.findIndex(i => i.id === payload.new.id);
+            if (idx >= 0) {
+                DB.instructors[idx] = { ...DB.instructors[idx], ...payload.new };
+            } else {
+                DB.instructors.push(payload.new);
+            }
+            updateMapMarkers();
+        })
+        .subscribe();
+}
+
 function initMap() {
     if (map){map.remove();map=null;iMarkers=[];}
+    if (mapRealtimeChannel){mapRealtimeChannel.unsubscribe();mapRealtimeChannel=null;}
     map=L.map('map').setView([NOUMEA.lat,NOUMEA.lng],13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
     const now=new Date();
@@ -966,23 +1018,43 @@ function initMap() {
         iMarkers.push({id:i.id,marker});
     });
     if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{const ic=L.divIcon({html:`<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5)"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});if(userMarker)map.removeLayer(userMarker);userMarker=L.marker([pos.coords.latitude,pos.coords.longitude],{icon:ic}).addTo(map).bindPopup('📍 Ma position');map.setView([pos.coords.latitude,pos.coords.longitude],14);},()=>{});}
+    // Souscrire aux mises à jour en temps réel
+    subscribeMapRealtime();
 }
 
 window.centerOnMe=()=>{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],15);notif('📍 Localisé !','','blue');},()=>{});};
 window.focusInstructor=(id)=>{ showInstructorProfile(id); };
 
 window.startTracking=()=>{
-    if(!navigator.geolocation){notif('❌ GPS indisponible','','red');return;}
+    if(!navigator.geolocation){notif('\u274c GPS indisponible','','red');return;}
     if(watchId)navigator.geolocation.clearWatch(watchId);
+    notif('\ud83d\udccd GPS activé','Votre position est partagée en temps réel','green');
     watchId=navigator.geolocation.watchPosition(async pos=>{
-        await sb.from('instructors').update({lat:pos.coords.latitude,lng:pos.coords.longitude,is_online:true}).eq('id',currentUser.id);
-        const ic=L.divIcon({html:`<div style="background:#f97316;width:48px;height:48px;border-radius:50%;border:3px solid white;box-shadow:0 4px 15px rgba(249,115,22,0.5);display:flex;align-items:center;justify-content:center;font-size:22px;">🚗</div>`,className:'',iconSize:[48,48],iconAnchor:[24,24]});
-        if(userMarker)map.removeLayer(userMarker);
-        userMarker=L.marker([pos.coords.latitude,pos.coords.longitude],{icon:ic}).addTo(map);
-        map.setView([pos.coords.latitude,pos.coords.longitude],15);
+        const lat=pos.coords.latitude,lng=pos.coords.longitude;
+        // Mettre à jour la BDD
+        await sb.from('instructors').update({lat,lng,is_online:true}).eq('id',currentUser.id);
+        // Mettre à jour le cache local
+        const idx=DB.instructors.findIndex(i=>i.id===currentUser.id);
+        if(idx>=0){DB.instructors[idx].lat=lat;DB.instructors[idx].lng=lng;DB.instructors[idx].is_online=true;}
+        // Mettre à jour la carte sans re-render complet
+        if(map){
+            const ic=L.divIcon({html:'<div style="background:#f97316;width:48px;height:48px;border-radius:50%;border:3px solid white;box-shadow:0 4px 15px rgba(249,115,22,0.5);display:flex;align-items:center;justify-content:center;font-size:22px;">\ud83d\ude97</div>',className:'',iconSize:[48,48],iconAnchor:[24,24]});
+            if(userMarker)userMarker.setLatLng([lat,lng]);
+            else{userMarker=L.marker([lat,lng],{icon:ic}).addTo(map);}
+            // Centrer la carte sur la position du moniteur
+            map.setView([lat,lng],15);
+        }
         const el=document.getElementById('gps-status');
-        if(el)el.textContent='🟢 GPS actif — Position partagée avec les élèves';
-    },err=>notif('❌ GPS',err.message,'red'),{enableHighAccuracy:true});
+        if(el){
+            const acc=Math.round(pos.coords.accuracy);
+            el.textContent='\ud83d\udfe2 GPS actif \u2014 Position partagée (précision: '+acc+'m)';
+            el.style.color='#22c55e';
+        }
+    },err=>{
+        const el=document.getElementById('gps-status');
+        if(el){el.textContent='\u274c GPS erreur: '+err.message;el.style.color='#ef4444';}
+        notif('\u274c GPS',err.message,'red');
+    },{enableHighAccuracy:true,maximumAge:0,timeout:10000});
 };
 
 window.toggleOnline=async ()=>{
@@ -1013,6 +1085,11 @@ window.toggleSignup=(type)=>{
     const s=document.getElementById('name-field').style.display==='none';
     document.getElementById('name-field').style.display=s?'block':'none';
     document.getElementById('name').required=s;
+    // Afficher/cacher le checkbox CGU
+    const legalCheck = document.getElementById('legal-check');
+    if (legalCheck) legalCheck.style.display=s?'block':'none';
+    const legalInput = document.getElementById('legal-accept');
+    if (legalInput && !s) legalInput.checked = false;
     document.getElementById('form-title').textContent=s?'Créer un compte':'Se connecter';
     document.getElementById('submit-text').textContent=s?"S'inscrire":'Se connecter';
     document.getElementById('toggle-text').textContent=s?'Déjà un compte ?':"Pas de compte ?";
@@ -1024,14 +1101,23 @@ function setupLoginForm(type) {
         const email=document.getElementById('email').value;
         const password=document.getElementById('password').value;
         const isSignup=document.getElementById('name-field').style.display!=='none';
-        const btn = document.getElementById('submit-text');
+        if(isSignup){
+            const accepted=document.getElementById('legal-accept')?.checked;
+            if(!accepted){
+                notif('❌ CGU obligatoires','Vous devez accepter les CGU et la politique de confidentialité','red');
+                const lc=document.getElementById('legal-check');
+                if(lc){lc.style.border='2px solid #DC2626';setTimeout(()=>lc.style.border='1px solid #FED7AA',2000);}
+                return;
+            }
+        }
+        const btn=document.getElementById('submit-text');
         btn.textContent='⏳ Chargement...';
         if(isSignup){
-            await signup(email, password, document.getElementById('name').value, type);
-        } else {
-            await login(email, password, type);
+            await signup(email,password,document.getElementById('name').value,type);
+        }else{
+            await login(email,password,type);
         }
-        if(document.getElementById('submit-text')) btn.textContent=isSignup?"S'inscrire":'Se connecter';
+        if(document.getElementById('submit-text'))btn.textContent=isSignup?"S'inscrire":'Se connecter';
     };
 }
 
@@ -1191,6 +1277,7 @@ function LegalPage(tab) {
 
 function render() {
     if(map){map.remove();map=null;iMarkers=[];}
+    if(mapRealtimeChannel){mapRealtimeChannel.unsubscribe();mapRealtimeChannel=null;}
     const app=document.getElementById('app');
     switch(currentView){
         case 'home':                app.innerHTML=HomePage(); break;
@@ -1290,6 +1377,10 @@ function checkReferralInUrl() {
 async function boot() {
     document.getElementById('app').innerHTML = '<div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center"><div class="text-center"><div class="text-5xl mb-4">🚗</div><p class="text-xl font-bold text-orange-600">DriveConnect NC</p><p class="text-gray-400 mt-2">Connexion à la base de données...</p><div class="mt-4 w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div></div></div>';
 
+    // Lire les paramètres URL pour routing direct
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role');
+
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
         const { data: profile } = await sb.from('users').select('*').eq('id', session.user.id).single();
@@ -1301,7 +1392,11 @@ async function boot() {
                 currentView = profile.user_type === 'student' ? 'student-dashboard' : 'instructor-dashboard';
             }
         }
-}
+    } else if (roleParam === 'instructor') {
+        currentView = 'instructor-login';
+    } else if (roleParam === 'student') {
+        currentView = 'student-login';
+    }
     subscribeToPush();
     checkReferralInUrl();
     loadReferralData();
@@ -1309,12 +1404,20 @@ async function boot() {
     await loadData();
     render();
 
+    // Refresh données sans re-render complet si sur carte
     setInterval(async () => {
         if (!document.hidden && currentView !== 'admin') {
             await loadData();
-            if (currentUser) render();
+            if (currentUser) {
+                // Si sur le dashboard étudiant avec carte visible, juste mettre à jour les markers
+                if (currentView === 'student-dashboard' && map && iMarkers.length > 0) {
+                    updateMapMarkers();
+                } else {
+                    render();
+                }
+            }
         }
-    }, 15000);
+    }, 10000); // 10s pour plus de réactivité
 }
 
 
