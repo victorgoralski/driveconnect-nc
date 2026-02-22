@@ -3,7 +3,6 @@
   "routes": [
     { "src": "/", "dest": "/landing.html" },
     { "src": "/legal.html", "dest": "/legal.html" },
-    { "src": "/legal-2.html", "dest": "/legal-2.html" },
     { "src": "/app.html", "dest": "/app.html" },
     { "src": "/sw.js", "dest": "/sw.js" },
     { "src": "/manifest.json", "dest": "/manifest.json" },
