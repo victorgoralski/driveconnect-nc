@@ -666,6 +666,7 @@
 
         /* ANIMATIONS */
         @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
         @keyframes slideIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
         .fade-in { animation: fadeUp 0.35s ease forwards; }
         .slide-in { animation: slideIn 0.25s ease forwards; }
@@ -1024,6 +1025,15 @@ let DB = { instructors: [], slots: [], bookings: [] };
 // ========== HELPERS ==========
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
 
+function generateCompletionCode() {
+    const L='ABCDEFGHJKLMNPQRSTUVWXYZ', D='0123456789';
+    let p=[];
+    for(let i=0;i<3;i++) p.push(L[Math.floor(Math.random()*L.length)]);
+    for(let i=0;i<3;i++) p.push(D[Math.floor(Math.random()*D.length)]);
+    for(let i=5;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]];}
+    return p.join('');
+}
+
 function notif(title, msg, color='orange') {
     const n = document.createElement('div');
     n.className = `fixed top-4 right-4 bg-white p-4 rounded-2xl shadow-2xl z-[9999] border-l-4 border-${color}-500 max-w-sm fade-in`;
@@ -1272,22 +1282,24 @@ function StudentDashboard() {
                     const canCancel = b.status!=='cancelled' && b.status!=='completed';
                     const isPast = new Date(b.date) < new Date();
                     const canRate = isPast && b.status==='confirmed' && !b.rated;
+                    const stBadge=b.status==='confirmed'?'badge-green':b.status==='cancelled'?'badge-red':b.status==='completed'?'badge-gray':'badge-yellow';
+                    const stLabel=b.status==='confirmed'?'Confirmé':b.status==='cancelled'?'Annulé':b.status==='completed'?'✅ Terminé':'En attente';
                     return `<div class="p-4 mb-3 fade-in" style="border-bottom:1px solid var(--border)">
                         <div class="flex justify-between items-start">
                             <div>
                                 <p class="font-semibold" style="color:var(--text)">${b.instructor_name||'Moniteur'}</p>
                                 <p class="text-sm mt-0.5" style="color:var(--text-muted)">${b.date} · ${b.time} · ${b.duration}h</p>
                                 <p class="text-sm font-bold mt-1" style="color:var(--primary)">${b.amount.toLocaleString()} XPF</p>
+                                ${b.completion_code && b.status==='confirmed' ? `<button onclick="showCodeModal('${b.completion_code}','${b.instructor_name}','${b.date}','${b.time}')" style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;background:#0D0D0D;border:1.5px solid var(--primary);border-radius:10px;padding:6px 12px;cursor:pointer"><span style="font-family:monospace;font-weight:900;font-size:14px;color:#FF5A1F;letter-spacing:3px">${b.completion_code}</span><span style="font-size:11px;color:#999">&#128273; Mon code</span></button>` : ''}
                             </div>
                             <div class="text-right flex flex-col items-end gap-2">
-                                <span class="badge ${b.status==='confirmed'?'badge-green':b.status==='cancelled'?'badge-red':'badge-yellow'}">${b.status==='confirmed'?'Confirmé':b.status==='cancelled'?'Annulé':'En attente'}</span>
-                                ${canCancel?`<button onclick="cancelStudent('${b.id}')" class="text-xs font-medium" style="color:#DC2626">Annuler</button>`:''}
-                                ${isPast && b.status==='confirmed' && !b.rated?`<button onclick="showRating('${b.id}','${b.instructor_id}','${b.instructor_name}')" class="badge badge-orange" style="cursor:pointer;border:none">⭐ Noter</button>`:''}
-                                ${b.status==='confirmed'?`<button onclick="openChat('${b.id}','${b.instructor_id}','${b.instructor_name}')" class="badge" style="background:#EFF6FF;color:#1D4ED8;cursor:pointer;border:none">💬 Chat</button>`:''}
+                                <span class="badge ${stBadge}">${stLabel}</span>
+                                ${canCancel && b.status!=='completed'?`<button onclick="cancelStudent('${b.id}')" class="text-xs font-medium" style="color:#DC2626">Annuler</button>`:''}\
+                                ${isPast && b.status==='confirmed' && !b.rated?`<button onclick="showRating('${b.id}','${b.instructor_id}','${b.instructor_name}')" class="badge badge-orange" style="cursor:pointer;border:none">⭐ Noter</button>`:''}\
+                                ${b.status==='confirmed'?`<button onclick="openChat('${b.id}','${b.instructor_id}','${b.instructor_name}')" class="badge" style="background:#EFF6FF;color:#1D4ED8;cursor:pointer;border:none">&#128172; Chat</button>`:''}\
                             </div>
                         </div>
-                    </div>`;
-                }).join('')}
+                    </div>`;                }).join('')}
             </div>`:''}
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-bold text-lg" style="color:var(--text)">Choisir un moniteur</h2>
@@ -1375,17 +1387,23 @@ function InstructorDashboard() {
     const upcomingCards = upcoming.length === 0 ?
         '<div class="text-center py-8"><p class="text-4xl mb-2">🎯</p><p style="color:#666">Aucun cours à venir<br><span style="color:#444;font-size:0.8rem">Ajoutez des créneaux pour recevoir des demandes</span></p></div>' :
         upcoming.map(b => {
+            const cEnded = new Date(b.date+'T'+(b.time||'00:00')) < new Date();
+            const canVal = cEnded && b.status==='confirmed' && b.completion_code;
             return '<div class="flex items-center gap-4 py-4" style="border-bottom:1px solid #1C1C1C">' +
                 '<div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#1C1C1C">' +
-                '<span class="text-xl">👨‍🎓</span>' +
+                '<span class="text-xl">' + (b.status==='completed' ? '✅' : '&#128104;&#8205;&#127891;') + '</span>' +
                 '</div>' +
                 '<div class="flex-1">' +
                 '<p class="font-bold text-white">' + (b.student_name||'Élève') + '</p>' +
-                '<p style="color:#666;font-size:0.8rem">📅 ' + b.date + ' à ' + b.time + ' · ' + b.duration + 'h</p>' +
+                '<p style="color:#666;font-size:0.8rem">&#128197; ' + b.date + ' à ' + b.time + ' · ' + b.duration + 'h</p>' +
+                (b.status==='completed' ? '<p style="color:#00C853;font-size:0.75rem;font-weight:700">✅ Cours validé</p>' : '') +
                 '</div>' +
                 '<div class="text-right">' +
                 '<p class="font-bold" style="color:#00C853">' + (b.net||0) + ' XPF</p>' +
-                '<button class="uber-chat-btn" data-bid="' + b.id + '" data-sid="' + b.student_id + '" data-sname="' + (b.student_name||'') + '" style="color:#888;font-size:0.75rem">💬 Chat</button>' +
+                (canVal ?
+                    '<button class="uber-validate-btn" data-bid="' + b.id + '" style="display:block;margin-top:4px;background:#FF5A1F;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:0.72rem;font-weight:700;cursor:pointer">&#128273; Valider le cours</button>'
+                    : '<button class="uber-chat-btn" data-bid="' + b.id + '" data-sid="' + b.student_id + '" data-sname="' + (b.student_name||'') + '" style="color:#888;font-size:0.75rem">&#128172; Chat</button>'
+                ) +
                 '</div>' +
                 '</div>';
         }).join('');
@@ -1518,22 +1536,29 @@ function SlotsTab(mySlots) {
 function BookingsTab(myBookings) {
     const sorted = [...myBookings].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     return `<div class="space-y-3">
-        ${sorted.length===0?`<div class="text-center py-12 text-gray-400"><p class="text-4xl mb-3">📋</p><p>Aucune réservation</p></div>`:sorted.map(b=>`
+        ${sorted.length===0?`<div class="text-center py-12 text-gray-400"><p class="text-4xl mb-3">&#128203;</p><p>Aucune réservation</p></div>`:sorted.map(b=>{
+        const cEnded = new Date(b.date+'T'+(b.time||'00:00')) < new Date();
+        const canVal = cEnded && b.status==='confirmed' && b.completion_code;
+        const stColor = b.status==='confirmed'?'bg-green-100 text-green-700':b.status==='cancelled'?'bg-red-100 text-red-600':b.status==='completed'?'bg-blue-100 text-blue-700':'bg-yellow-100 text-yellow-700';
+        const stLabel = b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':b.status==='completed'?'&#127937; Terminé':'⏳ En attente';
+        return `
         <div class="border border-gray-100 rounded-2xl p-4 fade-in">
             <div class="flex justify-between items-start">
                 <div>
-                    <p class="font-bold">👨‍🎓 ${b.student_name||'Élève'}</p>
-                    <p class="text-sm text-gray-400">📅 ${b.date} à ${b.time} · ${b.duration}h</p>
+                    <p class="font-bold">&#128104;&#8205;&#127891; ${b.student_name||'Élève'}</p>
+                    <p class="text-sm text-gray-400">&#128197; ${b.date} à ${b.time} · ${b.duration}h</p>
                     <p class="text-sm font-semibold text-orange-600">${b.net||0} XPF nets</p>
                     ${b.payment_status==='paid'?'<p class="text-xs text-green-600">✅ Payé</p>':''}
                 </div>
                 <div class="text-right">
-                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${b.status==='confirmed'?'bg-green-100 text-green-700':b.status==='cancelled'?'bg-red-100 text-red-600':'bg-yellow-100 text-yellow-700'}">${b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':'⏳ En attente'}</span>
-                    ${b.status==='pending'?'<div class="mt-2 flex gap-2"><button onclick="confirmB(\''+b.id+'\')" class="text-xs bg-green-500 text-white px-2 py-1 rounded-lg">✅</button><button onclick="rejectB(\''+b.id+'\')" class="text-xs bg-red-500 text-white px-2 py-1 rounded-lg">❌</button></div>':''}
-                    ${b.status==='confirmed'?'<button onclick="openChat(\''+b.id+'\',\''+b.student_id+'\',\''+b.student_name+'\')" class="mt-1 text-xs bg-blue-500 text-white px-3 py-1 rounded-lg">💬 Chat</button>':''}
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${stColor}">${stLabel}</span>
+                    ${b.status==='pending'?`<div class="mt-2 flex gap-2"><button onclick="confirmB('${b.id}')" class="text-xs bg-green-500 text-white px-2 py-1 rounded-lg">✅</button><button onclick="rejectB('${b.id}')" class="text-xs bg-red-500 text-white px-2 py-1 rounded-lg">❌</button></div>`:''}
+                    ${b.status==='confirmed'?`<button onclick="openChat('${b.id}','${b.student_id}','${b.student_name}')" class="mt-1 text-xs bg-blue-500 text-white px-3 py-1 rounded-lg">&#128172; Chat</button>`:''}
+                    ${canVal?`<button onclick="openValidateModal('${b.id}')" class="mt-1 text-xs bg-orange-500 text-white px-3 py-1 rounded-lg">&#128273; Valider</button>`:''}
                 </div>
             </div>
-        </div>`).join('')}
+        </div>`;
+        }).join('')}
     </div>`;
 }
 
@@ -1763,6 +1788,7 @@ async function sendNotification(type, data) {
         const { error } = await sb.from('slots').update({ available: false }).eq('id', slot.id);
         if (error) { notif('❌ Erreur slot', error.message, 'red'); return; }
 
+        const completionCode = generateCompletionCode();
         const { data: booking, error: bError } = await sb.from('bookings').insert({
             slot_id: slot.id,
             student_id: currentUser.id,
@@ -1772,7 +1798,8 @@ async function sendNotification(type, data) {
             date: slot.date, time: slot.time, duration: slot.duration,
             amount: slot.price, commission: prices.commission, net: prices.net,
             status: 'confirmed', payment_status: paymentStatus,
-            paypal_order_id: orderId
+            paypal_order_id: orderId,
+            completion_code: completionCode
         }).select().single();
 
         if (bError) { notif('❌ Erreur réservation', bError.message, 'red'); return; }
@@ -1782,7 +1809,7 @@ sendPushToUser(instructor.id, '🎉 Nouvelle réservation !',
         DB.slots = DB.slots.filter(s=>s.id!==slot.id);
         DB.bookings.push(booking);
         modal.remove(); document.body.style.overflow='';
-        notif('✅ Réservation confirmée !', `Cours avec ${instructor.name} le ${slot.date}`, 'green');
+        showCodeModal(completionCode, instructor.name, slot.date, slot.time);
         sendNotification('confirmation', {
             studentEmail: currentUser.email,
             studentName: currentUser.name,
@@ -2830,7 +2857,151 @@ function setupUberListeners() {
     document.querySelectorAll('.uber-nav-btn').forEach(btn => {
         btn.onclick = () => switchTab(btn.dataset.tab);
     });
+    document.querySelectorAll('.uber-validate-btn').forEach(btn => {
+        btn.onclick = () => openValidateModal(btn.dataset.bid);
+    });
 }
+
+
+// ════════════════════════════════════════════════
+// SYSTÈME DE CODE DE VALIDATION
+// ════════════════════════════════════════════════
+
+// Affiche le code à l'élève après paiement
+window.showCodeModal = function(code, instructorName, date, time) {
+    document.querySelectorAll('.code-modal').forEach(m => m.remove());
+    const chars = code.split('').map(ch =>
+        '<div style="background:#1A1A1A;border:2px solid #FF5A1F;border-radius:14px;width:48px;height:58px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;color:#FF5A1F;font-family:monospace">' + ch + '</div>'
+    ).join('');
+
+    const m = document.createElement('div');
+    m.className = 'code-modal fixed inset-0 z-[9999] flex items-center justify-center p-4';
+    m.style.background = 'rgba(0,0,0,0.75)';
+    m.innerHTML =
+        '<div style="background:#fff;border-radius:28px;padding:32px;max-width:380px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,0.4)">' +
+        '<div style="font-size:3rem;margin-bottom:8px">&#127881;</div>' +
+        '<h2 style="font-size:1.4rem;font-weight:800;color:#111;margin-bottom:4px">Réservation confirmée !</h2>' +
+        '<p style="color:#888;font-size:13px;margin-bottom:20px">Cours avec <strong>' + instructorName + '</strong> le <strong>' + date + '</strong> à <strong>' + time + '</strong></p>' +
+        '<div style="background:#0D0D0D;border-radius:20px;padding:24px;margin-bottom:20px">' +
+        '<p style="color:rgba(255,255,255,0.45);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px">CODE DE FIN DE COURS</p>' +
+        '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px">' + chars + '</div>' +
+        '<p style="color:rgba(255,255,255,0.3);font-size:11px;line-height:1.6">' +
+        '&#9888;&#65039; Donnez ce code à votre moniteur<br>' +
+        '<strong style="color:rgba(255,255,255,0.55)">uniquement à la fin du cours</strong>' +
+        '</p>' +
+        '</div>' +
+        '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:14px;padding:14px;margin-bottom:20px;text-align:left">' +
+        '<p style="font-size:12px;color:#92400E;font-weight:700;margin-bottom:6px">&#128203; Comment ça marche ?</p>' +
+        '<p style="font-size:12px;color:#92400E;line-height:1.7">' +
+        '1. Effectuez votre cours normalement<br>' +
+        '2. À la fin, donnez ce code à votre moniteur<br>' +
+        '3. Le moniteur le saisit dans l’app<br>' +
+        '4. Le cours est marqué &#10003; <strong>Terminé</strong>' +
+        '</p>' +
+        '</div>' +
+        '<p style="font-size:11px;color:#bbb;margin-bottom:16px">Ce code est visible dans « Mes réservations »</p>' +
+        '<button onclick="this.closest('.code-modal').remove()" style="background:#FF5A1F;color:white;border:none;padding:15px 32px;border-radius:14px;font-weight:800;font-size:16px;cursor:pointer;width:100%">' +
+        'Compris &#128077;' +
+        '</button>' +
+        '</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if(e.target===m) m.remove(); });
+};
+
+// Ouvre la modal de validation pour le moniteur
+window.openValidateModal = function(bookingId) {
+    const booking = DB.bookings.find(b => b.id === bookingId);
+    if (!booking) return;
+    document.querySelectorAll('.validate-modal').forEach(m => m.remove());
+
+    const m = document.createElement('div');
+    m.className = 'validate-modal fixed inset-0 z-[9999] flex items-center justify-center p-4';
+    m.style.background = 'rgba(0,0,0,0.8)';
+
+    const boxHtml =
+        '<div id="vbox" style="background:#111;border-radius:28px;padding:32px;max-width:380px;width:100%;text-align:center">' +
+        '<div style="font-size:2.5rem;margin-bottom:10px">&#128273;</div>' +
+        '<h2 style="font-size:1.3rem;font-weight:800;color:#FFF;margin-bottom:6px">Valider le cours</h2>' +
+        '<p style="color:#666;font-size:14px;margin-bottom:4px">Élève : <strong style="color:#FFF">' + (booking.student_name||'Élève') + '</strong></p>' +
+        '<p style="color:#555;font-size:13px;margin-bottom:20px">' + booking.date + ' à ' + booking.time + ' · ' + booking.duration + 'h</p>' +
+        '<p style="color:#777;font-size:13px;margin-bottom:14px">Saisissez le code remis par l’élève :</p>' +
+        '<div id="vcode-row" style="display:flex;justify-content:center;gap:8px;margin-bottom:6px">' +
+        [0,1,2,3,4,5].map(i =>
+            '<input id="vc' + i + '" maxlength="1" type="text" autocomplete="off" ' +
+            'style="width:48px;height:58px;background:#1A1A1A;border:2px solid #333;border-radius:14px;color:#FFF;font-size:1.5rem;font-weight:900;text-align:center;text-transform:uppercase;outline:none;font-family:monospace;-webkit-appearance:none">'
+        ).join('') +
+        '</div>' +
+        '<p id="verr" style="color:#FF4444;font-size:12px;min-height:18px;margin-bottom:18px"></p>' +
+        '<div style="display:flex;gap:12px">' +
+        '<button onclick="this.closest('.validate-modal').remove()" style="flex:1;padding:14px;border-radius:14px;border:1px solid #333;background:#1A1A1A;color:#888;font-weight:600;cursor:pointer;font-size:14px">Annuler</button>' +
+        '<button id="vsubmit" style="flex:1;padding:14px;border-radius:14px;background:#00C853;color:#000;font-weight:800;cursor:pointer;border:none;font-size:14px">&#10003; Valider</button>' +
+        '</div>' +
+        '</div>';
+
+    m.innerHTML = boxHtml;
+    document.body.appendChild(m);
+
+    // Event listeners sur les inputs
+    for(let i=0;i<6;i++) {
+        const inp = document.getElementById('vc'+i);
+        inp.addEventListener('input', () => {
+            inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+            inp.style.borderColor = inp.value ? '#FF5A1F' : '#333';
+            document.getElementById('verr').textContent = '';
+            if(inp.value && i < 5) document.getElementById('vc'+(i+1)).focus();
+        });
+        inp.addEventListener('keydown', e => {
+            if(e.key==='Backspace' && !inp.value && i>0) {
+                const prev = document.getElementById('vc'+(i-1));
+                prev.value=''; prev.style.borderColor='#333'; prev.focus();
+            }
+        });
+    }
+
+    // Focus premier champ
+    setTimeout(() => document.getElementById('vc0')?.focus(), 100);
+
+    // Bouton valider
+    document.getElementById('vsubmit').onclick = async () => {
+        const entered = [0,1,2,3,4,5].map(i => (document.getElementById('vc'+i)?.value||'').toUpperCase()).join('');
+        if(entered.length < 6) { document.getElementById('verr').textContent = '⚠️ Saisissez les 6 caractères'; return; }
+
+        const expected = (booking.completion_code||'').toUpperCase();
+        if(entered !== expected) {
+            document.getElementById('verr').textContent = '❌ Code incorrect — vérifiez avec l’élève';
+            const row = document.getElementById('vcode-row');
+            if(row) { row.style.animation='none'; void row.offsetWidth; row.style.animation='shake 0.4s ease'; }
+            for(let i=0;i<6;i++) { const el=document.getElementById('vc'+i); if(el) el.style.borderColor='#FF4444'; }
+            return;
+        }
+
+        // Code correct ✅
+        document.getElementById('vsubmit').textContent = '⏳ Validation...';
+        document.getElementById('vsubmit').disabled = true;
+
+        const { error } = await sb.from('bookings').update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+        }).eq('id', bookingId);
+
+        if(error) { notif('❌ Erreur', error.message, 'red'); return; }
+
+        // Mettre à jour le cache local
+        const idx = DB.bookings.findIndex(b => b.id === bookingId);
+        if(idx >= 0) DB.bookings[idx].status = 'completed';
+
+        // Notifier l'élève
+        sendPushToUser(booking.student_id, '✅ Cours terminé !',
+            'Votre cours du ' + booking.date + ' avec ' + (currentUser?.name||'votre moniteur') + ' a été validé');
+
+        m.remove();
+        notif('✅ Cours validé !', 'Le cours de ' + (booking.student_name||'élève') + ' est terminé', 'green');
+        render();
+    };
+
+    // Fermer en cliquant en dehors
+    m.addEventListener('click', e => { if(e.target===m) m.remove(); });
+};
 
 // Liens landing gérés directement via onclick
 </script>
