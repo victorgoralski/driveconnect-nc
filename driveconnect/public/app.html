@@ -498,7 +498,7 @@ function StudentDashboard() {
                             <p style="color:#FF5A1F;font-weight:800;font-size:15px;margin:6px 0 0">${next.amount.toLocaleString()} XPF</p>
                         </div>
                         <div style="text-align:right">
-                            <div style="background:#FF5A1F;color:#fff;border-radius:10px;padding:4px 10px;font-size:11px;font-weight:700;margin-bottom:8px">${daysLeft<=0?'Aujourd'hui':daysLeft===1?'Demain':'J-'+daysLeft}</div>
+                            <div style="background:#FF5A1F;color:#fff;border-radius:10px;padding:4px 10px;font-size:11px;font-weight:700;margin-bottom:8px">${daysLeft<=0?"Aujourd\'hui":daysLeft===1?'Demain':'J-'+daysLeft}</div>
                             ${next.status==='confirmed'?`<button onclick="openChat('${next.id}','${next.instructor_id}','${next.instructor_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">💬 Chat</button>`:''}
                         </div>
                     </div>
@@ -724,7 +724,7 @@ function InstructorDashboard() {
                             </div>
                             <div style="text-align:right">
                                 <p style="font-weight:900;color:#FF5A1F;font-size:15px">${(b.net||0).toLocaleString()} XPF</p>
-                                <p style="font-size:11px;color:var(--text-muted)">${daysLeft<=0?'Aujourd'hui':daysLeft===1?'Demain':'J-'+daysLeft}</p>
+                                <p style="font-size:11px;color:var(--text-muted)">${daysLeft<=0?"Aujourd\'hui":daysLeft===1?'Demain':'J-'+daysLeft}</p>
                                 <button onclick="openChat('${b.id}','${b.student_id}','${b.student_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-top:4px">💬</button>
                             </div>
                         </div>
