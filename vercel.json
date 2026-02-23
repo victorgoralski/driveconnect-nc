@@ -5,11 +5,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src * 'self' data: blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval'; style-src * 'self' 'unsafe-inline'; img-src * data: blob:; connect-src *; frame-src *; font-src *;"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
+          "value": "default-src * 'self' data: blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval'; style-src * 'self' 'unsafe-inline'; img-src * data: blob:; connect-src *; frame-src https://www.paypal.com https://www.sandbox.paypal.com *; font-src *;"
         }
       ]
     }
