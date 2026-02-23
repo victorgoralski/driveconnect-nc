@@ -1034,6 +1034,114 @@ function generateCompletionCode() {
     return p.join('');
 }
 
+// ========== LOGS D'ACTIVITÉ ==========
+async function logActivity(action, metadata = {}) {
+    try {
+        await sb.from('activity_logs').insert({
+            user_id: currentUser?.id || null,
+            action,
+            metadata,
+            created_at: new Date().toISOString()
+        });
+    } catch(e) { /* silencieux */ }
+}
+
+// ========== GESTION DES LITIGES ==========
+window.showDisputeModal = function(bookingId) {
+    const booking = DB.bookings.find(b => b.id === bookingId);
+    if (!booking) return;
+    document.querySelectorAll('.dispute-modal').forEach(m => m.remove());
+    const m = document.createElement('div');
+    m.className = 'dispute-modal fixed inset-0 z-[9999] flex items-center justify-center p-4';
+    m.style.background = 'rgba(0,0,0,0.7)';
+    m.innerHTML = `<div style="background:#fff;border-radius:24px;padding:28px;max-width:420px;width:100%">
+        <h3 style="font-size:1.2rem;font-weight:800;margin-bottom:6px;color:#111">⚠️ Signaler un problème</h3>
+        <p style="color:#666;font-size:13px;margin-bottom:16px">Cours avec <strong>${booking.instructor_name||booking.student_name||'Contact'}</strong> le ${booking.date}</p>
+        <select id="dispute-reason" style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:14px;margin-bottom:12px;outline:none">
+            <option value="">-- Choisir la raison --</option>
+            <option value="no_show">Moniteur/Élève absent</option>
+            <option value="bad_behavior">Comportement inapproprié</option>
+            <option value="refund">Problème de remboursement</option>
+            <option value="quality">Qualité du cours insuffisante</option>
+            <option value="other">Autre</option>
+        </select>
+        <textarea id="dispute-desc" rows="4" placeholder="Décrivez le problème en détail..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:16px;outline:none;resize:none"></textarea>
+        <div style="display:flex;gap:10px">
+            <button onclick="this.closest('.dispute-modal').remove()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid #e5e7eb;background:#f9fafb;font-weight:600;cursor:pointer">Annuler</button>
+            <button onclick="window.submitDispute('${bookingId}')" style="flex:1;padding:12px;border-radius:12px;background:#DC2626;color:white;font-weight:800;cursor:pointer;border:none">Envoyer 🚨</button>
+        </div>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if(e.target===m) m.remove(); });
+};
+
+window.submitDispute = async function(bookingId) {
+    const reason = document.getElementById('dispute-reason')?.value;
+    const description = document.getElementById('dispute-desc')?.value?.trim();
+    if (!reason) { notif('❌ Choisissez une raison', '', 'red'); return; }
+    if (!description || description.length < 10) { notif('❌ Description trop courte', 'Minimum 10 caractères', 'red'); return; }
+    const booking = DB.bookings.find(b => b.id === bookingId);
+    const { error } = await sb.from('disputes').insert({
+        booking_id: bookingId,
+        reporter_id: currentUser.id,
+        reporter_name: currentUser.name,
+        reason,
+        description: sanitize(description),
+        status: 'open',
+        booking_date: booking?.date,
+        instructor_name: booking?.instructor_name,
+        student_name: booking?.student_name,
+        amount: booking?.amount
+    });
+    if (error) { notif('❌ Erreur', error.message, 'red'); return; }
+    await logActivity('dispute_submitted', { booking_id: bookingId, reason });
+    document.querySelectorAll('.dispute-modal').forEach(m => m.remove());
+    notif('✅ Litige envoyé', 'Notre équipe vous répond sous 48h', 'green');
+};
+
+// ========== CODE PARRAINAGE (moniteur et élève) ==========
+function generateReferralCode(name) {
+    const prefix = (name || 'USR').substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
+    const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return prefix + suffix;
+}
+
+async function loadReferralData() {
+    if (!currentUser) return;
+    try {
+        const { data: userData } = await sb.from('users').select('referral_code, referral_count, referral_savings').eq('id', currentUser.id).single();
+        let code = userData?.referral_code;
+        if (!code) {
+            code = generateReferralCode(currentUser.name);
+            await sb.from('users').update({ referral_code: code }).eq('id', currentUser.id);
+        }
+        const el = document.getElementById('referral-code-display');
+        if (el) el.textContent = code;
+        const cnt = document.getElementById('referral-count');
+        if (cnt) cnt.textContent = userData?.referral_count || 0;
+        const sav = document.getElementById('referral-savings');
+        if (sav) sav.textContent = (userData?.referral_savings || 0).toLocaleString();
+        if (currentUser) currentUser._referralCode = code;
+    } catch(e) {}
+}
+
+window.copyReferralCode = function() {
+    const code = document.getElementById('referral-code-display')?.textContent || currentUser?._referralCode || '';
+    if (!code || code === '...') { notif('❌ Code non chargé', 'Attendez quelques secondes', 'red'); return; }
+    navigator.clipboard.writeText(code).then(() => notif('✅ Code copié !', code, 'green')).catch(() => notif('Code : ' + code, '', 'orange'));
+};
+
+window.shareReferralLink = function() {
+    const code = document.getElementById('referral-code-display')?.textContent || currentUser?._referralCode || '';
+    if (!code || code === '...') { notif('❌ Code non chargé', '', 'red'); return; }
+    const url = window.location.origin + '/?ref=' + code;
+    if (navigator.share) {
+        navigator.share({ title: 'DriveConnect NC', text: '🚗 Rejoignez DriveConnect NC avec mon code ' + code + ' !', url });
+    } else {
+        navigator.clipboard.writeText(url).then(() => notif('✅ Lien copié !', url, 'green'));
+    }
+};
+
 function notif(title, msg, color='orange') {
     const n = document.createElement('div');
     n.className = `fixed top-4 right-4 bg-white p-4 rounded-2xl shadow-2xl z-[9999] border-l-4 border-${color}-500 max-w-sm fade-in`;
@@ -1094,29 +1202,74 @@ async function login(email, password, userType) {
     currentView = userType === 'student' ? 'student-dashboard' : 'instructor-dashboard';
     await loadData();
     render();
+    await logActivity('login', { user_type: userType });
 }
 
 async function signup(email, password, name, userType) {
     if (!validateInput(name, email, password)) return;
     name = sanitize(name);
     email = email.trim().toLowerCase();
+
+    // Vérification email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        notif('❌ Email invalide', 'Saisissez une adresse email valide', 'red');
+        return;
+    }
+
+    // Vérifier si l'email est déjà utilisé
+    const { data: existingUser } = await sb.from('users').select('id').eq('email', email).maybeSingle();
+    if (existingUser) {
+        notif('❌ Email déjà utilisé', 'Cet email possède déjà un compte. Utilisez "Se connecter".', 'red');
+        return;
+    }
+
     const { data, error } = await sb.auth.signUp({
         email, password,
         options: { data: { name, user_type: userType } }
     });
-    if (error) { notif('❌ ' + error.message, '', 'red'); return; }
+    if (error) {
+        const msg = error.message.includes('already registered')
+            ? 'Cet email est déjà enregistré. Connectez-vous.'
+            : error.message;
+        notif('❌ ' + msg, '', 'red');
+        return;
+    }
+
+    // Vérifier si Supabase exige une confirmation d'email
+    if (!data.session) {
+        notif('📧 Vérifiez votre email', 'Un lien de confirmation a été envoyé à ' + email, 'orange');
+        return;
+    }
 
     // Attendre que le trigger crée le profil
     await new Promise(r => setTimeout(r, 1000));
 
-    // Mettre à jour le profil avec le nom si pas encore fait
+    // Générer le code de parrainage
+    const referralCode = generateReferralCode(name);
+
+    // Vérifier le code de parrainage utilisé
+    let referredBy = null;
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref');
+    if (refCode) {
+        const { data: refUser } = await sb.from('users').select('id, referral_count, referral_savings').eq('referral_code', refCode).maybeSingle();
+        if (refUser) {
+            referredBy = refUser.id;
+            // Incrémenter le compteur de parrainage du parrain
+            await sb.from('users').update({
+                referral_count: (refUser.referral_count || 0) + 1
+            }).eq('id', refUser.id);
+        }
+    }
+
     await sb.from('users').upsert({
         id: data.user.id,
         email, name,
-        user_type: userType
+        user_type: userType,
+        referral_code: referralCode,
+        referred_by: referredBy
     }, { onConflict: 'id' });
 
-    // Si moniteur, créer le profil instructeur
     if (userType === 'instructor') {
         await sb.from('instructors').upsert({
             id: data.user.id,
@@ -1135,7 +1288,8 @@ async function signup(email, password, name, userType) {
     currentView = userType === 'student' ? 'student-dashboard' : 'instructor-dashboard';
     await loadData();
     render();
-    notif('✅ Compte créé !', 'Bienvenue sur DriveConnect NC', 'green');
+    await logActivity('signup', { user_type: userType, referred_by: referredBy });
+    notif('✅ Compte créé !', 'Bienvenue sur DriveConnect NC 🎉', 'green');
 }
 
 // ========== HOME ====================
@@ -1247,21 +1401,26 @@ function LoginPage(type) {
 function StudentDashboard() {
     const myBookings = DB.bookings;
     const instructors = sortedInstructors();
-    return `<div class="min-h-screen" style="background:var(--bg)">
-        <header class="app-header">
-            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-                <h1 class="text-xl font-bold gradient-text">DriveConnect</h1>
-                <div class="flex items-center gap-2">
-                    <div class="flex items-center gap-2 px-3 py-2 rounded-full" style="background:var(--bg)">
-                        <div class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold text-white" style="background:var(--primary)">${currentUser.name.charAt(0).toUpperCase()}</div>
-                        <span class="text-sm font-medium hide-mobile" style="color:var(--text)">${currentUser.name.split(' ')[0]}</span>
+    const confirmedCount = myBookings.filter(b=>b.status==='confirmed').length;
+    const totalSpent = myBookings.filter(b=>b.status!=='cancelled').reduce((s,b)=>s+(b.amount||0),0);
+    return `<div class="min-h-screen pb-6" style="background:var(--bg)">
+        <!-- Header style Uber pour l'élève -->
+        <header style="background:linear-gradient(135deg,#0D0D0D,#1A1A1A);padding:20px;position:sticky;top:0;z-index:40;border-bottom:1px solid #222">
+            <div style="display:flex;justify-content:space-between;align-items:center;max-width:800px;margin:0 auto">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div style="width:40px;height:40px;border-radius:50%;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:800;color:white;font-size:16px">${currentUser.name.charAt(0).toUpperCase()}</div>
+                    <div>
+                        <p style="color:white;font-weight:700;font-size:14px">Bonjour ${currentUser.name.split(' ')[0]} 👋</p>
+                        <p style="color:#666;font-size:11px">${confirmedCount} cours · ${totalSpent.toLocaleString()} XPF dépensés</p>
                     </div>
-                    <button onclick="toggleDark()" class="w-9 h-9 flex items-center justify-center rounded-full transition" style="background:var(--bg);color:var(--text-muted)" id="dark-btn">🌙</button>
-                    <button onclick="logout()" class="text-sm font-medium px-3 py-2 rounded-full transition" style="color:var(--text-muted)">Sortir</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <button onclick="toggleDark()" style="width:36px;height:36px;border-radius:50%;background:#222;border:none;cursor:pointer;font-size:16px" id="dark-btn">🌙</button>
+                    <button onclick="logout()" style="background:#1C1C1C;color:#888;border:1px solid #333;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">Sortir</button>
                 </div>
             </div>
         </header>
-        <div class="container mx-auto px-4 py-8">
+        <div class="container mx-auto px-4 py-6" style="max-width:800px">
             <div class="card p-5 mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="font-bold text-lg" style="color:var(--text)">Moniteurs à proximité</h2>
@@ -1297,6 +1456,7 @@ function StudentDashboard() {
                                 ${canCancel && b.status!=='completed'?`<button onclick="cancelStudent('${b.id}')" class="text-xs font-medium" style="color:#DC2626">Annuler</button>`:''}\
                                 ${isPast && b.status==='confirmed' && !b.rated?`<button onclick="showRating('${b.id}','${b.instructor_id}','${b.instructor_name}')" class="badge badge-orange" style="cursor:pointer;border:none">⭐ Noter</button>`:''}\
                                 ${b.status==='confirmed'?`<button onclick="openChat('${b.id}','${b.instructor_id}','${b.instructor_name}')" class="badge" style="background:#EFF6FF;color:#1D4ED8;cursor:pointer;border:none">&#128172; Chat</button>`:''}\
+                                ${b.status==='confirmed'?`<button onclick="showDisputeModal('${b.id}')" class="badge" style="background:#FEF2F2;color:#DC2626;cursor:pointer;border:none;margin-top:4px">⚠️ Problème</button>`:''}\
                             </div>
                         </div>
                     </div>`;                }).join('')}
@@ -1304,6 +1464,31 @@ function StudentDashboard() {
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-bold text-lg" style="color:var(--text)">Choisir un moniteur</h2>
                 <span class="badge badge-gray">${instructors.length} disponible${instructors.length>1?'s':''}</span>
+            </div>
+            <!-- Section parrainage élève -->
+            <div class="card p-5 mb-6" style="background:linear-gradient(135deg,#0D0D0D,#1A1A1A);border:1px solid #333">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                    <span style="font-size:1.5rem">🎁</span>
+                    <div>
+                        <h3 style="color:white;font-weight:800;font-size:15px;margin:0">Parrainez un ami</h3>
+                        <p style="color:#666;font-size:12px;margin:0">Partagez votre code → avantages exclusifs</p>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+                    <div id="referral-code-display" style="flex:1;background:#111;border:2px dashed #FF5A1F;border-radius:12px;padding:12px;font-family:monospace;font-weight:900;font-size:18px;color:#FF5A1F;letter-spacing:4px;text-align:center">...</div>
+                    <button onclick="copyReferralCode()" style="background:#1C1C1C;border:1px solid #333;border-radius:12px;padding:12px;cursor:pointer;font-size:18px">📋</button>
+                </div>
+                <button onclick="shareReferralLink()" style="width:100%;background:#FF5A1F;color:white;border:none;border-radius:12px;padding:12px;font-weight:700;cursor:pointer">🔗 Partager mon lien</button>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+                    <div style="background:#111;border-radius:10px;padding:12px;text-align:center">
+                        <p id="referral-count" style="font-size:1.5rem;font-weight:800;color:white;margin:0">0</p>
+                        <p style="color:#666;font-size:11px;margin:0">Filleuls</p>
+                    </div>
+                    <div style="background:#111;border-radius:10px;padding:12px;text-align:center">
+                        <p id="referral-savings" style="font-size:1.5rem;font-weight:800;color:#FF5A1F;margin:0">0</p>
+                        <p style="color:#666;font-size:11px;margin:0">XPF économisés</p>
+                    </div>
+                </div>
             </div>
             <div class="grid md:grid-cols-3 gap-4">
                 ${instructors.map((i,idx)=>{
@@ -1831,6 +2016,7 @@ sendPushToUser(instructor.id, '\ud83c\udf89 Nouvelle r\u00e9servation !',
         modal.remove(); document.body.style.overflow='';
         // Délai pour éviter que render() couvre la modal
         setTimeout(() => showCodeModal(completionCode, instructor.name, slot.date, slot.time), 200);
+        await logActivity('booking_created', { booking_id: booking?.id, instructor_id: instructor.id, amount: slot.price });
         sendNotification('confirmation', {
             studentEmail: currentUser.email,
             studentName: currentUser.name,
@@ -1912,6 +2098,7 @@ window.cancelStudent = async function(bookingId) {
 
     await loadData();
     notif('Réservation annulée',`Remboursement de ${refund} XPF (${pol.pct}%)`,pol.pct===100?'green':pol.pct===50?'yellow':'red');
+    await logActivity('booking_cancelled', { booking_id: bookingId, refund_pct: pol.pct });
     render();
 };
 
@@ -2118,27 +2305,31 @@ document.addEventListener('submit', async function(e){
 
 
 // ========== ADMIN DASHBOARD ==========
-let adminData = { users: [], instructors: [], bookings: [], slots: [] };
+let adminData = { users: [], instructors: [], bookings: [], slots: [], disputes: [], logs: [] };
 let adminTab = 'overview';
 
 async function loadAdminData() {
-    const [u, i, b, s] = await Promise.all([
+    const [u, i, b, s, d, l] = await Promise.all([
         sb.from('users').select('*').order('created_at', { ascending: false }),
         sb.from('instructors').select('*'),
         sb.from('bookings').select('*').order('created_at', { ascending: false }),
-        sb.from('slots').select('*')
+        sb.from('slots').select('*'),
+        sb.from('disputes').select('*').order('created_at', { ascending: false }),
+        sb.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100)
     ]);
     adminData.users = u.data || [];
     adminData.instructors = i.data || [];
     adminData.bookings = b.data || [];
     adminData.slots = s.data || [];
+    adminData.disputes = d.data || [];
+    adminData.logs = l.data || [];
     document.getElementById('app').innerHTML = AdminDashboard();
 }
 
 function AdminDashboard() {
     const totalRevenue = adminData.bookings.filter(b=>b.status==='confirmed'&&b.payment_status==='paid').reduce((s,b)=>s+(b.amount||0),0);
     const totalCommission = Math.round(totalRevenue * COMMISSION);
-    const tabs = [{id:'overview',label:'📊 Vue globale'},{id:'users',label:'👥 Utilisateurs'},{id:'instructors',label:'🚗 Moniteurs'},{id:'bookings',label:'📋 Réservations'},{id:'danger',label:'⚠️ Danger Zone'}];
+    const tabs = [{id:'overview',label:'📊 Vue globale'},{id:'users',label:'👥 Utilisateurs'},{id:'instructors',label:'🚗 Moniteurs'},{id:'bookings',label:'📋 Réservations'},{id:'disputes',label:'⚠️ Litiges'},{id:'logs',label:'📋 Logs'},{id:'danger',label:'⚠️ Danger Zone'}];
     return `<div class="min-h-screen bg-gray-900 text-white">
         <header class="bg-gray-800 border-b border-gray-700 sticky top-0 z-40">
             <div class="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -2176,6 +2367,36 @@ function getAdminTabContent() {
     if (adminTab==='instructors') return `<h3 class="font-bold text-lg mb-4">🚗 Moniteurs (${adminData.instructors.length})</h3><div class="space-y-2">${adminData.instructors.map(i=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${i.name||'?'}</p><p class="text-sm text-gray-400">📍 ${i.location||'?'} · ⭐ ${i.rating||0} · ${i.hourly_rate||0} XPF/h</p>${i.penalty_until&&new Date(i.penalty_until)>new Date()?'<p class="text-xs text-red-400">⚠️ Pénalisé</p>':''}</div><div class="flex gap-2"><span class="px-2 py-1 rounded-full text-xs ${i.is_online?'bg-green-900 text-green-400':'bg-gray-600 text-gray-400'}">${i.is_online?'🟢':'⚫'}</span><button onclick="adminVerifyInstructor('${i.id}',${!i.verified})" class="text-xs px-2 py-1 rounded-lg ${i.verified?'bg-green-800 text-green-400':'bg-gray-600 text-gray-300'}">${i.verified?'✅':'Vérifier'}</button>${i.penalty_until?`<button onclick="adminRemovePenalty('${i.id}')" class="text-xs px-2 py-1 bg-red-900 text-red-400 rounded-lg">Lever</button>`:''}</div></div>`).join('')||'<p class="text-gray-400">Aucun</p>'}</div>`;
     if (adminTab==='bookings') return `<h3 class="font-bold text-lg mb-4">📋 Réservations (${adminData.bookings.length})</h3><div class="space-y-2">${adminData.bookings.map(b=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${b.student_name||'?'} → ${b.instructor_name||'?'}</p><p class="text-sm text-gray-400">📅 ${b.date} · ${b.amount||0} XPF · Net: ${b.net||0} XPF</p></div><span class="px-3 py-1 rounded-full text-xs font-bold ${b.status==='confirmed'?'bg-green-900 text-green-400':b.status==='cancelled'?'bg-red-900 text-red-400':'bg-yellow-900 text-yellow-400'}">${b.status}</span></div>`).join('')||'<p class="text-gray-400">Aucune</p>'}</div>`;
     if (adminTab==='danger') return `<h3 class="font-bold text-lg mb-4 text-red-400">⚠️ Zone Danger</h3><div class="space-y-4"><div class="bg-red-900/30 border border-red-700 rounded-xl p-4"><p class="font-bold text-red-400 mb-1">Nettoyer les créneaux passés</p><p class="text-sm text-gray-400 mb-3">Supprime tous les créneaux dont la date est dépassée.</p><button onclick="adminCleanSlots()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold">🗑️ Nettoyer</button></div><div class="bg-gray-700 rounded-xl p-4"><p class="text-sm text-gray-400">👥 ${adminData.users.length} users · 🚗 ${adminData.instructors.length} moniteurs · 📋 ${adminData.bookings.length} réservations · 📅 ${adminData.slots.length} créneaux</p></div></div>`;
+    if (adminTab==='disputes') {
+        const disputes = adminData.disputes || [];
+        return `<h3 class="font-bold text-lg mb-4 text-orange-400">⚠️ Litiges (${disputes.length})</h3>
+        <div class="space-y-3">${disputes.length === 0 ? '<p class="text-gray-400">Aucun litige en cours ✅</p>' : disputes.map(d => `
+        <div class="bg-gray-700 rounded-xl p-4">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="font-semibold text-white">${d.reporter_name||'?'}</p>
+                    <p class="text-sm text-gray-400">${d.booking_date||''} · ${d.instructor_name||''} / ${d.student_name||''}</p>
+                    <p class="text-sm text-orange-400 mt-1">Raison : ${d.reason||'?'}</p>
+                    <p class="text-xs text-gray-300 mt-1">${d.description||''}</p>
+                </div>
+                <span class="px-2 py-1 rounded-full text-xs font-bold ${d.status==='open'?'bg-red-900 text-red-400':d.status==='resolved'?'bg-green-900 text-green-400':'bg-gray-600 text-gray-400'}">${d.status}</span>
+            </div>
+            ${d.status==='open'?`<div class="flex gap-2 mt-3"><button onclick="adminResolveDispute('${d.id}')" class="text-xs bg-green-700 text-white px-3 py-1.5 rounded-lg font-bold">✅ Résoudre</button><button onclick="adminCloseDispute('${d.id}')" class="text-xs bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg">Fermer</button></div>`:''}
+        </div>`).join('')}</div>`;
+    }
+    if (adminTab==='logs') {
+        const logs = adminData.logs || [];
+        return `<h3 class="font-bold text-lg mb-4 text-blue-400">📋 Logs d'activité (${logs.length})</h3>
+        <div class="space-y-2 font-mono text-xs">${logs.length === 0 ? '<p class="text-gray-400">Aucun log</p>' : logs.map(l => `
+        <div class="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
+            <div>
+                <span class="text-blue-400">[${l.action}]</span>
+                <span class="text-gray-300 ml-2">${l.user_id ? l.user_id.substring(0,8)+'…' : 'anon'}</span>
+                ${l.metadata ? '<span class="text-gray-500 ml-2">' + JSON.stringify(l.metadata).substring(0,80) + '</span>' : ''}
+            </div>
+            <span class="text-gray-500">${new Date(l.created_at).toLocaleString('fr-FR')}</span>
+        </div>`).join('')}</div>`;
+    }
     return '';
 }
 
@@ -2184,6 +2405,8 @@ window.adminVerifyInstructor = async (id, v) => { await sb.from('instructors').u
 window.adminRemovePenalty = async (id) => { await sb.from('instructors').update({penalty_until:null,visibility_penalty:0}).eq('id',id); notif('✅ Pénalité levée','','green'); await loadAdminData(); };
 window.adminDeleteUser = async (id) => { if(!confirm('Supprimer ?')) return; await sb.from('users').delete().eq('id',id); notif('Supprimé','','red'); await loadAdminData(); };
 window.adminCleanSlots = async () => { if(!confirm('Supprimer créneaux passés ?')) return; const t=new Date().toISOString().split('T')[0]; await sb.from('slots').delete().lt('date',t); notif('✅ Nettoyé','','green'); await loadAdminData(); };
+window.adminResolveDispute = async (id) => { await sb.from('disputes').update({status:'resolved'}).eq('id',id); notif('✅ Litige résolu','','green'); await loadAdminData(); };
+window.adminCloseDispute = async (id) => { await sb.from('disputes').update({status:'closed'}).eq('id',id); notif('Litige fermé','','orange'); await loadAdminData(); };
 
 
 
@@ -2264,8 +2487,8 @@ function render() {
         case 'home':                app.innerHTML=HomePage(); break;
         case 'student-login':       app.innerHTML=LoginPage('student');    setupLoginForm('student');    break;
         case 'instructor-login':    app.innerHTML=LoginPage('instructor'); setupLoginForm('instructor'); break;
-        case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>initMap(),100); break;
-        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();setupUberListeners();},100); break;
+        case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>{initMap();loadReferralData();},100); break;
+        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();setupUberListeners();loadReferralData();},100); break;
         case 'admin':               loadAdminData(); break;
         case 'privacy':             app.innerHTML=LegalPage('privacy'); break;
         case 'terms':               app.innerHTML=LegalPage('terms'); break;
@@ -2494,20 +2717,47 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
         chatSubscription = null;
     }
 
+    // Récupérer le numéro de téléphone de l'autre personne
+    let otherPhone = null;
+    try {
+        const { data: otherUser } = await sb.from('users').select('phone_number').eq('id', otherUserId).single();
+        if (otherUser?.phone_number) otherPhone = otherUser.phone_number;
+        else {
+            const { data: inst } = await sb.from('instructors').select('phone_number').eq('id', otherUserId).single();
+            if (inst?.phone_number) otherPhone = inst.phone_number;
+        }
+    } catch(e) {}
+
     const modal = document.createElement('div');
     modal.id = 'chat-modal';
     modal.className = 'fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-[9999] p-0 md:p-4';
+
+    const callBtn = otherPhone
+        ? '<a href="tel:' + otherPhone + '" style="background:#00C853;color:white;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:5px">📞 ' + otherPhone + '</a>'
+        : '';
+
     const chatHTML = [
-        '<div class="bg-white w-full md:max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col" style="height:85vh;max-height:600px">',
-        '<div class="flex items-center justify-between p-4 border-b">',
-        '<div><h3 class="font-bold text-lg">&#128172; ' + otherName + '</h3>',
-        '<p class="text-xs text-gray-400">Messages en temps r&#233;el</p></div>',
-        '<button onclick="window.closeChat()" class="text-gray-400 hover:text-gray-600 text-2xl">&#x2715;</button>',
+        '<div class="bg-white w-full md:max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col" style="height:85vh;max-height:620px">',
+        // Header
+        '<div style="background:#111;border-radius:24px 24px 0 0;padding:16px 20px;display:flex;align-items:center;justify-content:space-between">',
+        '<div>',
+        '<h3 style="color:white;font-weight:800;font-size:16px">💬 ' + otherName + '</h3>',
+        '<p style="color:#666;font-size:11px">Messages en temps réel</p>',
         '</div>',
-        '<div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3"></div>',
-        '<div class="p-4 border-t flex gap-2">',
-        '<input id="chat-input" type="text" placeholder="Message..." class="flex-1 border border-gray-200 rounded-xl px-4 py-2 outline-none focus:border-blue-400 text-sm">',
-        '<button id="chat-send-btn" class="bg-blue-500 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-blue-600">&#8594;</button>',
+        '<div style="display:flex;align-items:center;gap:10px">',
+        callBtn,
+        '<button onclick="window.closeChat()" style="background:#222;border:none;border-radius:50%;width:32px;height:32px;color:#888;cursor:pointer;font-size:18px">×</button>',
+        '</div>',
+        '</div>',
+        // Messages
+        '<div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3" style="background:#fafafa"></div>',
+        // Input
+        '<div style="padding:12px 16px;border-top:1px solid #eee;display:flex;gap:8px;align-items:center;background:white">',
+        '<label style="cursor:pointer;background:#f3f4f6;border-radius:10px;padding:8px 10px;display:flex;align-items:center" title="Envoyer une photo">',
+        '📷<input type="file" id="chat-img-input" accept="image/*" style="display:none" onchange="window.sendChatImage(\'' + bookingId + '\')">',
+        '</label>',
+        '<input id="chat-input" type="text" placeholder="Message..." style="flex:1;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;outline:none;font-size:14px">',
+        '<button id="chat-send-btn" style="background:#3B82F6;color:white;border:none;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:14px">→</button>',
         '</div></div>'
     ].join('');
     modal.innerHTML = chatHTML;
@@ -2521,11 +2771,11 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
 
     // Charger les messages existants
     await loadMessages(bookingId);
+    await logActivity('chat_opened', { booking_id: bookingId });
 
-    // Souscrire aux nouveaux messages - Broadcast pour instantané + postgres_changes pour fiabilité
+    // Souscrire aux nouveaux messages
     chatSubscription = sb.channel('chat-' + bookingId)
         .on('broadcast', { event: 'new_message' }, (payload) => {
-            // Message reçu instantanément via broadcast
             if (payload.payload.sender_id !== currentUser.id) {
                 appendMessage(payload.payload);
             }
@@ -2536,11 +2786,39 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
             table: 'messages',
             filter: 'booking_id=eq.' + bookingId
         }, (payload) => {
-            // Éviter les doublons pour les messages de l'autre personne
             const existing = document.querySelector('[data-msg-id="' + payload.new.id + '"]');
             if (!existing) appendMessage(payload.new);
         })
         .subscribe();
+}
+
+// Envoyer une image dans le chat
+window.sendChatImage = async function(bookingId) {
+    const input = document.getElementById('chat-img-input');
+    const file = input?.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { notif('❌ Image trop lourde', 'Max 10MB', 'red'); return; }
+
+    notif('⏳ Envoi de l\'image...', '', 'orange');
+    const ext = file.name.split('.').pop();
+    const path = 'chat/' + bookingId + '/' + Date.now() + '.' + ext;
+    const { error: uploadErr } = await sb.storage.from('chat-images').upload(path, file, { upsert: false, contentType: file.type });
+    if (uploadErr) { notif('❌ Erreur upload', uploadErr.message, 'red'); return; }
+    const { data: urlData } = sb.storage.from('chat-images').getPublicUrl(path);
+    const imageUrl = urlData.publicUrl;
+
+    const msg = {
+        booking_id: bookingId,
+        sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: '📷 Photo',
+        image_url: imageUrl,
+        created_at: new Date().toISOString()
+    };
+    appendMessage(msg);
+    sb.channel('chat-' + bookingId).send({ type: 'broadcast', event: 'new_message', payload: msg });
+    await sb.from('messages').insert({ booking_id: msg.booking_id, sender_id: msg.sender_id, sender_name: msg.sender_name, content: msg.content, image_url: imageUrl });
+    input.value = '';
 }
 
 window.closeChat = function() {
@@ -2570,20 +2848,25 @@ async function loadMessages(bookingId) {
 function appendMessage(msg) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
-    // Supprimer le message "Aucun message" si présent
     const empty = container.querySelector('p');
     if (empty) empty.remove();
 
     const isMe = msg.sender_id === currentUser.id;
     const time = new Date(msg.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
     const div = document.createElement('div');
+    div.dataset.msgId = msg.id || '';
     div.className = 'flex ' + (isMe ? 'justify-end' : 'justify-start');
+
+    const contentHtml = msg.image_url
+        ? '<img src="' + msg.image_url + '" style="max-width:220px;border-radius:12px;display:block;cursor:pointer" onclick="window.open(\'' + msg.image_url + '\',\'_blank\')" alt="Photo">'
+        : '<span style="font-size:14px;line-height:1.5">' + sanitize(msg.content) + '</span>';
+
     div.innerHTML =
-        '<div class="max-w-xs">' +
-        '<div class="' + (isMe ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-800') + ' rounded-2xl ' + (isMe ? 'rounded-br-sm' : 'rounded-bl-sm') + ' px-4 py-2 text-sm">' +
-        msg.content +
+        '<div style="max-width:70%">' +
+        '<div style="background:' + (isMe ? '#3B82F6' : '#F3F4F6') + ';color:' + (isMe ? 'white' : '#1F2937') + ';border-radius:16px;' + (isMe ? 'border-bottom-right-radius:4px' : 'border-bottom-left-radius:4px') + ';padding:' + (msg.image_url ? '4px' : '10px 14px') + '">' +
+        contentHtml +
         '</div>' +
-        '<p class="text-xs text-gray-400 mt-1 ' + (isMe ? 'text-right' : '') + '">' + (isMe ? 'Vous' : msg.sender_name) + ' · ' + time + '</p>' +
+        '<p style="font-size:11px;color:#9CA3AF;margin-top:4px;' + (isMe ? 'text-align:right' : '') + '">' + (isMe ? 'Vous' : (msg.sender_name || 'Contact')) + ' · ' + time + '</p>' +
         '</div>';
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
