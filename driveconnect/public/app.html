@@ -12,6 +12,8 @@
     <meta name="apple-mobile-web-app-title" content="DriveConnect">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icon-192.png">
+    <!-- CSP : autoriser PayPal, Supabase, Leaflet -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' data: blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval'; style-src * 'self' 'unsafe-inline'; img-src * data: blob:; connect-src *; frame-src *; font-src *;">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
