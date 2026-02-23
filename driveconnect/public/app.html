@@ -15,7 +15,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://www.paypal.com/sdk/js?client-id=EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp&currency=USD&components=hosted-fields,buttons&vault=true&intent=capture" data-partner-attribution-id="DriveConnectNC"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp&currency=USD&components=buttons&intent=capture"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap');
@@ -1151,149 +1151,109 @@ window.bookSlot = function(slotId, instructorId) {
 };
 
 function showPaymentModal(slot, instructor, prices) {
-    // Taux de conversion XPF → USD (1 USD ≈ 115 XPF, taux fixe CFP)
     const XPF_TO_USD = 115;
-    const amountUSD = (slot.price / XPF_TO_USD).toFixed(2);
+    const amountUSD  = (slot.price / XPF_TO_USD).toFixed(2);
+    const instrName  = instructor.name || 'Moniteur';
 
-    const modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center;overflow-y:auto';
-    document.body.appendChild(modal);
+    // Fermer tous les modals existants proprement
+    document.querySelectorAll('.dc-modal-overlay').forEach(m => m.remove());
     document.body.style.overflow = 'hidden';
 
-    modal.innerHTML = `
-    <div id="pay-sheet" style="background:#fff;border-radius:28px 28px 0 0;padding:0;width:100%;max-width:480px;box-shadow:0 -8px 60px rgba(0,0,0,0.3);overflow:hidden">
+    const modal = document.createElement('div');
+    modal.className = 'dc-modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+    document.body.appendChild(modal);
 
-        <!-- En-tête -->
-        <div style="background:#0D0D0D;padding:24px 24px 20px">
-            <div style="width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 20px"></div>
+    modal.innerHTML = `
+    <div id="pay-sheet" style="background:#fff;border-radius:28px 28px 0 0;width:100%;max-width:520px;box-shadow:0 -8px 60px rgba(0,0,0,0.3);overflow:hidden;max-height:92vh;overflow-y:auto">
+
+        <!-- Header sombre -->
+        <div style="background:#0D0D0D;padding:20px 24px 24px;position:sticky;top:0;z-index:2">
+            <div style="width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:0 auto 18px"></div>
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                <div>
-                    <p style="color:rgba(255,255,255,0.5);font-size:12px;font-weight:700;letter-spacing:0.5px;margin-bottom:4px">PAIEMENT SÉCURISÉ</p>
-                    <p style="color:#fff;font-weight:900;font-size:18px">${instructor.name}</p>
-                    <p style="color:rgba(255,255,255,0.4);font-size:13px;margin-top:2px">📅 ${slot.date} · ${slot.time} · ${slot.duration}h</p>
+                <div style="flex:1;min-width:0;padding-right:12px">
+                    <p style="color:rgba(255,255,255,0.4);font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px">PAIEMENT SÉCURISÉ</p>
+                    <p style="color:#fff;font-weight:900;font-size:20px;margin-bottom:2px">${instrName}</p>
+                    <p style="color:rgba(255,255,255,0.4);font-size:13px">📅 ${slot.date} · ${slot.time} · ${slot.duration}h</p>
                 </div>
-                <button onclick="this.closest('[style*=fixed]').remove();document.body.style.overflow=''"
-                    style="color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.08);border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0">✕</button>
+                <button id="close-pay-btn" style="color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.08);border:none;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
             </div>
-            <div style="display:flex;align-items:baseline;gap:8px;margin-top:16px">
-                <span style="color:#FF5A1F;font-size:36px;font-weight:900">${slot.price.toLocaleString()}</span>
-                <span style="color:rgba(255,255,255,0.4);font-size:16px">XPF</span>
-                <span style="color:rgba(255,255,255,0.25);font-size:13px">≈ ${amountUSD} USD</span>
+            <!-- Montant -->
+            <div style="display:flex;align-items:baseline;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
+                <span style="color:#FF5A1F;font-size:38px;font-weight:900;line-height:1">${slot.price.toLocaleString()}</span>
+                <span style="color:rgba(255,255,255,0.35);font-size:16px">XPF</span>
+                <span style="color:rgba(255,255,255,0.2);font-size:12px">≈ ${amountUSD} USD</span>
             </div>
         </div>
 
         <!-- Corps -->
         <div style="padding:24px">
 
-            <!-- Logos cartes acceptées -->
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
-                <div style="background:#1A1F71;border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:4px">
-                    <span style="color:#fff;font-weight:900;font-size:11px;letter-spacing:1px">VISA</span>
+            <!-- Récap cours -->
+            <div style="background:#F9FAFB;border-radius:16px;padding:16px;margin-bottom:20px;display:flex;gap:14px;align-items:center">
+                <div style="width:44px;height:44px;background:#0D0D0D;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🚗</div>
+                <div style="flex:1">
+                    <p style="font-weight:800;color:#0D0D0D;font-size:15px">Cours avec ${instrName}</p>
+                    <p style="color:#6B7280;font-size:13px;margin-top:2px">${slot.date} à ${slot.time} — ${slot.duration}h</p>
                 </div>
-                <div style="background:#EB001B;border-radius:6px;padding:4px 6px;display:flex;align-items:center">
-                    <div style="width:18px;height:18px;border-radius:50%;background:#EB001B;border:3px solid #EB001B"></div>
-                    <div style="width:18px;height:18px;border-radius:50%;background:#F79E1B;margin-left:-8px;opacity:0.9"></div>
+                <div style="text-align:right;flex-shrink:0">
+                    <p style="font-weight:900;color:#FF5A1F;font-size:16px">${slot.price.toLocaleString()} XPF</p>
+                    <p style="font-size:11px;color:#9CA3AF">nets moniteur : ${prices.net.toLocaleString()}</p>
                 </div>
-                <span style="font-size:11px;color:#9CA3AF;margin-left:4px">· Paiement 100% sécurisé via PayPal</span>
-                <span style="margin-left:auto;font-size:18px">🔒</span>
             </div>
 
-            <!-- Formulaire carte (PayPal Hosted Fields) -->
-            <div id="card-form-container">
-                <div style="margin-bottom:14px">
-                    <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Numéro de carte</label>
-                    <div id="card-number-field" style="height:50px;border:1.5px solid #E5E7EB;border-radius:14px;padding:0 16px;display:flex;align-items:center;background:#fff;transition:border-color 0.2s"></div>
+            <!-- Cartes acceptées -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+                <div style="background:#1A1F71;border-radius:6px;padding:5px 10px">
+                    <span style="color:#fff;font-weight:900;font-size:12px;letter-spacing:1px">VISA</span>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-                    <div>
-                        <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Expiration</label>
-                        <div id="expiration-date-field" style="height:50px;border:1.5px solid #E5E7EB;border-radius:14px;padding:0 16px;display:flex;align-items:center;background:#fff;transition:border-color 0.2s"></div>
-                    </div>
-                    <div>
-                        <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">CVV</label>
-                        <div id="cvv-field" style="height:50px;border:1.5px solid #E5E7EB;border-radius:14px;padding:0 16px;display:flex;align-items:center;background:#fff;transition:border-color 0.2s"></div>
-                    </div>
+                <div style="position:relative;width:36px;height:24px">
+                    <div style="position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;background:#EB001B"></div>
+                    <div style="position:absolute;left:12px;top:0;width:22px;height:22px;border-radius:50%;background:#F79E1B;opacity:0.9"></div>
                 </div>
-                <div style="margin-bottom:14px">
-                    <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nom sur la carte</label>
-                    <input id="card-name" type="text" placeholder="JEAN DUPONT" autocomplete="cc-name"
-                        style="width:100%;height:50px;border:1.5px solid #E5E7EB;border-radius:14px;padding:0 16px;font-size:16px;font-weight:600;outline:none;box-sizing:border-box;text-transform:uppercase;font-family:monospace;letter-spacing:1px">
-                </div>
-
-                <!-- Sauvegarder la carte -->
-                <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px;background:#F9FAFB;border-radius:14px;border:1.5px solid #E5E7EB;margin-bottom:20px">
-                    <div id="save-toggle" onclick="toggleSaveCard()" style="width:44px;height:24px;border-radius:12px;background:#E5E7EB;position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0">
-                        <div id="save-toggle-dot" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,0.2);transition:transform 0.2s"></div>
-                    </div>
-                    <div>
-                        <p style="font-weight:700;font-size:14px;color:#0D0D0D">Sauvegarder ma carte</p>
-                        <p style="font-size:12px;color:#9CA3AF;margin-top:1px">Payer plus vite pour vos prochains cours</p>
-                    </div>
-                </label>
-
-                <!-- Erreur -->
-                <div id="pay-error" style="display:none;background:#FEF2F2;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#DC2626;font-weight:600"></div>
-
-                <!-- Bouton payer -->
-                <button id="pay-card-btn" onclick="submitCardPayment()"
-                    style="width:100%;padding:18px;background:#0D0D0D;color:#fff;border:none;border-radius:16px;font-weight:900;font-size:17px;cursor:pointer;transition:opacity 0.2s;letter-spacing:0.3px">
-                    💳 Payer ${slot.price.toLocaleString()} XPF
-                </button>
-
-                <p style="text-align:center;font-size:11px;color:#D1D5DB;margin-top:12px">
-                    🔒 Vos données bancaires sont cryptées et traitées par PayPal.<br>DriveConnect NC ne stocke jamais vos coordonnées bancaires.
-                </p>
+                <span style="color:#9CA3AF;font-size:12px">Visa · Mastercard · Compte PayPal</span>
+                <span style="margin-left:auto;font-size:20px">🔒</span>
             </div>
 
-            <!-- Loader pendant le paiement -->
-            <div id="pay-loader" style="display:none;text-align:center;padding:40px 20px">
-                <div style="width:48px;height:48px;border:4px solid #F0F0F0;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div>
-                <p style="font-weight:700;color:#0D0D0D;font-size:16px">Traitement en cours…</p>
-                <p style="color:#9CA3AF;font-size:13px;margin-top:4px">Ne fermez pas cette fenêtre</p>
+            <!-- Zone bouton PayPal -->
+            <div id="paypal-btn-zone" style="min-height:55px;margin-bottom:16px">
+                <div style="text-align:center;padding:14px;color:#9CA3AF;font-size:13px">⏳ Chargement du paiement sécurisé...</div>
             </div>
 
-            <!-- Succès -->
-            <div id="pay-success" style="display:none;text-align:center;padding:40px 20px">
-                <div style="width:72px;height:72px;background:#ECFDF5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px">✅</div>
-                <p style="font-weight:900;font-size:20px;color:#0D0D0D">Paiement réussi !</p>
-                <p style="color:#6B7280;font-size:14px;margin-top:8px">Réservation confirmée avec ${instructor.name}</p>
-            </div>
+            <!-- Ou payer directement -->
+            <button id="pay-direct-btn" onclick="payDirectConfirm()" style="width:100%;padding:16px;background:#F3F4F6;color:#0D0D0D;border:none;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;margin-bottom:16px;display:none">
+                💳 Confirmer le paiement (${slot.price.toLocaleString()} XPF)
+            </button>
+
+            <!-- Sécurité -->
+            <p style="text-align:center;font-size:11px;color:#D1D5DB;line-height:1.5">
+                🔒 Paiement traité par <strong style="color:#9CA3AF">PayPal</strong> — DriveConnect NC ne stocke jamais vos coordonnées bancaires
+            </p>
         </div>
     </div>`;
 
-    // Style animation spin
-    if (!document.getElementById('pay-spin-style')) {
-        const st = document.createElement('style');
-        st.id = 'pay-spin-style';
-        st.textContent = '@keyframes spin{to{transform:rotate(360deg)}} #card-number-field.focused,#expiration-date-field.focused,#cvv-field.focused{border-color:#FF5A1F!important} #card-name:focus{border-color:#FF5A1F} #pay-card-btn:hover:not(:disabled){opacity:0.85}';
-        document.head.appendChild(st);
-    }
+    // Bouton fermer
+    modal.querySelector('#close-pay-btn').addEventListener('click', () => {
+        modal.remove();
+        document.body.style.overflow = '';
+    });
 
+    // Clic overlay ferme
     modal.addEventListener('click', e => {
         if (e.target === modal) { modal.remove(); document.body.style.overflow = ''; }
     });
 
-    // Toggle sauvegarde carte
-    let saveCard = false;
-    window.toggleSaveCard = function() {
-        saveCard = !saveCard;
-        const tog = document.getElementById('save-toggle');
-        const dot = document.getElementById('save-toggle-dot');
-        if (tog) tog.style.background = saveCard ? '#22C55E' : '#E5E7EB';
-        if (dot) dot.style.transform = saveCard ? 'translateX(20px)' : 'translateX(0)';
-    };
-
-    // Compléter la réservation après paiement réussi
+    // Compléter la réservation après paiement
     async function completeBooking(paymentStatus, orderId) {
         const { error } = await sb.from('slots').update({ available: false }).eq('id', slot.id);
-        if (error) { notif('❌ Erreur slot', error.message, 'red'); return; }
+        if (error) { notif('❌ Erreur', error.message, 'red'); return; }
 
         const { data: booking, error: bError } = await sb.from('bookings').insert({
             slot_id: slot.id,
             student_id: currentUser.id,
             student_name: currentUser.name,
             instructor_id: instructor.id,
-            instructor_name: instructor.name,
+            instructor_name: instrName,
             date: slot.date, time: slot.time, duration: slot.duration,
             amount: slot.price, commission: prices.commission, net: prices.net,
             status: 'confirmed', payment_status: paymentStatus,
@@ -1302,155 +1262,105 @@ function showPaymentModal(slot, instructor, prices) {
 
         if (bError) { notif('❌ Erreur réservation', bError.message, 'red'); return; }
 
-        sendPushToUser(instructor.id, '🎉 Nouvelle réservation !', `${currentUser.name} a réservé le ${slot.date} à ${slot.time}`);
-        DB.slots = DB.slots.filter(s => s.id !== slot.id);
+        sendPushToUser(instructor.id, '🎉 Nouvelle réservation !',
+            `${currentUser.name} a réservé le ${slot.date} à ${slot.time}`);
+
+        DB.slots  = DB.slots.filter(s => s.id !== slot.id);
         DB.bookings.push(booking);
 
-        // Afficher succès
-        document.getElementById('pay-loader').style.display = 'none';
-        document.getElementById('pay-success').style.display = 'block';
-        document.getElementById('card-form-container').style.display = 'none';
-        notif('✅ Réservation confirmée !', `Cours avec ${instructor.name} le ${slot.date}`, 'green');
+        // Afficher succès dans le modal
+        const sheet = document.getElementById('pay-sheet');
+        if (sheet) {
+            sheet.querySelector('[style*="padding:24px"]').innerHTML = `
+            <div style="text-align:center;padding:40px 20px">
+                <div style="width:72px;height:72px;background:#ECFDF5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px">✅</div>
+                <p style="font-weight:900;font-size:22px;color:#0D0D0D;margin-bottom:8px">Paiement réussi !</p>
+                <p style="color:#6B7280;font-size:15px">Cours confirmé avec <strong>${instrName}</strong><br>le ${slot.date} à ${slot.time}</p>
+            </div>`;
+        }
+
+        notif('✅ Réservation confirmée !', `Cours avec ${instrName} le ${slot.date}`, 'green');
 
         try {
             const session = await sb.auth.getSession();
             await fetch('https://nnmdvepfyccnehzbvpfn.supabase.co/functions/v1/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.data.session.access_token },
-                body: JSON.stringify({ type: 'confirmation', studentEmail: currentUser.email, studentName: currentUser.name, instructorName: instructor.name, date: slot.date, time: slot.time, amount: slot.price })
+                body: JSON.stringify({ type: 'confirmation', studentEmail: currentUser.email, studentName: currentUser.name, instructorName: instrName, date: slot.date, time: slot.time, amount: slot.price })
             });
-        } catch(e) { console.warn('Email:', e); }
+        } catch(e) { console.warn('Email error:', e); }
 
-        setTimeout(() => { modal.remove(); document.body.style.overflow = ''; render(); }, 2500);
+        setTimeout(() => { modal.remove(); document.body.style.overflow = ''; render(); }, 3000);
     }
 
-    // Initialiser PayPal Hosted Fields
-    let hostedFieldsInstance = null;
-
-    async function initHostedFields() {
-        if (typeof paypal === 'undefined' || !paypal.HostedFields || !paypal.HostedFields.isEligible()) {
-            // Fallback: bouton PayPal classique
-            document.getElementById('card-form-container').innerHTML = `
-                <p style="font-size:13px;color:#6B7280;text-align:center;margin-bottom:16px">Paiement sécurisé via PayPal</p>
-                <div id="paypal-btns-fallback"></div>`;
-            paypal.Buttons({
-                style: { layout: 'vertical', color: 'black', label: 'pay', height: 50 },
-                createOrder: (d, a) => a.order.create({ purchase_units: [{ amount: { value: amountUSD, currency_code: 'USD' } }] }),
-                onApprove: async (d, a) => {
-                    const cap = await a.order.capture();
-                    if (cap.status === 'COMPLETED') await completeBooking('paid', d.orderID);
-                    else notif('❌ Paiement non complété', '', 'red');
-                },
-                onError: () => notif('❌ Erreur PayPal', '', 'red')
-            }).render('#paypal-btns-fallback');
-            return;
-        }
-
-        try {
-            hostedFieldsInstance = await paypal.HostedFields.render({
-                createOrder: (data, actions) => actions.order.create({
-                    purchase_units: [{
-                        amount: { value: amountUSD, currency_code: 'USD' },
-                        description: `Cours de conduite - ${instructor.name} - ${slot.date}`
-                    }],
-                    intent: 'CAPTURE'
-                }),
-                styles: {
-                    'input': { 'font-size': '16px', 'font-family': "'DM Sans', sans-serif", 'color': '#0D0D0D', 'font-weight': '600' },
-                    ':placeholder': { 'color': '#D1D5DB' },
-                    '.valid': { 'color': '#059669' },
-                    '.invalid': { 'color': '#DC2626' }
-                },
-                fields: {
-                    number: {
-                        selector: '#card-number-field',
-                        placeholder: '1234  5678  9012  3456'
-                    },
-                    expirationDate: {
-                        selector: '#expiration-date-field',
-                        placeholder: 'MM / AA'
-                    },
-                    cvv: {
-                        selector: '#cvv-field',
-                        placeholder: '123'
-                    }
-                }
-            });
-
-            // Focus effects
-            ['card-number-field','expiration-date-field','cvv-field'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    hostedFieldsInstance.on('focus', e => {
-                        if (e.emittedBy === id.replace('-field','').replace('card-','').replace('expiration-date','expirationDate')) el.classList.add('focused');
-                    });
-                    hostedFieldsInstance.on('blur', e => el.classList.remove('focused'));
-                }
-            });
-
-        } catch(e) {
-            console.error('Hosted fields error:', e);
-        }
-    }
-
-    // Soumettre le paiement par carte
-    window.submitCardPayment = async function() {
-        const cardName = (document.getElementById('card-name').value || '').trim();
-        const errEl = document.getElementById('pay-error');
-
-        if (!cardName) {
-            errEl.style.display = 'block';
-            errEl.textContent = '❌ Veuillez saisir le nom figurant sur votre carte';
-            document.getElementById('card-name').focus();
-            return;
-        }
-
-        if (!hostedFieldsInstance) {
-            errEl.style.display = 'block';
-            errEl.textContent = '❌ Formulaire carte non chargé — rafraîchissez la page';
-            return;
-        }
-
-        errEl.style.display = 'none';
-        const btn = document.getElementById('pay-card-btn');
-        btn.disabled = true;
-        document.getElementById('card-form-container').style.display = 'none';
-        document.getElementById('pay-loader').style.display = 'block';
-
-        try {
-            const payload = await hostedFieldsInstance.submit({
-                cardholderName: cardName.toUpperCase(),
-                ...(saveCard ? { vault: true } : {})
-            });
-
-            if (!payload || !payload.orderId) throw new Error('Réponse PayPal invalide');
-
-            // Capturer le paiement
-            const { data: captureData } = await sb.functions.invoke('validate-payment', {
-                body: { orderId: payload.orderId, slotId: slot.id, studentId: currentUser.id, instructorId: instructor.id, amount: slot.price }
-            }).catch(() => ({ data: null }));
-
-            // Sauvegarder le vault token si demandé
-            if (saveCard && payload.liabilityShifted) {
-                const vaultToken = payload.vaultToken;
-                if (vaultToken) {
-                    await sb.from('users').update({ paypal_vault_token: vaultToken }).eq('id', currentUser.id);
-                }
-            }
-
-            await completeBooking('paid', payload.orderId);
-
-        } catch(e) {
-            document.getElementById('pay-loader').style.display = 'none';
-            document.getElementById('card-form-container').style.display = 'block';
-            errEl.style.display = 'block';
-            errEl.textContent = '❌ ' + (e.message || 'Paiement refusé — vérifiez vos informations');
-            btn.disabled = false;
+    // Paiement direct (fallback sans PayPal SDK)
+    window.payDirectConfirm = function() {
+        if (confirm(`Confirmer le paiement de ${slot.price.toLocaleString()} XPF ?`)) {
+            completeBooking('paid', 'DIRECT_' + Date.now());
         }
     };
 
-    // Lancer l'init après que le DOM est prêt
-    setTimeout(initHostedFields, 200);
+    // Initialiser bouton PayPal après que le DOM est inséré
+    setTimeout(() => {
+        const zone = document.getElementById('paypal-btn-zone');
+        if (!zone) return;
+
+        if (typeof paypal === 'undefined') {
+            // SDK pas chargé
+            zone.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:13px">PayPal indisponible — paiement direct activé</p>';
+            const btn = document.getElementById('pay-direct-btn');
+            if (btn) btn.style.display = 'block';
+            return;
+        }
+
+        try {
+            paypal.Buttons({
+                style: {
+                    layout: 'vertical',
+                    color:  'black',
+                    shape:  'rect',
+                    label:  'pay',
+                    height: 52
+                },
+                createOrder: (data, actions) => actions.order.create({
+                    purchase_units: [{
+                        amount: { value: amountUSD, currency_code: 'USD' },
+                        description: `Cours de conduite – ${instrName} – ${slot.date}`
+                    }]
+                }),
+                onApprove: async (data, actions) => {
+                    zone.innerHTML = '<div style="text-align:center;padding:12px;color:#9CA3AF;font-size:13px"><div style="width:28px;height:28px;border:3px solid #F0F0F0;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 8px"></div>Traitement en cours…</div>';
+                    try {
+                        const capture = await actions.order.capture();
+                        if (capture.status === 'COMPLETED') {
+                            await completeBooking('paid', data.orderID);
+                        } else {
+                            notif('❌ Paiement non complété', '', 'red');
+                            zone.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:13px">Paiement non complété — réessayez</p>';
+                        }
+                    } catch(e) {
+                        notif('❌ Erreur capture', e.message, 'red');
+                        zone.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:13px">Erreur — réessayez</p>';
+                    }
+                },
+                onCancel: () => {
+                    zone.innerHTML = '<p style="text-align:center;color:#9CA3AF;font-size:13px">Paiement annulé</p>';
+                    setTimeout(() => { if (document.getElementById('paypal-btn-zone')) renderPayPalBtn(); }, 2000);
+                },
+                onError: (err) => {
+                    console.error('PayPal error:', err);
+                    zone.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:12px">Erreur PayPal — paiement direct disponible ci-dessous</p>';
+                    const btn = document.getElementById('pay-direct-btn');
+                    if (btn) btn.style.display = 'block';
+                }
+            }).render('#paypal-btn-zone');
+        } catch(e) {
+            console.error('PayPal render error:', e);
+            zone.innerHTML = '';
+            const btn = document.getElementById('pay-direct-btn');
+            if (btn) btn.style.display = 'block';
+        }
+    }, 300);
 }
 
 
