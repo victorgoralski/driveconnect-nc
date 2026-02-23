@@ -2706,120 +2706,218 @@ window.showRating = function(bookingId, instructorId, instructorName) {
 // ========== CHAT ==========
 let chatSubscription = null;
 
+// ══════════════════════════════════════════
+// CHAT — Photos + Appel téléphonique
+// ══════════════════════════════════════════
 window.openChat = async function(bookingId, otherUserId, otherName) {
-    // Corriger le null si otherName est vide
-    if (!otherName || otherName === 'null' || otherName === 'undefined') {
-        otherName = 'Votre contact';
-    }
-    // Fermer subscription précédente
-    if (chatSubscription) {
-        chatSubscription.unsubscribe();
-        chatSubscription = null;
-    }
+    if (!otherName || otherName === 'null' || otherName === 'undefined') otherName = 'Votre contact';
 
-    // Récupérer le numéro de téléphone de l'autre personne
+    if (chatSubscription) { chatSubscription.unsubscribe(); chatSubscription = null; }
+
+    // ── Récupérer le numéro de téléphone ──
+    // Priorité 1 : table instructors (moniteurs mettent leur tél dans les Settings)
+    // Priorité 2 : table users (colonne phone_number si elle existe)
     let otherPhone = null;
     try {
-        const { data: otherUser } = await sb.from('users').select('phone_number').eq('id', otherUserId).single();
-        if (otherUser?.phone_number) otherPhone = otherUser.phone_number;
-        else {
-            const { data: inst } = await sb.from('instructors').select('phone_number').eq('id', otherUserId).single();
-            if (inst?.phone_number) otherPhone = inst.phone_number;
-        }
+        const { data: inst } = await sb.from('instructors').select('phone_number').eq('id', otherUserId).maybeSingle();
+        if (inst?.phone_number) otherPhone = inst.phone_number;
     } catch(e) {}
+    if (!otherPhone) {
+        try {
+            const { data: usr } = await sb.from('users').select('phone_number').eq('id', otherUserId).maybeSingle();
+            if (usr?.phone_number) otherPhone = usr.phone_number;
+        } catch(e) {}
+    }
 
-    const modal = document.createElement('div');
-    modal.id = 'chat-modal';
-    modal.className = 'fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-[9999] p-0 md:p-4';
+    // ── Construire la modal ──
+    const overlay = document.createElement('div');
+    overlay.id = 'chat-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
 
-    const callBtn = otherPhone
-        ? '<a href="tel:' + otherPhone + '" style="background:#00C853;color:white;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:5px">📞 ' + otherPhone + '</a>'
-        : '';
+    // Header html
+    const phoneSection = otherPhone
+        ? `<a href="tel:${otherPhone}" id="chat-call-btn"
+              style="display:inline-flex;align-items:center;gap:6px;background:#00C853;color:white;
+                     text-decoration:none;border-radius:20px;padding:7px 14px;font-weight:700;font-size:13px;
+                     border:none;cursor:pointer;flex-shrink:0;white-space:nowrap">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+               ${otherPhone}
+           </a>`
+        : `<button onclick="window._chatNoPhone()" id="chat-call-btn"
+              style="display:inline-flex;align-items:center;gap:6px;background:#2C2C2C;color:#666;
+                     border:1px solid #444;border-radius:20px;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;flex-shrink:0">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+               Appeler
+           </button>`;
 
-    const chatHTML = [
-        '<div class="bg-white w-full md:max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col" style="height:85vh;max-height:620px">',
-        // Header
-        '<div style="background:#111;border-radius:24px 24px 0 0;padding:16px 20px;display:flex;align-items:center;justify-content:space-between">',
-        '<div>',
-        '<h3 style="color:white;font-weight:800;font-size:16px">💬 ' + otherName + '</h3>',
-        '<p style="color:#666;font-size:11px">Messages en temps réel</p>',
-        '</div>',
-        '<div style="display:flex;align-items:center;gap:10px">',
-        callBtn,
-        '<button onclick="window.closeChat()" style="background:#222;border:none;border-radius:50%;width:32px;height:32px;color:#888;cursor:pointer;font-size:18px">×</button>',
-        '</div>',
-        '</div>',
-        // Messages
-        '<div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3" style="background:#fafafa"></div>',
-        // Input
-        '<div style="padding:12px 16px;border-top:1px solid #eee;display:flex;gap:8px;align-items:center;background:white">',
-        '<label style="cursor:pointer;background:#f3f4f6;border-radius:10px;padding:8px 10px;display:flex;align-items:center" title="Envoyer une photo">',
-        '📷<input type="file" id="chat-img-input" accept="image/*" style="display:none" onchange="window.sendChatImage(\'' + bookingId + '\')">',
-        '</label>',
-        '<input id="chat-input" type="text" placeholder="Message..." style="flex:1;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;outline:none;font-size:14px">',
-        '<button id="chat-send-btn" style="background:#3B82F6;color:white;border:none;border-radius:12px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:14px">→</button>',
-        '</div></div>'
-    ].join('');
-    modal.innerHTML = chatHTML;
-    document.body.appendChild(modal);
+    overlay.innerHTML = `
+    <div id="chat-panel" style="
+        width:100%; max-width:520px;
+        background:#fff;
+        border-radius:24px 24px 0 0;
+        display:flex; flex-direction:column;
+        height:88vh; max-height:660px;
+        box-shadow:0 -8px 40px rgba(0,0,0,0.3);
+        overflow:hidden">
+
+        <!-- HEADER SOMBRE -->
+        <div style="background:#0D0D0D;padding:16px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0">
+            <!-- Avatar -->
+            <div style="width:40px;height:40px;border-radius:50%;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:white;font-size:16px;flex-shrink:0">
+                ${(otherName||'?')[0].toUpperCase()}
+            </div>
+            <!-- Nom + statut -->
+            <div style="flex:1;min-width:0">
+                <p style="color:white;font-weight:800;font-size:15px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${otherName}</p>
+                <p style="color:#555;font-size:11px;margin:0">● Messages en temps réel</p>
+            </div>
+            <!-- Bouton Appel -->
+            ${phoneSection}
+            <!-- Fermer -->
+            <button onclick="window.closeChat()"
+                style="width:32px;height:32px;border-radius:50%;background:#1C1C1C;border:1px solid #333;
+                       color:#888;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                ×
+            </button>
+        </div>
+
+        <!-- ZONE PREVIEW IMAGE (masquée par défaut) -->
+        <div id="chat-img-preview" style="display:none;padding:10px 16px;background:#F9FAFB;border-bottom:1px solid #eee;flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:10px">
+                <img id="chat-img-preview-img" src="" style="height:64px;border-radius:10px;object-fit:cover">
+                <div style="flex:1">
+                    <p style="font-size:13px;font-weight:600;color:#111;margin:0 0 4px">Photo prête à envoyer</p>
+                    <p id="chat-img-preview-name" style="font-size:11px;color:#888;margin:0"></p>
+                </div>
+                <button onclick="window.cancelChatImage()" style="background:none;border:none;color:#DC2626;font-size:20px;cursor:pointer">×</button>
+            </div>
+            <button onclick="window.confirmSendImage('${bookingId}')"
+                style="width:100%;margin-top:10px;background:#FF5A1F;color:white;border:none;
+                       border-radius:12px;padding:10px;font-weight:700;cursor:pointer;font-size:14px">
+                📤 Envoyer la photo
+            </button>
+        </div>
+
+        <!-- MESSAGES -->
+        <div id="chat-messages" style="flex:1;overflow-y:auto;padding:16px;background:#F9FAFB;display:flex;flex-direction:column;gap:10px"></div>
+
+        <!-- BARRE D'ENVOI -->
+        <div style="padding:12px 14px;border-top:1px solid #EBEBEB;background:#fff;display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <!-- Bouton photo -->
+            <label id="chat-photo-btn" title="Envoyer une photo"
+                style="width:42px;height:42px;border-radius:12px;background:#F3F4F6;
+                       display:flex;align-items:center;justify-content:center;cursor:pointer;
+                       border:1.5px solid #E5E7EB;flex-shrink:0;font-size:19px">
+                📷
+                <input type="file" id="chat-img-input" accept="image/*" style="display:none"
+                    onchange="window.previewChatImage('${bookingId}')">
+            </label>
+            <!-- Champ texte -->
+            <input id="chat-input" type="text" placeholder="Écrire un message..."
+                style="flex:1;border:1.5px solid #E5E7EB;border-radius:14px;padding:11px 16px;
+                       font-size:14px;outline:none;background:#fff;color:#111;transition:border .2s"
+                onfocus="this.style.borderColor='#3B82F6'"
+                onblur="this.style.borderColor='#E5E7EB'">
+            <!-- Bouton envoyer -->
+            <button id="chat-send-btn"
+                style="width:42px;height:42px;border-radius:12px;background:#3B82F6;border:none;
+                       color:white;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+            </button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if(e.target===overlay) window.closeChat(); });
 
     // Event listeners
-    const sendBtn = document.getElementById('chat-send-btn');
-    const chatInput = document.getElementById('chat-input');
-    if (sendBtn) sendBtn.onclick = () => sendMessage(bookingId);
-    if (chatInput) chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter') sendMessage(bookingId); });
+    document.getElementById('chat-send-btn').onclick = () => sendMessage(bookingId);
+    document.getElementById('chat-input').addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey) sendMessage(bookingId); });
 
-    // Charger les messages existants
+    // Callback si pas de téléphone
+    window._chatNoPhone = () => notif('📞 Numéro indisponible', 'Ce contact n\'a pas renseigné son numéro', 'orange');
+
     await loadMessages(bookingId);
-    await logActivity('chat_opened', { booking_id: bookingId });
+    try { await logActivity('chat_opened', { booking_id: bookingId }); } catch(e) {}
 
-    // Souscrire aux nouveaux messages
     chatSubscription = sb.channel('chat-' + bookingId)
-        .on('broadcast', { event: 'new_message' }, (payload) => {
-            if (payload.payload.sender_id !== currentUser.id) {
-                appendMessage(payload.payload);
-            }
+        .on('broadcast', { event: 'new_message' }, payload => {
+            if (payload.payload.sender_id !== currentUser.id) appendMessage(payload.payload);
         })
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: 'booking_id=eq.' + bookingId
-        }, (payload) => {
-            const existing = document.querySelector('[data-msg-id="' + payload.new.id + '"]');
-            if (!existing) appendMessage(payload.new);
+        .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:'booking_id=eq.'+bookingId }, payload => {
+            if (!document.querySelector('[data-msg-id="'+payload.new.id+'"]')) appendMessage(payload.new);
         })
         .subscribe();
-}
+};
 
-// Envoyer une image dans le chat
-window.sendChatImage = async function(bookingId) {
+// ── Preview photo avant envoi ──
+window.previewChatImage = function(bookingId) {
     const input = document.getElementById('chat-img-input');
     const file = input?.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { notif('❌ Image trop lourde', 'Max 10MB', 'red'); return; }
+    if (file.size > 15 * 1024 * 1024) { notif('❌ Image trop lourde', 'Maximum 15 MB', 'red'); input.value=''; return; }
 
-    notif('⏳ Envoi de l\'image...', '', 'orange');
-    const ext = file.name.split('.').pop();
-    const path = 'chat/' + bookingId + '/' + Date.now() + '.' + ext;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('chat-img-preview-img').src = e.target.result;
+        document.getElementById('chat-img-preview-name').textContent = file.name + ' · ' + (file.size/1024).toFixed(0) + ' Ko';
+        document.getElementById('chat-img-preview').style.display = 'block';
+        document.getElementById('chat-input').placeholder = 'Ajouter un texte (optionnel)...';
+    };
+    reader.readAsDataURL(file);
+};
+
+window.cancelChatImage = function() {
+    document.getElementById('chat-img-input').value = '';
+    document.getElementById('chat-img-preview').style.display = 'none';
+    document.getElementById('chat-input').placeholder = 'Écrire un message...';
+};
+
+// ── Confirmer et envoyer la photo ──
+window.confirmSendImage = async function(bookingId) {
+    const input = document.getElementById('chat-img-input');
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    const caption = document.getElementById('chat-input')?.value?.trim() || '';
+
+    // Disable UI
+    const sendBtn = document.querySelector('#chat-img-preview button:last-child');
+    if (sendBtn) { sendBtn.textContent = '⏳ Envoi...'; sendBtn.disabled = true; }
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const path = 'chat/' + bookingId + '/' + Date.now() + '_' + Math.random().toString(36).substr(2,5) + '.' + ext;
+
     const { error: uploadErr } = await sb.storage.from('chat-images').upload(path, file, { upsert: false, contentType: file.type });
-    if (uploadErr) { notif('❌ Erreur upload', uploadErr.message, 'red'); return; }
+    if (uploadErr) {
+        notif('❌ Erreur envoi photo', uploadErr.message, 'red');
+        if (sendBtn) { sendBtn.textContent = '📤 Envoyer la photo'; sendBtn.disabled = false; }
+        return;
+    }
+
     const { data: urlData } = sb.storage.from('chat-images').getPublicUrl(path);
     const imageUrl = urlData.publicUrl;
 
+    const msgContent = caption || '📷 Photo';
     const msg = {
         booking_id: bookingId,
         sender_id: currentUser.id,
         sender_name: currentUser.name || 'Moi',
-        content: '📷 Photo',
+        content: msgContent,
         image_url: imageUrl,
         created_at: new Date().toISOString()
     };
+
     appendMessage(msg);
-    sb.channel('chat-' + bookingId).send({ type: 'broadcast', event: 'new_message', payload: msg });
-    await sb.from('messages').insert({ booking_id: msg.booking_id, sender_id: msg.sender_id, sender_name: msg.sender_name, content: msg.content, image_url: imageUrl });
+    sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: msg });
+    await sb.from('messages').insert({ booking_id: bookingId, sender_id: currentUser.id, sender_name: currentUser.name || 'Moi', content: msgContent, image_url: imageUrl });
+
+    // Reset
     input.value = '';
-}
+    if (document.getElementById('chat-input')) document.getElementById('chat-input').value = '';
+    window.cancelChatImage();
+    notif('✅ Photo envoyée !', '', 'green');
+};
 
 window.closeChat = function() {
     if (chatSubscription) {
@@ -2839,7 +2937,7 @@ async function loadMessages(bookingId) {
     if (!container) return;
     container.innerHTML = '';
     if (!data || data.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Aucun message · Commencez la conversation !</p>';
+        container.innerHTML = '<p class="chat-empty" style="text-align:center;color:#9CA3AF;font-size:14px;padding:40px 20px;margin:auto">💬 Aucun message pour l\'instant<br><span style="font-size:12px;color:#D1D5DB">Commencez la conversation !</span></p>';
         return;
     }
     data.forEach(msg => appendMessage(msg));
@@ -2848,29 +2946,71 @@ async function loadMessages(bookingId) {
 function appendMessage(msg) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
-    const empty = container.querySelector('p');
+    // Supprimer le placeholder "Aucun message"
+    const empty = container.querySelector('p.chat-empty');
     if (empty) empty.remove();
 
     const isMe = msg.sender_id === currentUser.id;
     const time = new Date(msg.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
     const div = document.createElement('div');
     div.dataset.msgId = msg.id || '';
-    div.className = 'flex ' + (isMe ? 'justify-end' : 'justify-start');
+    div.style.cssText = 'display:flex;' + (isMe ? 'justify-content:flex-end' : 'justify-content:flex-start');
 
-    const contentHtml = msg.image_url
-        ? '<img src="' + msg.image_url + '" style="max-width:220px;border-radius:12px;display:block;cursor:pointer" onclick="window.open(\'' + msg.image_url + '\',\'_blank\')" alt="Photo">'
-        : '<span style="font-size:14px;line-height:1.5">' + sanitize(msg.content) + '</span>';
+    // Bubble styles
+    const bubbleBg = isMe ? 'linear-gradient(135deg,#3B82F6,#2563EB)' : '#FFFFFF';
+    const bubbleColor = isMe ? 'white' : '#111';
+    const bubbleRadius = isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px';
+    const bubbleShadow = isMe ? '0 2px 12px rgba(59,130,246,0.3)' : '0 2px 8px rgba(0,0,0,0.08)';
 
-    div.innerHTML =
-        '<div style="max-width:70%">' +
-        '<div style="background:' + (isMe ? '#3B82F6' : '#F3F4F6') + ';color:' + (isMe ? 'white' : '#1F2937') + ';border-radius:16px;' + (isMe ? 'border-bottom-right-radius:4px' : 'border-bottom-left-radius:4px') + ';padding:' + (msg.image_url ? '4px' : '10px 14px') + '">' +
-        contentHtml +
-        '</div>' +
-        '<p style="font-size:11px;color:#9CA3AF;margin-top:4px;' + (isMe ? 'text-align:right' : '') + '">' + (isMe ? 'Vous' : (msg.sender_name || 'Contact')) + ' · ' + time + '</p>' +
-        '</div>';
+    let bubbleInner = '';
+    if (msg.image_url) {
+        // Message avec image
+        bubbleInner = `
+            <div style="background:${isMe?'rgba(255,255,255,0.1)':'#F3F4F6'};border-radius:12px;overflow:hidden;cursor:pointer;max-width:220px"
+                 onclick="window._openImgFull('${msg.image_url}')">
+                <img src="${msg.image_url}" alt="Photo"
+                     style="width:100%;display:block;object-fit:cover;max-height:200px"
+                     onerror="this.src='';this.alt='Image indisponible'">
+            </div>
+            ${msg.content && msg.content !== '📷 Photo' ? `<p style="margin:6px 0 0;font-size:13px;color:${bubbleColor};line-height:1.4">${sanitize(msg.content)}</p>` : ''}`;
+        div.innerHTML = `<div style="max-width:260px">
+            <div style="border-radius:${bubbleRadius};overflow:hidden;box-shadow:${bubbleShadow};background:${bubbleBg};padding:6px">
+                ${bubbleInner}
+            </div>
+            <p style="font-size:10px;color:#9CA3AF;margin:3px ${isMe?'2px 0 0':'0 0 2px'};text-align:${isMe?'right':'left'}">${isMe?'Vous':sanitize(msg.sender_name||'Contact')} · ${time}</p>
+        </div>`;
+    } else {
+        // Message texte normal
+        div.innerHTML = `<div style="max-width:300px">
+            <div style="background:${bubbleBg};color:${bubbleColor};border-radius:${bubbleRadius};padding:10px 14px;
+                        box-shadow:${bubbleShadow};word-break:break-word">
+                <p style="margin:0;font-size:14px;line-height:1.5">${sanitize(msg.content||'')}</p>
+            </div>
+            <p style="font-size:10px;color:#9CA3AF;margin:3px 2px 0;text-align:${isMe?'right':'left'}">${isMe?'Vous':sanitize(msg.sender_name||'Contact')} · ${time}</p>
+        </div>`;
+    }
+
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
 }
+
+// Lightbox image plein écran
+window._openImgFull = function(src) {
+    const lb = document.createElement('div');
+    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+    lb.onclick = () => lb.remove();
+    lb.innerHTML = `
+        <button onclick="event.stopPropagation();this.closest('div').remove()"
+            style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;
+                   border-radius:50%;width:40px;height:40px;color:white;font-size:22px;cursor:pointer">×</button>
+        <img src="${src}" style="max-width:95vw;max-height:90vh;border-radius:12px;object-fit:contain"
+             onclick="event.stopPropagation()">
+        <a href="${src}" download target="_blank"
+           style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;color:#111;
+                  text-decoration:none;padding:10px 22px;border-radius:20px;font-weight:700;font-size:13px"
+           onclick="event.stopPropagation()">⬇ Télécharger</a>`;
+    document.body.appendChild(lb);
+};
 
 window.sendMessage = async function(bookingId) {
     const input = document.getElementById('chat-input');
