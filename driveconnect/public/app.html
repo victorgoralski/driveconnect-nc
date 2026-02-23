@@ -12,11 +12,10 @@
     <meta name="apple-mobile-web-app-title" content="DriveConnect">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icon-192.png">
-    <!-- CSP : autoriser PayPal, Supabase, Leaflet -->
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' data: blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval'; style-src * 'self' 'unsafe-inline'; img-src * data: blob:; connect-src *; frame-src *; font-src *;">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp&currency=USD&components=buttons&intent=capture" data-namespace="paypal_sdk"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap');
@@ -1279,11 +1278,11 @@ function showPaymentModal(slot, instructor, prices) {
     }
 
     // ── Charger le SDK PayPal dynamiquement ──────────────────────────────────
-    function renderPayPalButton() {
+    function renderPayPalButton(pp) {
         const zone = document.getElementById('paypal-btn-zone');
         if (!zone) return;
         try {
-            paypal.Buttons({
+            pp.Buttons({
                 style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'pay', height: 52 },
                 createOrder: (data, actions) => actions.order.create({
                     purchase_units: [{
@@ -1309,25 +1308,16 @@ function showPaymentModal(slot, instructor, prices) {
         }
     }
 
-    function loadPayPalSDK() {
-        // SDK déjà chargé ?
-        if (typeof paypal !== 'undefined') { renderPayPalButton(); return; }
-        // Retirer l'ancien script si présent
-        const old = document.querySelector('script[data-paypal-sdk]');
-        if (old) old.remove();
-        const script = document.createElement('script');
-        script.setAttribute('data-paypal-sdk', '1');
-        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&components=buttons&intent=capture`;
-        script.onload  = () => renderPayPalButton();
-        script.onerror = () => {
+    // Lancer le bouton PayPal après insertion DOM
+    setTimeout(() => {
+        const pp = window.paypal_sdk || window.paypal;
+        if (typeof pp !== 'undefined') {
+            renderPayPalButton(pp);
+        } else {
             const zone = document.getElementById('paypal-btn-zone');
-            if (zone) zone.innerHTML = '<p style="color:#EF4444;text-align:center;font-size:13px;padding:12px">Impossible de contacter PayPal. Vérifiez votre connexion.</p>';
-        };
-        document.head.appendChild(script);
-    }
-
-    // Lancer après insertion DOM
-    setTimeout(loadPayPalSDK, 150);
+            if (zone) zone.innerHTML = '<p style="color:#EF4444;text-align:center;font-size:13px;padding:12px">PayPal non disponible — rechargez la page</p>';
+        }
+    }, 400);
 }
 
 
