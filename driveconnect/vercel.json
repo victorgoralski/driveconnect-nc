@@ -1,13 +1,11 @@
 {
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src * 'self' data: blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval'; style-src * 'self' 'unsafe-inline'; img-src * data: blob:; connect-src *; frame-src https://www.paypal.com https://www.sandbox.paypal.com *; font-src *;"
-        }
-      ]
-    }
+  "outputDirectory": "driveconnect/public",
+  "routes": [
+    { "src": "/legal.html", "dest": "/legal.html" },
+    { "src": "/app.html", "dest": "/app.html" },
+    { "src": "/sw.js", "dest": "/sw.js" },
+    { "src": "/manifest.json", "dest": "/manifest.json" },
+    { "src": "/", "dest": "/landing.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
