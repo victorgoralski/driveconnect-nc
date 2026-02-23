@@ -1501,148 +1501,410 @@ window.showRating = function(bookingId, instructorId, instructorName) {
 
 
 // ========== CHAT ==========
+// ═══════════════════════════════════════════════════
+// CHAT — Messages + Photos + Appel téléphonique
+// ═══════════════════════════════════════════════════
 let chatSubscription = null;
+let _chatBookingId = null;
 
 window.openChat = async function(bookingId, otherUserId, otherName) {
-    // Corriger le null si otherName est vide
-    if (!otherName || otherName === 'null' || otherName === 'undefined') {
-        otherName = 'Votre contact';
+    bookingId   = String(bookingId   || '').trim();
+    otherUserId = String(otherUserId || '').trim();
+    otherName   = (otherName && otherName !== 'null' && otherName !== 'undefined')
+                  ? String(otherName).trim() : 'Votre contact';
+    _chatBookingId = bookingId;
+
+    if (chatSubscription) { try { chatSubscription.unsubscribe(); } catch(e){} chatSubscription = null; }
+    document.getElementById('chat-modal')?.remove();
+
+    // ── Récupérer le numéro de téléphone ──
+    let otherPhone = null;
+    if (otherUserId) {
+        try {
+            const { data: inst } = await sb.from('instructors').select('phone_number').eq('id', otherUserId).maybeSingle();
+            if (inst && inst.phone_number) otherPhone = String(inst.phone_number).trim();
+        } catch(e) {}
+        if (!otherPhone) {
+            try {
+                const { data: usr } = await sb.from('users').select('phone_number').eq('id', otherUserId).maybeSingle();
+                if (usr && usr.phone_number) otherPhone = String(usr.phone_number).trim();
+            } catch(e) {}
+        }
     }
-    // Fermer subscription précédente
-    if (chatSubscription) {
-        chatSubscription.unsubscribe();
-        chatSubscription = null;
+
+    // ── Overlay ──
+    const overlay = document.createElement('div');
+    overlay.id = 'chat-modal';
+    Object.assign(overlay.style, {
+        position:'fixed', inset:'0', background:'rgba(0,0,0,0.7)',
+        zIndex:'99999', display:'flex', alignItems:'flex-end', justifyContent:'center'
+    });
+
+    // ── Panel principal ──
+    const panel = document.createElement('div');
+    Object.assign(panel.style, {
+        width:'100%', maxWidth:'520px', background:'#fff',
+        borderRadius:'24px 24px 0 0', display:'flex', flexDirection:'column',
+        height:'88vh', maxHeight:'680px',
+        boxShadow:'0 -8px 40px rgba(0,0,0,0.35)', overflow:'hidden'
+    });
+
+    // ── HEADER ──
+    const header = document.createElement('div');
+    Object.assign(header.style, {
+        background:'#0D0D0D', padding:'14px 16px',
+        display:'flex', alignItems:'center', gap:'12px', flexShrink:'0'
+    });
+
+    const avatar = document.createElement('div');
+    Object.assign(avatar.style, {
+        width:'40px', height:'40px', borderRadius:'50%', background:'#FF5A1F',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        fontWeight:'900', color:'white', fontSize:'17px', flexShrink:'0'
+    });
+    avatar.textContent = otherName[0].toUpperCase();
+
+    const nameBlock = document.createElement('div');
+    nameBlock.style.cssText = 'flex:1;min-width:0';
+    nameBlock.innerHTML =
+        '<p style="color:#fff;font-weight:800;font-size:15px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+        + _esc(otherName) + '</p>'
+        + '<p style="color:#555;font-size:11px;margin:2px 0 0">● Temps réel</p>';
+
+    // Bouton téléphone
+    const callBtn = document.createElement(otherPhone ? 'a' : 'button');
+    if (otherPhone) {
+        callBtn.href = 'tel:' + otherPhone;
+        callBtn.style.cssText =
+            'display:inline-flex;align-items:center;gap:6px;background:#00C853;color:#fff;'
+            +'text-decoration:none;border-radius:20px;padding:7px 13px;font-weight:700;'
+            +'font-size:12px;flex-shrink:0;white-space:nowrap;border:none;cursor:pointer';
+        callBtn.innerHTML = _phoneSVG() + ' ' + _esc(otherPhone);
+    } else {
+        callBtn.style.cssText =
+            'display:inline-flex;align-items:center;gap:6px;background:#1C1C1C;color:#666;'
+            +'border:1px solid #333;border-radius:20px;padding:7px 13px;font-weight:600;'
+            +'font-size:12px;flex-shrink:0;cursor:pointer';
+        callBtn.innerHTML = _phoneSVG() + ' Appeler';
+        callBtn.addEventListener('click', () =>
+            notif('📞 Numéro non renseigné', 'Le moniteur doit ajouter son numéro dans ses Paramètres', 'orange'));
     }
 
-    const modal = document.createElement('div');
-    modal.id = 'chat-modal';
-    modal.className = 'fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-[9999] p-0 md:p-4';
-    const chatHTML = [
-        '<div class="bg-white w-full md:max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col" style="height:85vh;max-height:600px">',
-        '<div class="flex items-center justify-between p-4 border-b">',
-        '<div><h3 class="font-bold text-lg">&#128172; ' + otherName + '</h3>',
-        '<p class="text-xs text-gray-400">Messages en temps r&#233;el</p></div>',
-        '<button onclick="window.closeChat()" class="text-gray-400 hover:text-gray-600 text-2xl">&#x2715;</button>',
-        '</div>',
-        '<div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3"></div>',
-        '<div class="p-4 border-t flex gap-2">',
-        '<input id="chat-input" type="text" placeholder="Message..." class="flex-1 border border-gray-200 rounded-xl px-4 py-2 outline-none focus:border-blue-400 text-sm">',
-        '<button id="chat-send-btn" class="bg-blue-500 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-blue-600">&#8594;</button>',
-        '</div></div>'
-    ].join('');
-    modal.innerHTML = chatHTML;
-    document.body.appendChild(modal);
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '&times;';
+    Object.assign(closeBtn.style, {
+        width:'32px', height:'32px', borderRadius:'50%', background:'#1C1C1C',
+        border:'1px solid #333', color:'#888', cursor:'pointer', fontSize:'20px',
+        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:'0'
+    });
+    closeBtn.addEventListener('click', window.closeChat);
+    header.append(avatar, nameBlock, callBtn, closeBtn);
 
-    // Event listeners
-    const sendBtn = document.getElementById('chat-send-btn');
-    const chatInput = document.getElementById('chat-input');
-    if (sendBtn) sendBtn.onclick = () => sendMessage(bookingId);
-    if (chatInput) chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter') sendMessage(bookingId); });
+    // ── PREVIEW IMAGE ──
+    const previewZone = document.createElement('div');
+    previewZone.id = 'chat-img-preview';
+    Object.assign(previewZone.style, {
+        display:'none', padding:'10px 16px', background:'#FFF7ED',
+        borderBottom:'1px solid #FED7AA', flexShrink:'0'
+    });
+    previewZone.innerHTML =
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+        +'<img id="chat-img-preview-img" src="" style="height:60px;width:60px;border-radius:10px;object-fit:cover;border:2px solid #FED7AA">'
+        +'<div style="flex:1"><p style="font-size:13px;font-weight:700;color:#92400E;margin:0 0 3px">Photo prête à envoyer</p>'
+        +'<p id="chat-img-preview-name" style="font-size:11px;color:#B45309;margin:0"></p></div>'
+        +'<button id="chat-preview-cancel" style="background:none;border:none;color:#DC2626;font-size:24px;cursor:pointer;line-height:1">&times;</button>'
+        +'</div>'
+        +'<button id="chat-preview-send" style="width:100%;background:#FF5A1F;color:#fff;border:none;'
+        +'border-radius:12px;padding:10px 0;font-weight:800;cursor:pointer;font-size:14px">📤 Envoyer la photo</button>';
 
-    // Charger les messages existants
-    await loadMessages(bookingId);
+    // ── MESSAGES ──
+    const msgsZone = document.createElement('div');
+    msgsZone.id = 'chat-messages';
+    Object.assign(msgsZone.style, {
+        flex:'1', overflowY:'auto', padding:'16px', background:'#F9FAFB',
+        display:'flex', flexDirection:'column', gap:'10px'
+    });
 
-    // Souscrire aux nouveaux messages - Broadcast pour instantané + postgres_changes pour fiabilité
+    // ── BARRE D'ENVOI ──
+    const inputBar = document.createElement('div');
+    Object.assign(inputBar.style, {
+        padding:'10px 12px', borderTop:'1px solid #E5E7EB',
+        background:'#fff', display:'flex', alignItems:'center',
+        gap:'8px', flexShrink:'0'
+    });
+
+    const photoLabel = document.createElement('label');
+    photoLabel.title = 'Envoyer une photo';
+    Object.assign(photoLabel.style, {
+        width:'42px', height:'42px', borderRadius:'12px', background:'#F3F4F6',
+        border:'1.5px solid #E5E7EB', display:'flex', alignItems:'center',
+        justifyContent:'center', cursor:'pointer', flexShrink:'0', fontSize:'19px'
+    });
+    photoLabel.textContent = '📷';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.id = 'chat-img-input';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    photoLabel.appendChild(fileInput);
+
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.id = 'chat-input';
+    textInput.placeholder = 'Écrire un message...';
+    Object.assign(textInput.style, {
+        flex:'1', border:'1.5px solid #E5E7EB', borderRadius:'14px',
+        padding:'11px 15px', fontSize:'14px', outline:'none',
+        background:'#fff', color:'#111'
+    });
+    textInput.addEventListener('focus', () => textInput.style.borderColor = '#3B82F6');
+    textInput.addEventListener('blur',  () => textInput.style.borderColor = '#E5E7EB');
+
+    const sendBtn = document.createElement('button');
+    sendBtn.id = 'chat-send-btn';
+    Object.assign(sendBtn.style, {
+        width:'42px', height:'42px', borderRadius:'12px', background:'#3B82F6',
+        border:'none', color:'white', cursor:'pointer', display:'flex',
+        alignItems:'center', justifyContent:'center', flexShrink:'0'
+    });
+    sendBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>';
+
+    inputBar.append(photoLabel, textInput, sendBtn);
+    panel.append(header, previewZone, msgsZone, inputBar);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    // ── Event listeners (tous en addEventListener) ──
+    overlay.addEventListener('click', e => { if (e.target === overlay) window.closeChat(); });
+    sendBtn.addEventListener('click', () => _chatSendText(bookingId));
+    textInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) _chatSendText(bookingId); });
+    fileInput.addEventListener('change', () => _chatPreviewImg(fileInput));
+    document.getElementById('chat-preview-cancel').addEventListener('click', _chatCancelPreview);
+    document.getElementById('chat-preview-send').addEventListener('click', () => _chatSendImg(bookingId, fileInput));
+
+    await _chatLoadMessages(bookingId);
+
     chatSubscription = sb.channel('chat-' + bookingId)
-        .on('broadcast', { event: 'new_message' }, (payload) => {
-            // Message reçu instantanément via broadcast
-            if (payload.payload.sender_id !== currentUser.id) {
-                appendMessage(payload.payload);
-            }
+        .on('broadcast', { event: 'new_message' }, payload => {
+            if (payload.payload && payload.payload.sender_id !== currentUser.id)
+                _chatAppend(payload.payload);
         })
         .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
+            event: 'INSERT', schema: 'public', table: 'messages',
             filter: 'booking_id=eq.' + bookingId
-        }, (payload) => {
-            // Éviter les doublons pour les messages de l'autre personne
-            const existing = document.querySelector('[data-msg-id="' + payload.new.id + '"]');
-            if (!existing) appendMessage(payload.new);
+        }, payload => {
+            if (!document.querySelector('[data-msg-id="' + payload.new.id + '"]'))
+                _chatAppend(payload.new);
         })
         .subscribe();
-}
+};
 
 window.closeChat = function() {
-    if (chatSubscription) {
-        chatSubscription.unsubscribe();
-        chatSubscription = null;
-    }
+    if (chatSubscription) { try { chatSubscription.unsubscribe(); } catch(e){} chatSubscription = null; }
     document.getElementById('chat-modal')?.remove();
+    _chatBookingId = null;
+};
+
+// ── Helpers ──
+function _esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function _phoneSVG() {
+    return '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02L6.6 10.8z"/></svg>';
 }
 
-async function loadMessages(bookingId) {
-    const { data } = await sb.from('messages')
-        .select('*')
-        .eq('booking_id', bookingId)
-        .order('created_at', { ascending: true });
+async function _chatSendText(bookingId) {
+    const input = document.getElementById('chat-input');
+    const text = input?.value?.trim();
+    if (!text) return;
+    input.value = '';
+    const msg = {
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: sanitize(text), created_at: new Date().toISOString()
+    };
+    _chatAppend(msg);
+    try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: msg }); } catch(e){}
+    const { error } = await sb.from('messages').insert({
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi', content: sanitize(text)
+    });
+    if (error) notif('❌ Erreur envoi', error.message, 'red');
+}
 
+function _chatPreviewImg(fileInput) {
+    const file = fileInput?.files?.[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { notif('❌ Image trop lourde', 'Max 20 Mo', 'red'); fileInput.value=''; return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+        const pz = document.getElementById('chat-img-preview');
+        const pi = document.getElementById('chat-img-preview-img');
+        const pn = document.getElementById('chat-img-preview-name');
+        if (pz) pz.style.display = 'block';
+        if (pi) pi.src = e.target.result;
+        if (pn) pn.textContent = file.name + ' · ' + (file.size/1024).toFixed(0) + ' Ko';
+        const inp = document.getElementById('chat-input');
+        if (inp) inp.placeholder = 'Légende (optionnel)...';
+    };
+    reader.readAsDataURL(file);
+}
+
+function _chatCancelPreview() {
+    const fi = document.getElementById('chat-img-input');
+    if (fi) fi.value = '';
+    const pz = document.getElementById('chat-img-preview');
+    if (pz) pz.style.display = 'none';
+    const inp = document.getElementById('chat-input');
+    if (inp) inp.placeholder = 'Écrire un message...';
+}
+
+async function _chatSendImg(bookingId, fileInput) {
+    const file = fileInput?.files?.[0];
+    if (!file) { notif('❌ Aucune image', '', 'red'); return; }
+    const btn = document.getElementById('chat-preview-send');
+    if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
+
+    const caption = (document.getElementById('chat-input')?.value || '').trim();
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const path = bookingId + '/' + Date.now() + '_' + Math.random().toString(36).substr(2,6) + '.' + ext;
+
+    const { error: upErr } = await sb.storage.from('chat-images').upload(path, file, { upsert:false, contentType:file.type });
+    if (upErr) {
+        notif('❌ Erreur upload', upErr.message, 'red');
+        if (btn) { btn.textContent = '📤 Envoyer la photo'; btn.disabled = false; }
+        return;
+    }
+    const { data: urlData } = sb.storage.from('chat-images').getPublicUrl(path);
+    const imageUrl = urlData?.publicUrl;
+    if (!imageUrl) { notif('❌ URL introuvable', '', 'red'); return; }
+
+    const content = caption || '📷 Photo';
+    const msg = {
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content, image_url: imageUrl, created_at: new Date().toISOString()
+    };
+    _chatAppend(msg);
+    try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: msg }); } catch(e){}
+    await sb.from('messages').insert({
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi', content, image_url: imageUrl
+    });
+    _chatCancelPreview();
+    if (document.getElementById('chat-input')) document.getElementById('chat-input').value = '';
+    notif('✅ Photo envoyée !', '', 'green');
+}
+
+async function _chatLoadMessages(bookingId) {
+    const { data } = await sb.from('messages').select('*').eq('booking_id', bookingId).order('created_at', { ascending:true });
     const container = document.getElementById('chat-messages');
     if (!container) return;
     container.innerHTML = '';
     if (!data || data.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Aucun message · Commencez la conversation !</p>';
+        const empty = document.createElement('p');
+        empty.className = 'chat-empty';
+        Object.assign(empty.style, { textAlign:'center', color:'#9CA3AF', fontSize:'14px', padding:'40px 20px', margin:'auto', lineHeight:'1.7' });
+        empty.innerHTML = '💬 Aucun message<br><span style="font-size:12px;color:#D1D5DB">Commencez la conversation !</span>';
+        container.appendChild(empty);
         return;
     }
-    data.forEach(msg => appendMessage(msg));
+    data.forEach(m => _chatAppend(m));
 }
 
-function appendMessage(msg) {
+function _chatAppend(msg) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
-    // Supprimer le message "Aucun message" si présent
-    const empty = container.querySelector('p');
-    if (empty) empty.remove();
+    container.querySelector('.chat-empty')?.remove();
 
     const isMe = msg.sender_id === currentUser.id;
-    const time = new Date(msg.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-    const div = document.createElement('div');
-    div.className = 'flex ' + (isMe ? 'justify-end' : 'justify-start');
-    div.innerHTML =
-        '<div class="max-w-xs">' +
-        '<div class="' + (isMe ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-800') + ' rounded-2xl ' + (isMe ? 'rounded-br-sm' : 'rounded-bl-sm') + ' px-4 py-2 text-sm">' +
-        msg.content +
-        '</div>' +
-        '<p class="text-xs text-gray-400 mt-1 ' + (isMe ? 'text-right' : '') + '">' + (isMe ? 'Vous' : msg.sender_name) + ' · ' + time + '</p>' +
-        '</div>';
-    container.appendChild(div);
+    const time = new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+
+    const wrapper = document.createElement('div');
+    wrapper.dataset.msgId = msg.id || '';
+    wrapper.style.cssText = 'display:flex;' + (isMe ? 'justify-content:flex-end' : 'justify-content:flex-start');
+
+    const bubbleWrap = document.createElement('div');
+    bubbleWrap.style.maxWidth = '75%';
+
+    const radMe = '18px 18px 4px 18px';
+    const radOther = '18px 18px 18px 4px';
+    const bgMe = 'linear-gradient(135deg,#3B82F6,#2563EB)';
+
+    if (msg.image_url) {
+        const imgWrap = document.createElement('div');
+        Object.assign(imgWrap.style, {
+            borderRadius: isMe ? radMe : radOther,
+            overflow:'hidden',
+            background: isMe ? bgMe : '#fff',
+            boxShadow: isMe ? '0 3px 14px rgba(59,130,246,0.35)' : '0 2px 8px rgba(0,0,0,0.1)',
+            padding:'5px'
+        });
+        const img = document.createElement('img');
+        img.src = msg.image_url;
+        img.alt = 'Photo';
+        Object.assign(img.style, {
+            display:'block', width:'100%', maxWidth:'220px', maxHeight:'220px',
+            objectFit:'cover', borderRadius:'12px', cursor:'pointer'
+        });
+        img.addEventListener('click', () => _chatFullImg(msg.image_url));
+        img.addEventListener('error', () => img.style.display = 'none');
+        imgWrap.appendChild(img);
+        if (msg.content && msg.content !== '📷 Photo') {
+            const cap = document.createElement('p');
+            cap.textContent = msg.content;
+            Object.assign(cap.style, { margin:'5px 6px 2px', fontSize:'13px', color: isMe ? '#fff' : '#111' });
+            imgWrap.appendChild(cap);
+        }
+        bubbleWrap.appendChild(imgWrap);
+    } else {
+        const bubble = document.createElement('div');
+        Object.assign(bubble.style, {
+            background: isMe ? bgMe : '#fff',
+            color: isMe ? '#fff' : '#111',
+            borderRadius: isMe ? radMe : radOther,
+            padding:'10px 14px',
+            boxShadow: isMe ? '0 3px 14px rgba(59,130,246,0.35)' : '0 2px 8px rgba(0,0,0,0.1)',
+            wordBreak:'break-word', lineHeight:'1.5', fontSize:'14px'
+        });
+        bubble.textContent = msg.content || '';
+        bubbleWrap.appendChild(bubble);
+    }
+
+    const meta = document.createElement('p');
+    meta.textContent = (isMe ? 'Vous' : (msg.sender_name || 'Contact')) + ' · ' + time;
+    Object.assign(meta.style, { fontSize:'10px', color:'#9CA3AF', margin:'3px 2px 0', textAlign: isMe ? 'right' : 'left' });
+    bubbleWrap.appendChild(meta);
+    wrapper.appendChild(bubbleWrap);
+    container.appendChild(wrapper);
     container.scrollTop = container.scrollHeight;
 }
 
-window.sendMessage = async function(bookingId) {
-    const input = document.getElementById('chat-input');
-    const msgContent = input?.value?.trim();
-    if (!msgContent) return;
-    input.value = '';
-
-    const msg = {
-        booking_id: bookingId,
-        sender_id: currentUser.id,
-        sender_name: currentUser.name || 'Moi',
-        content: sanitize(msgContent),
-        created_at: new Date().toISOString()
-    };
-
-    // Afficher immédiatement côté envoyeur
-    appendMessage(msg);
-
-    // Broadcaster pour l'autre personne (instantané)
-    sb.channel('chat-' + bookingId).send({
-        type: 'broadcast',
-        event: 'new_message',
-        payload: msg
-    });
-
-    // Sauvegarder en base (persistant)
-    const { error } = await sb.from('messages').insert({
-        booking_id: msg.booking_id,
-        sender_id: msg.sender_id,
-        sender_name: msg.sender_name,
-        content: msg.content
-    });
-
-    if (error) notif('❌ Erreur envoi', error.message, 'red');
+function _chatFullImg(src) {
+    const lb = document.createElement('div');
+    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:999999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+    lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'max-width:95vw;max-height:88vh;border-radius:12px;object-fit:contain;cursor:default';
+    img.addEventListener('click', e => e.stopPropagation());
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.style.cssText = 'position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:42px;height:42px;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center';
+    closeBtn.addEventListener('click', () => lb.remove());
+    const dl = document.createElement('a');
+    dl.href = src; dl.download = 'photo.jpg'; dl.target = '_blank';
+    dl.textContent = '⬇ Télécharger';
+    dl.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;color:#111;text-decoration:none;padding:10px 24px;border-radius:20px;font-weight:700;font-size:13px';
+    lb.append(closeBtn, img, dl);
+    document.body.appendChild(lb);
 }
+
+// Alias pour compatibilité
+function appendMessage(msg) { _chatAppend(msg); }
+function loadMessages(bookingId) { return _chatLoadMessages(bookingId); }
+window.sendMessage = async function(bookingId) { await _chatSendText(bookingId || _chatBookingId); };
 
 
 // ========== AVATAR ==========
