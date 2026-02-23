@@ -458,7 +458,7 @@ function StudentDashboard() {
             <div style="background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin-bottom:20px;border:1px solid #F0F0F0">
                 <div style="padding:16px 18px 10px;display:flex;justify-content:space-between;align-items:center">
                     <p class="db-section-title" style="margin:0">Moniteurs à proximité</p>
-                    <button onclick="centerOnMe()" style="background:#FF5A1F;color:#fff;border:none;border-radius:10px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">📍 Me localiser</button>
+                    <span class="badge badge-online" style="font-size:11px">● Temps réel</span>
                 </div>
                 <div style="display:flex;gap:8px;padding:0 18px 12px">
                     <span class="badge badge-online" style="font-size:11px"><span style="color:#16A34A">●</span> Disponible</span>
@@ -697,9 +697,9 @@ function InstructorDashboard() {
                     <span style="font-size:12px;font-weight:700;color:var(--text)">Réservations</span>
                     ${pending>0?`<span style="position:absolute;top:10px;right:10px;background:#EF4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center">${pending}</span>`:''}
                 </button>
-                <button onclick="startTracking()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;background:#fff;border-radius:18px;border:1px solid #F0F0F0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
-                    <div class="db-action-icon" style="background:#EFF6FF">📍</div>
-                    <span style="font-size:12px;font-weight:700;color:var(--text)">GPS</span>
+                <button onclick="watchId?stopTracking():startTracking()" id="gps-action-btn" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;background:#fff;border-radius:18px;border:1px solid #F0F0F0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                    <div class="db-action-icon" style="background:#EFF6FF" id="gps-icon">📍</div>
+                    <span style="font-size:12px;font-weight:700;color:var(--text)" id="gps-btn-label">GPS</span>
                 </button>
                 <button onclick="switchTab('earnings')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;background:#fff;border-radius:18px;border:1px solid #F0F0F0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
                     <div class="db-action-icon" style="background:#F0FDF4">💰</div>
@@ -734,10 +734,13 @@ function InstructorDashboard() {
             })()}
 
             <!-- Carte GPS -->
-            <p class="db-section-title" style="margin-top:20px">Ma position</p>
-            <div style="background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin-bottom:8px">
-                <p id="gps-status" style="padding:10px 16px;font-size:12px;color:var(--text-muted)">GPS non actif</p>
-                <div id="map" style="height:200px;border-radius:0"></div>
+            <p class="db-section-title" style="margin-top:20px">Ma position en direct</p>
+            <div style="background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin-bottom:8px;border:1px solid #F0F0F0">
+                <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
+                    <p id="gps-status" style="font-size:12px;color:#9CA3AF;margin:0">GPS non actif</p>
+                    <button onclick="watchId?stopTracking():startTracking()" style="background:#FF5A1F;color:#fff;border:none;border-radius:10px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer" id="gps-toggle-btn">▶ Activer</button>
+                </div>
+                <div id="map" style="height:220px;border-radius:0"></div>
             </div>
         ` : ''}
 
@@ -949,28 +952,74 @@ window.showAddSlot = function() {
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
     const today = new Date().toISOString().split('T')[0];
-    modal.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
-        <h3 class="text-xl font-bold mb-4">➕ Nouveau créneau</h3>
-        <form id="slot-form" class="space-y-4">
-            <div><label class="block text-sm font-medium mb-1">Date</label><input type="date" id="sl-date" min="${today}" required class="w-full px-4 py-3 border rounded-xl outline-none focus:border-orange-400"></div>
-            <div><label class="block text-sm font-medium mb-1">Heure</label><select id="sl-time" class="w-full px-4 py-3 border rounded-xl outline-none focus:border-orange-400">
-                ${['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'].map(t=>`<option>${t}</option>`).join('')}
-            </select></div>
-            <div><label class="block text-sm font-medium mb-1">Durée (heures)</label><select id="sl-dur" class="w-full px-4 py-3 border rounded-xl outline-none focus:border-orange-400"><option value="1">1h</option><option value="1.5">1h30</option><option value="2">2h</option></select></div>
-            <div id="sl-preview" class="bg-orange-50 rounded-xl p-3 text-sm text-orange-700"></div>
-            <div class="flex gap-3">
-                <button type="button" onclick="this.closest('.fixed').remove()" class="flex-1 border border-gray-200 py-3 rounded-xl font-semibold">Annuler</button>
-                <button type="submit" class="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold">Créer</button>
+    const instructor = DB.instructors.find(x=>x.id===currentUser.id);
+    const defaultRate = instructor ? instructor.hourly_rate : 4500;
+    modal.innerHTML = `<div style="background:#fff;border-radius:28px;padding:28px;width:100%;max-width:420px;box-shadow:0 24px 80px rgba(0,0,0,0.25)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+            <div style="width:44px;height:44px;background:#FFF7ED;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px">📅</div>
+            <h3 style="font-size:20px;font-weight:900;color:#0D0D0D">Nouveau créneau</h3>
+        </div>
+        <form id="slot-form" style="display:flex;flex-direction:column;gap:16px">
+            <div>
+                <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Date</label>
+                <input type="date" id="sl-date" min="${today}" required style="width:100%;padding:13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:16px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff">
+            </div>
+            <div>
+                <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Heure</label>
+                <select id="sl-time" style="width:100%;padding:13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:16px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff;-webkit-appearance:none">
+                    ${['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'].map(t=>`<option>${t}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Durée</label>
+                <select id="sl-dur" style="width:100%;padding:13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:16px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff;-webkit-appearance:none">
+                    <option value="1">1 heure</option>
+                    <option value="1.5">1h30</option>
+                    <option value="2">2 heures</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tarif pour ce créneau (XPF)</label>
+                <div style="position:relative">
+                    <input type="number" id="sl-price" value="${defaultRate}" min="1000" max="50000" step="100" required
+                        style="width:100%;padding:13px 56px 13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:16px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff">
+                    <span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:700;color:#9CA3AF">XPF</span>
+                </div>
+                <p style="font-size:11px;color:#9CA3AF;margin-top:5px">Votre tarif habituel : ${defaultRate.toLocaleString()} XPF/h</p>
+            </div>
+            <div id="sl-preview" style="background:#FFF7ED;border-radius:12px;padding:12px 14px;font-size:13px;color:#EA580C;font-weight:600;display:none"></div>
+            <div style="display:flex;gap:10px;margin-top:4px">
+                <button type="button" onclick="this.closest('.fixed').remove()" style="flex:1;padding:14px;border:1.5px solid #E5E7EB;border-radius:14px;font-weight:700;font-size:15px;background:#fff;cursor:pointer;color:#0D0D0D">Annuler</button>
+                <button type="submit" style="flex:1;padding:14px;background:#FF5A1F;color:#fff;border:none;border-radius:14px;font-weight:900;font-size:15px;cursor:pointer">Créer le créneau</button>
             </div>
         </form>
     </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 
+    // Prévisualisation du tarif en direct
+    const previewDiv = modal.querySelector('#sl-preview');
+    function updatePreview() {
+        const price = parseInt(modal.querySelector('#sl-price').value) || 0;
+        const dur = parseFloat(modal.querySelector('#sl-dur').value) || 1;
+        const total = Math.round(price * dur);
+        const commission = Math.round(total * 0.02);
+        const net = total - commission;
+        if (price > 0) {
+            previewDiv.style.display = 'block';
+            previewDiv.innerHTML = `💰 Total élève : <strong>\${total.toLocaleString()} XPF</strong> · Vos revenus nets : <strong>\${net.toLocaleString()} XPF</strong>`;
+        }
+    }
+    modal.querySelector('#sl-price').addEventListener('input', updatePreview);
+    modal.querySelector('#sl-dur').addEventListener('change', updatePreview);
+    updatePreview();
+
     modal.querySelector('#slot-form').onsubmit = async function(e) {
         e.preventDefault();
-        const instructor = DB.instructors.find(x=>x.id===currentUser.id);
-        const price = instructor ? instructor.hourly_rate : 4500;
+        const price = parseInt(document.getElementById('sl-price').value);
+        if (!price || price < 1000) { notif('❌ Tarif invalide', 'Minimum 1000 XPF', 'red'); return; }
+        const btn = modal.querySelector('button[type=submit]');
+        btn.textContent = 'Création...'; btn.disabled = true;
         const { data, error } = await sb.from('slots').insert({
             instructor_id: currentUser.id,
             date: document.getElementById('sl-date').value,
@@ -978,10 +1027,10 @@ window.showAddSlot = function() {
             duration: parseFloat(document.getElementById('sl-dur').value),
             price, available: true
         }).select().single();
-        if (error) { notif('❌ Erreur', error.message, 'red'); return; }
+        if (error) { notif('❌ Erreur', error.message, 'red'); btn.textContent='Créer le créneau'; btn.disabled=false; return; }
         DB.slots.push(data);
         modal.remove();
-        notif('✅ Créneau ajouté', '', 'green');
+        notif('✅ Créneau créé', price.toLocaleString() + ' XPF', 'green');
         render();
     };
 };
@@ -1212,31 +1261,85 @@ window.deleteSlot = async (id) => {
 
 // ========== GPS & CARTE ==========
 let mapRealtimeChannel = null;
+let broadcastChannel = null;  // Canal broadcast ultra-rapide
+let lastDbUpdate = 0;          // Throttle DB updates (toutes les 4s max)
 
-function updateMapMarkers() {
-    if (!map) return;
+// ── Créer/mettre à jour un marqueur moniteur sur la carte ──
+function _buildInstructorIcon(i) {
     const now = new Date();
-    sortedInstructors().forEach(i => {
-        if (!i.lat) return;
-        const existing = iMarkers.find(m => m.id === i.id);
-        if (existing) {
-            existing.marker.setLatLng([i.lat, i.lng]);
-            // Mettre à jour popup si ouverte
-            const hasPenalty = i.penalty_until && new Date(i.penalty_until) > now;
-            const color = hasPenalty ? '#f87171' : i.is_online ? '#22c55e' : '#9ca3af';
-            const slots = DB.slots.filter(s => s.instructor_id === i.id).length;
-            existing.marker.setPopupContent('<div style="text-align:center;padding:10px;min-width:180px"><p style="font-weight:800;font-size:15px">'+i.name+'</p><p style="color:#f97316;margin:4px 0">⭐ '+(i.rating||'N/A')+'</p><p style="color:#6b7280;font-size:13px">📍 '+i.location+'</p><p style="font-weight:700;color:#f97316;font-size:17px;margin:6px 0">'+i.hourly_rate+' XPF/h</p><p style="font-size:12px;color:#6b7280;margin-bottom:8px">📆 '+slots+' créneaux</p><span style="background:'+(i.is_online?'#dcfce7':'#f3f4f6')+';color:'+(i.is_online?'#16a34a':'#6b7280')+';padding:3px 10px;border-radius:20px;font-size:12px;display:block;margin-bottom:10px">'+(i.is_online?'🟢 Disponible':'⚫ Hors ligne')+'</span><button onclick="showSlots(\''+i.id+'\')" style="background:#f97316;color:white;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer;width:100%">📅 Voir créneaux</button></div>');
-        }
+    const hasPenalty = i.penalty_until && new Date(i.penalty_until) > now;
+    const color = hasPenalty ? '#ef4444' : i.is_online ? '#22c55e' : '#9ca3af';
+    const ring = i.is_online ? 'box-shadow:0 0 0 3px rgba(34,197,94,0.3),0 4px 14px rgba(0,0,0,0.25)' : 'box-shadow:0 4px 12px rgba(0,0,0,0.2)';
+    const pulse = i.is_online ? '<div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(34,197,94,0.4);animation:pulse-ring 2s ease-out infinite"></div>' : '';
+    const avatarHtml = i.avatar_url
+        ? `<img src="${i.avatar_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid white;${ring};display:block;">`
+        : `<div style="background:${color};width:44px;height:44px;border-radius:50%;border:3px solid white;${ring};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:white;">${(i.name||'?').charAt(0).toUpperCase()}</div>`;
+    return L.divIcon({
+        html: `<div style="position:relative">${pulse}${avatarHtml}</div>`,
+        className: '', iconSize: [44, 44], iconAnchor: [22, 22]
     });
 }
 
+function _buildInstructorPopup(i) {
+    const slots = DB.slots.filter(s => s.instructor_id === i.id).length;
+    return `<div style="text-align:center;padding:12px 10px;min-width:190px;font-family:'DM Sans',sans-serif">
+        <p style="font-weight:900;font-size:15px;color:#0D0D0D;margin-bottom:4px">${i.name}</p>
+        ${i.rating?`<p style="color:#F59E0B;font-weight:700;font-size:13px;margin:2px 0">★ ${i.rating.toFixed(1)}</p>`:''}
+        <p style="color:#6B7280;font-size:12px;margin-bottom:6px">📍 ${i.location||'Nouméa'}</p>
+        <p style="font-weight:900;color:#FF5A1F;font-size:18px;margin:6px 0">${i.hourly_rate||0} XPF/h</p>
+        <p style="font-size:11px;color:#6B7280;margin-bottom:10px">📆 ${slots} créneau${slots>1?'x':''}</p>
+        <span style="background:${i.is_online?'#DCFCE7':'#F3F4F6'};color:${i.is_online?'#16A34A':'#6B7280'};padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;margin-bottom:12px">${i.is_online?'🟢 En ligne':'⚫ Hors ligne'}</span>
+        <button onclick="showSlots('${i.id}')" style="background:#FF5A1F;color:white;border:none;padding:10px;border-radius:10px;font-weight:700;cursor:pointer;width:100%;font-size:13px;font-family:inherit">Voir les créneaux</button>
+    </div>`;
+}
+
+function upsertInstructorMarker(i) {
+    if (!map || !i.lat || !i.lng) return;
+    const existing = iMarkers.find(m => m.id === i.id);
+    if (existing) {
+        // Mouvement fluide avec animation CSS transition
+        existing.marker.setLatLng([i.lat, i.lng]);
+        existing.marker.setIcon(_buildInstructorIcon(i));
+        existing.marker.setPopupContent(_buildInstructorPopup(i));
+    } else {
+        const marker = L.marker([i.lat, i.lng], { icon: _buildInstructorIcon(i) })
+            .addTo(map)
+            .bindPopup(_buildInstructorPopup(i), { maxWidth: 220, closeButton: true });
+        iMarkers.push({ id: i.id, marker });
+    }
+}
+
+function updateMapMarkers() {
+    if (!map) return;
+    sortedInstructors().forEach(i => upsertInstructorMarker(i));
+}
+
+// ── Canal BROADCAST temps-réel (quasi-zéro latence) ──────────────────────────
+function subscribeBroadcast() {
+    if (broadcastChannel) { broadcastChannel.unsubscribe(); broadcastChannel = null; }
+    broadcastChannel = sb.channel('instructor-positions', {
+        config: { broadcast: { self: false } }
+    })
+    .on('broadcast', { event: 'position' }, ({ payload }) => {
+        if (!payload || !payload.id) return;
+        // Mettre à jour le cache local immédiatement
+        const idx = DB.instructors.findIndex(i => i.id === payload.id);
+        if (idx >= 0) {
+            DB.instructors[idx].lat = payload.lat;
+            DB.instructors[idx].lng = payload.lng;
+            DB.instructors[idx].is_online = true;
+            upsertInstructorMarker(DB.instructors[idx]);
+        }
+    })
+    .subscribe();
+}
+
+// ── Canal POSTGRES pour les mises à jour durables (statut online, avatar…) ───
 function subscribeMapRealtime() {
     if (mapRealtimeChannel) { mapRealtimeChannel.unsubscribe(); mapRealtimeChannel = null; }
-    mapRealtimeChannel = sb.channel('map-instructors-rt')
+    mapRealtimeChannel = sb.channel('map-instructors-db')
         .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'instructors'
+            event: 'UPDATE', schema: 'public', table: 'instructors'
         }, (payload) => {
             const idx = DB.instructors.findIndex(i => i.id === payload.new.id);
             if (idx >= 0) {
@@ -1244,78 +1347,161 @@ function subscribeMapRealtime() {
             } else {
                 DB.instructors.push(payload.new);
             }
-            updateMapMarkers();
+            upsertInstructorMarker(DB.instructors[idx >= 0 ? idx : DB.instructors.length - 1]);
         })
         .subscribe();
 }
 
 function initMap() {
-    if (map){map.remove();map=null;iMarkers=[];}
-    if (mapRealtimeChannel){mapRealtimeChannel.unsubscribe();mapRealtimeChannel=null;}
-    map=L.map('map').setView([NOUMEA.lat,NOUMEA.lng],13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-    const now=new Date();
-    sortedInstructors().forEach(i=>{
-        if(!i.lat) return;
-        const hasPenalty=i.penalty_until&&new Date(i.penalty_until)>now;
-        const color=hasPenalty?'#f87171':i.is_online?'#22c55e':'#9ca3af';
-        const avatarHtml = i.avatar_url
-            ? `<img src="${i.avatar_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.25);display:block;">`
-            : `<div style="background:${color};width:44px;height:44px;border-radius:50%;border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:white;">${(i.name||'?').charAt(0).toUpperCase()}</div>`;
-        const icon=L.divIcon({html:avatarHtml,className:'',iconSize:[44,44],iconAnchor:[22,22]});
-        const slots=DB.slots.filter(s=>s.instructor_id===i.id).length;
-        const marker=L.marker([i.lat,i.lng],{icon}).addTo(map).bindPopup(`<div style="text-align:center;padding:10px;min-width:180px"><p style="font-weight:800;font-size:15px">${i.name}</p><p style="color:#f97316;margin:4px 0">⭐ ${i.rating||'N/A'}</p><p style="color:#6b7280;font-size:13px">📍 ${i.location}</p><p style="font-weight:700;color:#f97316;font-size:17px;margin:6px 0">${i.hourly_rate} XPF/h</p><p style="font-size:12px;color:#6b7280;margin-bottom:8px">📆 ${slots} créneaux</p><span style="background:${i.is_online?'#dcfce7':'#f3f4f6'};color:${i.is_online?'#16a34a':'#6b7280'};padding:3px 10px;border-radius:20px;font-size:12px;display:block;margin-bottom:10px">${i.is_online?'🟢 Disponible':'⚫ Hors ligne'}</span><button onclick="showSlots('${i.id}')" style="background:#f97316;color:white;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer;width:100%">📅 Voir créneaux</button></div>`,{maxWidth:220});
-        iMarkers.push({id:i.id,marker});
-    });
-    if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{const ic=L.divIcon({html:`<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5)"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});if(userMarker)map.removeLayer(userMarker);userMarker=L.marker([pos.coords.latitude,pos.coords.longitude],{icon:ic}).addTo(map).bindPopup('📍 Ma position');map.setView([pos.coords.latitude,pos.coords.longitude],14);},()=>{});}
-    // Souscrire aux mises à jour en temps réel
+    if (map) { map.remove(); map = null; iMarkers = []; }
+    if (mapRealtimeChannel) { mapRealtimeChannel.unsubscribe(); mapRealtimeChannel = null; }
+    if (broadcastChannel) { broadcastChannel.unsubscribe(); broadcastChannel = null; }
+
+    map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false
+    }).setView([NOUMEA.lat, NOUMEA.lng], 13);
+
+    // Tuiles CartoDB Positron - plus propre que OSM standard
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd', maxZoom: 19
+    }).addTo(map);
+
+    // Contrôle zoom en bas à droite
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // Ajouter style CSS pour l'animation pulse
+    if (!document.getElementById('map-pulse-style')) {
+        const st = document.createElement('style');
+        st.id = 'map-pulse-style';
+        st.textContent = `
+            @keyframes pulse-ring { 0% { transform:scale(1); opacity:0.6; } 100% { transform:scale(1.8); opacity:0; } }
+            .leaflet-marker-icon { transition: transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94); }
+        `;
+        document.head.appendChild(st);
+    }
+
+    // Placer les marqueurs moniteurs
+    sortedInstructors().forEach(i => upsertInstructorMarker(i));
+
+    const isInstructor = currentUser && currentUser.user_type === 'instructor';
+
+    if (isInstructor) {
+        // Moniteur : afficher sa propre position distinctement si GPS déjà actif
+        if (userMarker && userMarker.getLatLng) {
+            userMarker.addTo(map);
+        }
+    } else {
+        // Élève : centrer sur Nouméa sans demander de géoloc
+        map.setView([NOUMEA.lat, NOUMEA.lng], 13);
+    }
+
+    // Souscrire aux deux canaux
     subscribeMapRealtime();
+    subscribeBroadcast();
 }
 
-window.centerOnMe=()=>{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],15);notif('📍 Localisé !','','blue');},()=>{});};
-window.focusInstructor=(id)=>{ showInstructorProfile(id); };
-
-window.startTracking=()=>{
-    if(!navigator.geolocation){notif('\u274c GPS indisponible','','red');return;}
-    if(watchId)navigator.geolocation.clearWatch(watchId);
-    notif('\ud83d\udccd GPS activé','Votre position est partagée en temps réel','green');
-    watchId=navigator.geolocation.watchPosition(async pos=>{
-        const lat=pos.coords.latitude,lng=pos.coords.longitude;
-        // Mettre à jour la BDD
-        await sb.from('instructors').update({lat,lng,is_online:true}).eq('id',currentUser.id);
-        // Mettre à jour le cache local
-        const idx=DB.instructors.findIndex(i=>i.id===currentUser.id);
-        if(idx>=0){DB.instructors[idx].lat=lat;DB.instructors[idx].lng=lng;DB.instructors[idx].is_online=true;}
-        // Mettre à jour la carte sans re-render complet
-        if(map){
-            const ic=L.divIcon({html:'<div style="background:#f97316;width:48px;height:48px;border-radius:50%;border:3px solid white;box-shadow:0 4px 15px rgba(249,115,22,0.5);display:flex;align-items:center;justify-content:center;font-size:22px;">\ud83d\ude97</div>',className:'',iconSize:[48,48],iconAnchor:[24,24]});
-            if(userMarker)userMarker.setLatLng([lat,lng]);
-            else{userMarker=L.marker([lat,lng],{icon:ic}).addTo(map);}
-            // Centrer la carte sur la position du moniteur
-            map.setView([lat,lng],15);
-        }
-        const el=document.getElementById('gps-status');
-        if(el){
-            const acc=Math.round(pos.coords.accuracy);
-            el.textContent='\ud83d\udfe2 GPS actif \u2014 Position partagée (précision: '+acc+'m)';
-            el.style.color='#22c55e';
-        }
-    },err=>{
-        const el=document.getElementById('gps-status');
-        if(el){el.textContent='\u274c GPS erreur: '+err.message;el.style.color='#ef4444';}
-        notif('\u274c GPS',err.message,'red');
-    },{enableHighAccuracy:true,maximumAge:0,timeout:10000});
+window.centerOnMe = () => {
+    if (!map) return;
+    map.setView([NOUMEA.lat, NOUMEA.lng], 13);
 };
 
-window.toggleOnline=async ()=>{
-    const i=DB.instructors.find(x=>x.id===currentUser.id);
-    if(i){
-        const newStatus=!i.is_online;
-        await sb.from('instructors').update({is_online:newStatus}).eq('id',currentUser.id);
-        i.is_online=newStatus;
-        notif(newStatus?'🟢 En ligne':'⚫ Hors ligne','','green');
-        render();
-    }
+window.focusInstructor = (id) => { showInstructorProfile(id); };
+
+window.startTracking = () => {
+    if (!navigator.geolocation) { notif('❌ GPS indisponible', 'Votre navigateur ne supporte pas le GPS', 'red'); return; }
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+
+    const statusEl = document.getElementById('gps-status');
+    if (statusEl) { statusEl.textContent = '⏳ Activation GPS...'; statusEl.style.color = '#F59E0B'; }
+
+    notif('📡 GPS activé', 'Votre position est partagée en temps réel', 'green');
+    // Mettre à jour visuellement les boutons GPS
+    const gpsToggleBtn = document.getElementById('gps-toggle-btn');
+    if (gpsToggleBtn) { gpsToggleBtn.textContent = '⏹ Arrêter'; gpsToggleBtn.style.background = '#EF4444'; }
+    const gpsIcon = document.getElementById('gps-icon');
+    if (gpsIcon) gpsIcon.textContent = '🟢';
+    const gpsBtnLabel = document.getElementById('gps-btn-label');
+    if (gpsBtnLabel) { gpsBtnLabel.textContent = 'GPS actif'; gpsBtnLabel.style.color = '#22C55E'; }
+
+    watchId = navigator.geolocation.watchPosition(
+        async pos => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const acc = Math.round(pos.coords.accuracy);
+            const now = Date.now();
+
+            // ── BROADCAST IMMÉDIAT (< 100ms de latence côté autres users) ──
+            if (broadcastChannel) {
+                broadcastChannel.send({
+                    type: 'broadcast',
+                    event: 'position',
+                    payload: { id: currentUser.id, lat, lng }
+                });
+            }
+
+            // ── Mise à jour carte locale instantanée ──
+            if (map) {
+                const icon = L.divIcon({
+                    html: `<div style="position:relative">
+                        <div style="position:absolute;inset:-6px;border-radius:50%;background:rgba(255,90,31,0.2);animation:pulse-ring 1.5s ease-out infinite"></div>
+                        <div style="background:#FF5A1F;width:48px;height:48px;border-radius:50%;border:3px solid white;box-shadow:0 4px 20px rgba(255,90,31,0.5);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:white">🚗</div>
+                    </div>`,
+                    className: '', iconSize: [48, 48], iconAnchor: [24, 24]
+                });
+                if (userMarker) {
+                    userMarker.setLatLng([lat, lng]);
+                    userMarker.setIcon(icon);
+                } else {
+                    userMarker = L.marker([lat, lng], { icon }).addTo(map);
+                    userMarker.bindPopup('<div style="text-align:center;padding:8px"><p style="font-weight:800">📍 Vous</p></div>');
+                }
+                // Suivre la position sans recentrer violemment (seulement si loin du centre)
+                const currentCenter = map.getCenter();
+                const dist = map.distance(currentCenter, L.latLng(lat, lng));
+                if (dist > 500) map.panTo([lat, lng], { animate: true, duration: 0.8 });
+            }
+
+            // ── Mise à jour cache local ──
+            const idx = DB.instructors.findIndex(i => i.id === currentUser.id);
+            if (idx >= 0) { DB.instructors[idx].lat = lat; DB.instructors[idx].lng = lng; DB.instructors[idx].is_online = true; }
+
+            // ── Mise à jour BDD (throttlée toutes les 4s pour économiser les requêtes) ──
+            if (now - lastDbUpdate > 4000) {
+                lastDbUpdate = now;
+                sb.from('instructors').update({ lat, lng, is_online: true }).eq('id', currentUser.id);
+            }
+
+            if (statusEl) {
+                statusEl.innerHTML = `🟢 GPS actif &mdash; Précision : ${acc}m &mdash; ${new Date().toLocaleTimeString()}`;
+                statusEl.style.color = acc < 30 ? '#22C55E' : acc < 100 ? '#F59E0B' : '#EF4444';
+            }
+        },
+        err => {
+            const msg = err.code === 1 ? 'Permission refusée' : err.code === 2 ? 'Position indisponible' : 'Délai dépassé';
+            if (statusEl) { statusEl.textContent = '❌ GPS erreur : ' + msg; statusEl.style.color = '#EF4444'; }
+            notif('❌ GPS', msg, 'red');
+        },
+        {
+            enableHighAccuracy: true,
+            maximumAge: 0,        // Toujours position fraîche
+            timeout: 8000         // 8s max avant erreur
+        }
+    );
+};
+
+window.stopTracking = () => {
+    if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    sb.from('instructors').update({ is_online: false }).eq('id', currentUser.id);
+    const statusEl = document.getElementById('gps-status');
+    if (statusEl) { statusEl.textContent = 'GPS arrêté'; statusEl.style.color = '#9CA3AF'; }
+    const gpsToggleBtn = document.getElementById('gps-toggle-btn');
+    if (gpsToggleBtn) { gpsToggleBtn.textContent = '▶ Activer'; gpsToggleBtn.style.background = '#FF5A1F'; }
+    const gpsIcon = document.getElementById('gps-icon');
+    if (gpsIcon) gpsIcon.textContent = '📍';
+    const gpsBtnLabel = document.getElementById('gps-btn-label');
+    if (gpsBtnLabel) { gpsBtnLabel.textContent = 'GPS'; gpsBtnLabel.style.color = ''; }
+    notif('⚫ GPS arrêté', '', 'orange');
 };
 
 // ========== NAVIGATION ==========
@@ -1324,6 +1510,7 @@ window.switchTab=(t)=>{currentTab=t;render();};
 
 window.logout=async ()=>{
     if(watchId)navigator.geolocation.clearWatch(watchId);
+    if(broadcastChannel){broadcastChannel.unsubscribe();broadcastChannel=null;}
     if(currentUser && currentUser.user_type==='instructor'){
         await sb.from('instructors').update({is_online:false}).eq('id',currentUser.id);
     }
