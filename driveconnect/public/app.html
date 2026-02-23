@@ -15,7 +15,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://www.paypal.com/sdk/js?client-id=EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp&currency=USD&components=buttons&intent=capture"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap');
@@ -1153,9 +1152,9 @@ window.bookSlot = function(slotId, instructorId) {
 function showPaymentModal(slot, instructor, prices) {
     const XPF_TO_USD = 115;
     const amountUSD  = (slot.price / XPF_TO_USD).toFixed(2);
-    const instrName  = instructor.name || 'Moniteur';
+    const instrName  = instructor.name;  // null voulu par le dev
+    const PAYPAL_CLIENT_ID = 'EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp';
 
-    // Fermer tous les modals existants proprement
     document.querySelectorAll('.dc-modal-overlay').forEach(m => m.remove());
     document.body.style.overflow = 'hidden';
 
@@ -1168,7 +1167,7 @@ function showPaymentModal(slot, instructor, prices) {
     <div id="pay-sheet" style="background:#fff;border-radius:28px 28px 0 0;width:100%;max-width:520px;box-shadow:0 -8px 60px rgba(0,0,0,0.3);overflow:hidden;max-height:92vh;overflow-y:auto">
 
         <!-- Header sombre -->
-        <div style="background:#0D0D0D;padding:20px 24px 24px;position:sticky;top:0;z-index:2">
+        <div style="background:#0D0D0D;padding:20px 24px 24px">
             <div style="width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:0 auto 18px"></div>
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
                 <div style="flex:1;min-width:0;padding-right:12px">
@@ -1176,9 +1175,8 @@ function showPaymentModal(slot, instructor, prices) {
                     <p style="color:#fff;font-weight:900;font-size:20px;margin-bottom:2px">${instrName}</p>
                     <p style="color:rgba(255,255,255,0.4);font-size:13px">📅 ${slot.date} · ${slot.time} · ${slot.duration}h</p>
                 </div>
-                <button id="close-pay-btn" style="color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.08);border:none;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
+                <button id="close-pay-btn" style="color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.08);border:none;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0">✕</button>
             </div>
-            <!-- Montant -->
             <div style="display:flex;align-items:baseline;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
                 <span style="color:#FF5A1F;font-size:38px;font-weight:900;line-height:1">${slot.price.toLocaleString()}</span>
                 <span style="color:rgba(255,255,255,0.35);font-size:16px">XPF</span>
@@ -1189,7 +1187,7 @@ function showPaymentModal(slot, instructor, prices) {
         <!-- Corps -->
         <div style="padding:24px">
 
-            <!-- Récap cours -->
+            <!-- Récap -->
             <div style="background:#F9FAFB;border-radius:16px;padding:16px;margin-bottom:20px;display:flex;gap:14px;align-items:center">
                 <div style="width:44px;height:44px;background:#0D0D0D;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🚗</div>
                 <div style="flex:1">
@@ -1198,52 +1196,42 @@ function showPaymentModal(slot, instructor, prices) {
                 </div>
                 <div style="text-align:right;flex-shrink:0">
                     <p style="font-weight:900;color:#FF5A1F;font-size:16px">${slot.price.toLocaleString()} XPF</p>
-                    <p style="font-size:11px;color:#9CA3AF">nets moniteur : ${prices.net.toLocaleString()}</p>
                 </div>
             </div>
 
-            <!-- Cartes acceptées -->
+            <!-- Logos cartes -->
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-                <div style="background:#1A1F71;border-radius:6px;padding:5px 10px">
-                    <span style="color:#fff;font-weight:900;font-size:12px;letter-spacing:1px">VISA</span>
-                </div>
+                <div style="background:#1A1F71;border-radius:6px;padding:5px 10px"><span style="color:#fff;font-weight:900;font-size:12px;letter-spacing:1px">VISA</span></div>
                 <div style="position:relative;width:36px;height:24px">
                     <div style="position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;background:#EB001B"></div>
                     <div style="position:absolute;left:12px;top:0;width:22px;height:22px;border-radius:50%;background:#F79E1B;opacity:0.9"></div>
                 </div>
                 <span style="color:#9CA3AF;font-size:12px">Visa · Mastercard · Compte PayPal</span>
-                <span style="margin-left:auto;font-size:20px">🔒</span>
+                <span style="margin-left:auto">🔒</span>
             </div>
 
-            <!-- Zone bouton PayPal -->
-            <div id="paypal-btn-zone" style="min-height:55px;margin-bottom:16px">
-                <div style="text-align:center;padding:14px;color:#9CA3AF;font-size:13px">⏳ Chargement du paiement sécurisé...</div>
+            <!-- Zone PayPal -->
+            <div id="paypal-btn-zone">
+                <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;background:#F9FAFB;border-radius:14px">
+                    <div style="width:20px;height:20px;border:2px solid #E5E7EB;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite"></div>
+                    <span style="color:#9CA3AF;font-size:14px">Chargement du paiement…</span>
+                </div>
             </div>
 
-            <!-- Ou payer directement -->
-            <button id="pay-direct-btn" onclick="payDirectConfirm()" style="width:100%;padding:16px;background:#F3F4F6;color:#0D0D0D;border:none;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;margin-bottom:16px;display:none">
-                💳 Confirmer le paiement (${slot.price.toLocaleString()} XPF)
-            </button>
-
-            <!-- Sécurité -->
-            <p style="text-align:center;font-size:11px;color:#D1D5DB;line-height:1.5">
+            <p style="text-align:center;font-size:11px;color:#D1D5DB;margin-top:16px;line-height:1.5">
                 🔒 Paiement traité par <strong style="color:#9CA3AF">PayPal</strong> — DriveConnect NC ne stocke jamais vos coordonnées bancaires
             </p>
         </div>
     </div>`;
 
-    // Bouton fermer
     modal.querySelector('#close-pay-btn').addEventListener('click', () => {
-        modal.remove();
-        document.body.style.overflow = '';
+        modal.remove(); document.body.style.overflow = '';
     });
-
-    // Clic overlay ferme
     modal.addEventListener('click', e => {
         if (e.target === modal) { modal.remove(); document.body.style.overflow = ''; }
     });
 
-    // Compléter la réservation après paiement
+    // ── Compléter la réservation ──────────────────────────────────────────────
     async function completeBooking(paymentStatus, orderId) {
         const { error } = await sb.from('slots').update({ available: false }).eq('id', slot.id);
         if (error) { notif('❌ Erreur', error.message, 'red'); return; }
@@ -1264,23 +1252,19 @@ function showPaymentModal(slot, instructor, prices) {
 
         sendPushToUser(instructor.id, '🎉 Nouvelle réservation !',
             `${currentUser.name} a réservé le ${slot.date} à ${slot.time}`);
-
-        DB.slots  = DB.slots.filter(s => s.id !== slot.id);
+        DB.slots   = DB.slots.filter(s => s.id !== slot.id);
         DB.bookings.push(booking);
 
-        // Afficher succès dans le modal
-        const sheet = document.getElementById('pay-sheet');
-        if (sheet) {
-            sheet.querySelector('[style*="padding:24px"]').innerHTML = `
+        // Succès dans le modal
+        const body = modal.querySelector('[style*="padding:24px"]');
+        if (body) body.innerHTML = `
             <div style="text-align:center;padding:40px 20px">
                 <div style="width:72px;height:72px;background:#ECFDF5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px">✅</div>
                 <p style="font-weight:900;font-size:22px;color:#0D0D0D;margin-bottom:8px">Paiement réussi !</p>
-                <p style="color:#6B7280;font-size:15px">Cours confirmé avec <strong>${instrName}</strong><br>le ${slot.date} à ${slot.time}</p>
+                <p style="color:#6B7280;font-size:15px">Réservation confirmée avec <strong>${instrName}</strong><br>le ${slot.date} à ${slot.time}</p>
             </div>`;
-        }
 
         notif('✅ Réservation confirmée !', `Cours avec ${instrName} le ${slot.date}`, 'green');
-
         try {
             const session = await sb.auth.getSession();
             await fetch('https://nnmdvepfyccnehzbvpfn.supabase.co/functions/v1/send-email', {
@@ -1288,40 +1272,17 @@ function showPaymentModal(slot, instructor, prices) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.data.session.access_token },
                 body: JSON.stringify({ type: 'confirmation', studentEmail: currentUser.email, studentName: currentUser.name, instructorName: instrName, date: slot.date, time: slot.time, amount: slot.price })
             });
-        } catch(e) { console.warn('Email error:', e); }
-
+        } catch(e) {}
         setTimeout(() => { modal.remove(); document.body.style.overflow = ''; render(); }, 3000);
     }
 
-    // Paiement direct (fallback sans PayPal SDK)
-    window.payDirectConfirm = function() {
-        if (confirm(`Confirmer le paiement de ${slot.price.toLocaleString()} XPF ?`)) {
-            completeBooking('paid', 'DIRECT_' + Date.now());
-        }
-    };
-
-    // Initialiser bouton PayPal après que le DOM est inséré
-    setTimeout(() => {
+    // ── Charger le SDK PayPal dynamiquement ──────────────────────────────────
+    function renderPayPalButton() {
         const zone = document.getElementById('paypal-btn-zone');
         if (!zone) return;
-
-        if (typeof paypal === 'undefined') {
-            // SDK pas chargé
-            zone.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:13px">PayPal indisponible — paiement direct activé</p>';
-            const btn = document.getElementById('pay-direct-btn');
-            if (btn) btn.style.display = 'block';
-            return;
-        }
-
         try {
             paypal.Buttons({
-                style: {
-                    layout: 'vertical',
-                    color:  'black',
-                    shape:  'rect',
-                    label:  'pay',
-                    height: 52
-                },
+                style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'pay', height: 52 },
                 createOrder: (data, actions) => actions.order.create({
                     purchase_units: [{
                         amount: { value: amountUSD, currency_code: 'USD' },
@@ -1329,38 +1290,42 @@ function showPaymentModal(slot, instructor, prices) {
                     }]
                 }),
                 onApprove: async (data, actions) => {
-                    zone.innerHTML = '<div style="text-align:center;padding:12px;color:#9CA3AF;font-size:13px"><div style="width:28px;height:28px;border:3px solid #F0F0F0;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 8px"></div>Traitement en cours…</div>';
-                    try {
-                        const capture = await actions.order.capture();
-                        if (capture.status === 'COMPLETED') {
-                            await completeBooking('paid', data.orderID);
-                        } else {
-                            notif('❌ Paiement non complété', '', 'red');
-                            zone.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:13px">Paiement non complété — réessayez</p>';
-                        }
-                    } catch(e) {
-                        notif('❌ Erreur capture', e.message, 'red');
-                        zone.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:13px">Erreur — réessayez</p>';
-                    }
+                    zone.innerHTML = '<div style="text-align:center;padding:14px;color:#9CA3AF;font-size:13px"><div style="width:24px;height:24px;border:2px solid #E5E7EB;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 8px"></div>Traitement…</div>';
+                    const capture = await actions.order.capture();
+                    if (capture.status === 'COMPLETED') await completeBooking('paid', data.orderID);
+                    else notif('❌ Paiement non complété', '', 'red');
                 },
-                onCancel: () => {
-                    zone.innerHTML = '<p style="text-align:center;color:#9CA3AF;font-size:13px">Paiement annulé</p>';
-                    setTimeout(() => { if (document.getElementById('paypal-btn-zone')) renderPayPalBtn(); }, 2000);
-                },
-                onError: (err) => {
-                    console.error('PayPal error:', err);
-                    zone.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:12px">Erreur PayPal — paiement direct disponible ci-dessous</p>';
-                    const btn = document.getElementById('pay-direct-btn');
-                    if (btn) btn.style.display = 'block';
+                onCancel: () => {},
+                onError: err => {
+                    console.error('PayPal:', err);
+                    zone.innerHTML = '<p style="color:#EF4444;text-align:center;font-size:13px">Erreur PayPal — veuillez réessayer</p>';
                 }
             }).render('#paypal-btn-zone');
         } catch(e) {
-            console.error('PayPal render error:', e);
-            zone.innerHTML = '';
-            const btn = document.getElementById('pay-direct-btn');
-            if (btn) btn.style.display = 'block';
+            console.error('PayPal render:', e);
+            zone.innerHTML = '<p style="color:#EF4444;text-align:center;font-size:13px">PayPal indisponible pour le moment</p>';
         }
-    }, 300);
+    }
+
+    function loadPayPalSDK() {
+        // SDK déjà chargé ?
+        if (typeof paypal !== 'undefined') { renderPayPalButton(); return; }
+        // Retirer l'ancien script si présent
+        const old = document.querySelector('script[data-paypal-sdk]');
+        if (old) old.remove();
+        const script = document.createElement('script');
+        script.setAttribute('data-paypal-sdk', '1');
+        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&components=buttons&intent=capture`;
+        script.onload  = () => renderPayPalButton();
+        script.onerror = () => {
+            const zone = document.getElementById('paypal-btn-zone');
+            if (zone) zone.innerHTML = '<p style="color:#EF4444;text-align:center;font-size:13px;padding:12px">Impossible de contacter PayPal. Vérifiez votre connexion.</p>';
+        };
+        document.head.appendChild(script);
+    }
+
+    // Lancer après insertion DOM
+    setTimeout(loadPayPalSDK, 150);
 }
 
 
