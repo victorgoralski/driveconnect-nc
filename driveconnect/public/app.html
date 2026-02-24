@@ -252,7 +252,22 @@ async function login(email, password, userType) {
         return;
     }
     currentUser = { ...profile, ...data.user };
-    currentView = userType === 'student' ? 'student-dashboard' : 'instructor-dashboard';
+
+    if (userType === 'instructor') {
+        const { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', data.user.id).single();
+        const status = instProfile?.approval_status || 'pending_documents';
+        if (status === 'approved') {
+            currentView = 'instructor-dashboard';
+        } else if (status === 'pending_documents') {
+            currentView = 'instructor-upload-docs';
+        } else if (status === 'rejected') {
+            currentView = 'instructor-rejected';
+        } else {
+            currentView = 'instructor-pending';
+        }
+    } else {
+        currentView = 'student-dashboard';
+    }
     await loadData();
     render();
 }
@@ -287,16 +302,22 @@ async function signup(email, password, name, userType) {
             location: 'Nouméa', hourly_rate: 4500,
             verified: false, is_online: false,
             lat: NOUMEA.lat, lng: NOUMEA.lng,
-            visibility_penalty: 0
+            visibility_penalty: 0,
+            approval_status: 'pending_documents'
         }, { onConflict: 'id' });
     }
 
     const { data: profile } = await sb.from('users').select('*').eq('id', data.user.id).single();
     currentUser = { ...profile, ...data.user };
-    currentView = userType === 'student' ? 'student-dashboard' : 'instructor-dashboard';
+
+    if (userType === 'instructor') {
+        currentView = 'instructor-upload-docs';
+    } else {
+        currentView = 'student-dashboard';
+    }
     await loadData();
     render();
-    notif('✅ Compte créé !', 'Bienvenue sur DriveConnect NC', 'green');
+    notif('✅ Compte créé !', userType === 'instructor' ? 'Envoyez vos documents pour valider votre profil' : 'Bienvenue sur DriveConnect NC', 'green');
 }
 
 // ========== HOME ====================
@@ -678,6 +699,201 @@ function StudentDashboard() {
 
     </div>`;
 }
+
+// ════════════════════════════════════════════════
+// VÉRIFICATION DOCUMENTS MONITEUR
+// ════════════════════════════════════════════════
+
+function InstructorUploadDocs() {
+    return `<div class="min-h-screen flex flex-col" style="background:linear-gradient(160deg,#0f0f0f 0%,#1a1a1a 50%,#0f0f0f 100%)">
+        <div class="flex-1 px-6 pt-14 pb-8 max-w-lg mx-auto w-full">
+            <div class="mb-8">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style="background:rgba(255,90,31,0.15);border:1px solid rgba(255,90,31,0.3)">
+                    <span class="text-3xl">📋</span>
+                </div>
+                <h1 class="text-2xl font-extrabold text-white mb-2">Vérification de votre profil</h1>
+                <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6">
+                    Pour exercer sur DriveConnect NC, nous devons vérifier vos qualifications.<br>
+                    Envoyez les documents ci-dessous pour valider votre compte.
+                </p>
+            </div>
+            <div class="space-y-4 mb-8">
+                <div id="doc-zone-1" class="rounded-2xl p-5 border-2 border-dashed transition-all cursor-pointer" style="border-color:#333;background:#111" onclick="document.getElementById('doc-input-1').click()">
+                    <input type="file" id="doc-input-1" accept="image/*,.pdf" style="display:none">
+                    <div class="flex items-start gap-4">
+                        <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(255,90,31,0.12)"><span class="text-xl">🪪</span></div>
+                        <div class="flex-1">
+                            <p class="font-bold text-white text-sm mb-1">Autorisation d'enseigner la conduite</p>
+                            <p style="color:#666;font-size:12px;line-height:1.5">Titre professionnel ECSR, BEPECASER, ou autorisation préfectorale</p>
+                            <p id="doc-name-1" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:6px;display:none"></p>
+                        </div>
+                        <div id="doc-status-1" class="flex-shrink-0 mt-1"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                    </div>
+                </div>
+                <div id="doc-zone-2" class="rounded-2xl p-5 border-2 border-dashed transition-all cursor-pointer" style="border-color:#333;background:#111" onclick="document.getElementById('doc-input-2').click()">
+                    <input type="file" id="doc-input-2" accept="image/*,.pdf" style="display:none">
+                    <div class="flex items-start gap-4">
+                        <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(255,90,31,0.12)"><span class="text-xl">🆔</span></div>
+                        <div class="flex-1">
+                            <p class="font-bold text-white text-sm mb-1">Pièce d'identité</p>
+                            <p style="color:#666;font-size:12px;line-height:1.5">Carte d'identité, passeport ou permis de conduire en cours de validité</p>
+                            <p id="doc-name-2" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:6px;display:none"></p>
+                        </div>
+                        <div id="doc-status-2" class="flex-shrink-0 mt-1"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                    </div>
+                </div>
+                <div id="doc-zone-3" class="rounded-2xl p-5 border-2 border-dashed transition-all cursor-pointer" style="border-color:#333;background:#111" onclick="document.getElementById('doc-input-3').click()">
+                    <input type="file" id="doc-input-3" accept="image/*,.pdf" style="display:none">
+                    <div class="flex items-start gap-4">
+                        <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(255,90,31,0.12)"><span class="text-xl">🛡️</span></div>
+                        <div class="flex-1">
+                            <p class="font-bold text-white text-sm mb-1">Assurance professionnelle <span style="color:#666;font-weight:400">(optionnel)</span></p>
+                            <p style="color:#666;font-size:12px;line-height:1.5">Attestation d'assurance responsabilité civile professionnelle</p>
+                            <p id="doc-name-3" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:6px;display:none"></p>
+                        </div>
+                        <div id="doc-status-3" class="flex-shrink-0 mt-1"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-2xl p-4 mb-6" style="background:rgba(255,90,31,0.08);border:1px solid rgba(255,90,31,0.2)">
+                <p style="color:#FF8C42;font-size:12px;line-height:1.6">
+                    📸 <strong>Formats acceptés :</strong> images (JPG, PNG) ou PDF<br>
+                    🔒 Documents envoyés de manière sécurisée, consultés uniquement par l'admin.<br>
+                    ⏱️ <strong>Délai :</strong> 24-48h en général.
+                </p>
+            </div>
+            <button id="send-docs-btn" onclick="uploadInstructorDocs()" disabled class="w-full py-4 rounded-2xl font-extrabold text-lg transition-all" style="background:#333;color:#666;cursor:not-allowed">Envoyer mes documents</button>
+            <button onclick="logout()" class="w-full mt-4 py-3 rounded-2xl text-sm font-medium" style="background:transparent;color:#666;border:1px solid #333">Se déconnecter</button>
+        </div>
+    </div>`;
+}
+
+function InstructorPending() {
+    return `<div class="min-h-screen flex flex-col items-center justify-center px-6" style="background:linear-gradient(160deg,#0f0f0f 0%,#1a1a1a 50%,#0f0f0f 100%)">
+        <div class="max-w-md w-full text-center">
+            <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style="background:rgba(255,200,0,0.12);border:2px solid rgba(255,200,0,0.3)"><span class="text-4xl">⏳</span></div>
+            <h1 class="text-2xl font-extrabold text-white mb-3">Demande en cours d'examen</h1>
+            <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;margin-bottom:32px">Vos documents ont bien été reçus. Vous recevrez une notification dès validation.</p>
+            <div class="rounded-2xl p-5 mb-6 text-left" style="background:#111;border:1px solid #1C1C1C">
+                <div class="flex items-center gap-3 mb-4"><div class="w-3 h-3 rounded-full animate-pulse" style="background:#FFD700"></div><p class="font-bold text-white text-sm">Statut : En attente de validation</p></div>
+                <div class="space-y-3">
+                    <div class="flex items-center gap-3"><span style="color:#00C853">✅</span><p style="color:#999;font-size:13px">Compte créé</p></div>
+                    <div class="flex items-center gap-3"><span style="color:#00C853">✅</span><p style="color:#999;font-size:13px">Documents envoyés</p></div>
+                    <div class="flex items-center gap-3"><span style="color:#FFD700">⏳</span><p style="color:#FFF;font-size:13px;font-weight:600">Vérification en cours...</p></div>
+                    <div class="flex items-center gap-3"><span style="color:#555">○</span><p style="color:#555;font-size:13px">Accès au tableau de bord</p></div>
+                </div>
+            </div>
+            <p style="color:#555;font-size:12px;margin-bottom:24px">Délai habituel : 24 à 48h</p>
+            <button onclick="checkApprovalStatus()" class="w-full py-4 rounded-2xl font-bold text-base mb-3" style="background:#FF5A1F;color:white">🔄 Vérifier mon statut</button>
+            <button onclick="logout()" class="w-full py-3 rounded-2xl text-sm font-medium" style="background:transparent;color:#666;border:1px solid #333">Se déconnecter</button>
+        </div>
+    </div>`;
+}
+
+function InstructorRejected() {
+    return `<div class="min-h-screen flex flex-col items-center justify-center px-6" style="background:linear-gradient(160deg,#0f0f0f 0%,#1a1a1a 50%,#0f0f0f 100%)">
+        <div class="max-w-md w-full text-center">
+            <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style="background:rgba(220,38,38,0.12);border:2px solid rgba(220,38,38,0.3)"><span class="text-4xl">❌</span></div>
+            <h1 class="text-2xl font-extrabold text-white mb-3">Demande refusée</h1>
+            <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;margin-bottom:16px">Votre demande n'a pas été validée.</p>
+            <div id="rejection-reason-box" class="rounded-2xl p-5 mb-6 text-left" style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.25)">
+                <p style="color:#FCA5A5;font-size:12px;font-weight:700;margin-bottom:6px">Motif du refus :</p>
+                <p id="rejection-reason-text" style="color:#F87171;font-size:14px;line-height:1.6">Chargement...</p>
+            </div>
+            <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;margin-bottom:24px">Vous pouvez renvoyer vos documents corrigés ci-dessous.</p>
+            <div class="space-y-4 mb-6 text-left">
+                <div id="doc-zone-1" class="rounded-2xl p-4 border-2 border-dashed cursor-pointer" style="border-color:#333;background:#111" onclick="document.getElementById('doc-input-1').click()">
+                    <input type="file" id="doc-input-1" accept="image/*,.pdf" style="display:none">
+                    <div class="flex items-center gap-3"><span class="text-lg">🪪</span><div class="flex-1"><p class="font-bold text-white text-sm">Autorisation d'enseigner</p><p id="doc-name-1" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:4px;display:none"></p></div><div id="doc-status-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div></div>
+                </div>
+                <div id="doc-zone-2" class="rounded-2xl p-4 border-2 border-dashed cursor-pointer" style="border-color:#333;background:#111" onclick="document.getElementById('doc-input-2').click()">
+                    <input type="file" id="doc-input-2" accept="image/*,.pdf" style="display:none">
+                    <div class="flex items-center gap-3"><span class="text-lg">🆔</span><div class="flex-1"><p class="font-bold text-white text-sm">Pièce d'identité</p><p id="doc-name-2" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:4px;display:none"></p></div><div id="doc-status-2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div></div>
+                </div>
+                <div id="doc-zone-3" class="rounded-2xl p-4 border-2 border-dashed cursor-pointer" style="border-color:#333;background:#111" onclick="document.getElementById('doc-input-3').click()">
+                    <input type="file" id="doc-input-3" accept="image/*,.pdf" style="display:none">
+                    <div class="flex items-center gap-3"><span class="text-lg">🛡️</span><div class="flex-1"><p class="font-bold text-white text-sm">Assurance pro <span style="color:#666">(optionnel)</span></p><p id="doc-name-3" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:4px;display:none"></p></div><div id="doc-status-3"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div></div>
+                </div>
+            </div>
+            <button id="send-docs-btn" onclick="uploadInstructorDocs()" disabled class="w-full py-4 rounded-2xl font-extrabold text-lg mb-3" style="background:#333;color:#666;cursor:not-allowed">Renvoyer mes documents</button>
+            <button onclick="logout()" class="w-full py-3 rounded-2xl text-sm font-medium" style="background:transparent;color:#666;border:1px solid #333">Se déconnecter</button>
+        </div>
+    </div>`;
+}
+
+function setupDocUpload() {
+    const docFiles = {};
+    [1,2,3].forEach(i => {
+        const input = document.getElementById('doc-input-'+i);
+        if (!input) return;
+        input.onchange = function() {
+            const file = this.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { notif('❌ Fichier trop volumineux', 'Maximum 10 Mo', 'red'); return; }
+            docFiles[i] = file;
+            window._docFiles = docFiles;
+            const nameEl = document.getElementById('doc-name-'+i);
+            const zoneEl = document.getElementById('doc-zone-'+i);
+            const statusEl = document.getElementById('doc-status-'+i);
+            if (nameEl) { nameEl.textContent = '✅ ' + file.name; nameEl.style.display = 'block'; }
+            if (zoneEl) { zoneEl.style.borderColor = '#00C853'; zoneEl.style.background = 'rgba(0,200,83,0.05)'; }
+            if (statusEl) statusEl.innerHTML = '<span style="color:#00C853;font-size:20px">✅</span>';
+            const btn = document.getElementById('send-docs-btn');
+            if (btn && docFiles[1] && docFiles[2]) { btn.disabled = false; btn.style.background = '#FF5A1F'; btn.style.color = 'white'; btn.style.cursor = 'pointer'; }
+        };
+    });
+    if (currentView === 'instructor-rejected') loadRejectionReason();
+}
+
+async function loadRejectionReason() {
+    if (!currentUser) return;
+    const { data } = await sb.from('instructors').select('rejection_reason').eq('id', currentUser.id).single();
+    const el = document.getElementById('rejection-reason-text');
+    if (el && data) el.textContent = data.rejection_reason || 'Documents non conformes. Veuillez renvoyer des documents lisibles et valides.';
+}
+
+async function uploadInstructorDocs() {
+    const docFiles = window._docFiles || {};
+    if (!docFiles[1] || !docFiles[2]) { notif('❌ Documents manquants', 'Autorisation et pièce d\'identité obligatoires', 'red'); return; }
+    const btn = document.getElementById('send-docs-btn');
+    if (btn) { btn.textContent = '⏳ Envoi en cours...'; btn.disabled = true; }
+    const userId = currentUser.id;
+    const docUrls = [];
+    try {
+        for (const [idx, file] of Object.entries(docFiles)) {
+            const ext = file.name.split('.').pop();
+            const safeName = Date.now() + '_doc' + idx + '.' + ext;
+            const storagePath = userId + '/' + safeName;
+            const { error: uploadErr } = await sb.storage.from('instructor-docs').upload(storagePath, file, { upsert: true, contentType: file.type });
+            if (uploadErr) { notif('❌ Erreur envoi document '+idx, uploadErr.message, 'red'); if (btn) { btn.textContent = 'Réessayer'; btn.disabled = false; } return; }
+            const { data: urlData } = sb.storage.from('instructor-docs').getPublicUrl(storagePath);
+            docUrls.push({ doc_type: idx==='1'?'autorisation':idx==='2'?'identite':'assurance', url: urlData.publicUrl, filename: file.name });
+        }
+        await sb.from('instructors').update({ approval_status: 'pending_review', documents_urls: docUrls, rejection_reason: null }).eq('id', userId);
+        notif('✅ Documents envoyés !', 'Votre demande est en cours d\'examen', 'green');
+        window._docFiles = {};
+        currentView = 'instructor-pending';
+        render();
+    } catch(e) {
+        console.error('Upload error:', e);
+        notif('❌ Erreur', 'Impossible d\'envoyer les documents', 'red');
+        if (btn) { btn.textContent = 'Réessayer'; btn.disabled = false; }
+    }
+}
+
+window.checkApprovalStatus = async function() {
+    if (!currentUser) return;
+    const { data } = await sb.from('instructors').select('approval_status').eq('id', currentUser.id).single();
+    if (!data) return;
+    if (data.approval_status === 'approved') {
+        notif('✅ Profil validé !', 'Bienvenue sur DriveConnect NC', 'green');
+        currentView = 'instructor-dashboard'; await loadData(); render();
+    } else if (data.approval_status === 'rejected') {
+        currentView = 'instructor-rejected'; render();
+    } else {
+        notif('⏳ Toujours en attente', 'Votre demande est en cours d\'examen', 'orange');
+    }
+};
 
 // ========== INSTRUCTOR DASHBOARD ====================
 function InstructorDashboard() {
@@ -1984,8 +2200,11 @@ function AdminDashboard() {
     const todayBookings    = adminData.bookings.filter(b => b.date === today).length;
     const recentUsers      = adminData.users.filter(u => u.created_at && new Date(u.created_at) > new Date(Date.now() - 7*24*60*60*1000)).length;
 
+    const pendingApprovals = adminData.instructors.filter(i => i.approval_status === 'pending_review').length;
+
     const tabs = [
         { id: 'overview',     icon: '📊', label: 'Vue d\'ensemble' },
+        { id: 'approvals',    icon: '📨', label: 'Approbations' + (pendingApprovals > 0 ? ' 🔴' : '') },
         { id: 'bookings',     icon: '📋', label: `Réservations ${pendingBook > 0 ? '🔴' : ''}` },
         { id: 'students',     icon: '👨‍🎓', label: 'Élèves' },
         { id: 'instructors',  icon: '🚗', label: 'Moniteurs' },
@@ -2058,6 +2277,80 @@ function AdminDashboard() {
 
 function getAdminTabContent(tab, stats) {
     const now = new Date();
+
+    // ── APPROBATIONS ──────────────────────────────────────────────────────
+    if (tab === 'approvals') {
+        const pendingInstructors = adminData.instructors.filter(i => i.approval_status === 'pending_review');
+        const rejectedInstructors = adminData.instructors.filter(i => i.approval_status === 'rejected');
+        const pendingDocsInstructors = adminData.instructors.filter(i => i.approval_status === 'pending_documents' || !i.approval_status);
+
+        return `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
+            <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:18px;padding:18px;text-align:center">
+                <p style="font-size:32px;font-weight:900;color:#FBBF24">${pendingInstructors.length}</p>
+                <p style="font-size:12px;color:#92400E">En attente de validation</p>
+            </div>
+            <div style="background:#111;border:1px solid #1F1F1F;border-radius:18px;padding:18px;text-align:center">
+                <p style="font-size:32px;font-weight:900;color:#6B7280">${pendingDocsInstructors.length}</p>
+                <p style="font-size:12px;color:#4B5563">Sans documents</p>
+            </div>
+            <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:18px;padding:18px;text-align:center">
+                <p style="font-size:32px;font-weight:900;color:#EF4444">${rejectedInstructors.length}</p>
+                <p style="font-size:12px;color:#7F1D1D">Refusés</p>
+            </div>
+        </div>
+
+        ${pendingInstructors.length === 0 ?
+        '<div style="text-align:center;padding:48px;background:#111;border:1px solid #1F1F1F;border-radius:20px"><p style="font-size:48px;margin-bottom:12px">✅</p><p style="color:#6B7280;font-size:16px;font-weight:600">Aucune demande en attente</p></div>'
+        :
+        '<div style="display:flex;flex-direction:column;gap:16px">' + pendingInstructors.map(inst => {
+            const docs = inst.documents_urls || [];
+            const user = adminData.users.find(u => u.id === inst.id || u.id === inst.user_id);
+            return `<div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:24px">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">
+                    <div>
+                        <p style="font-weight:900;font-size:18px;color:#fff">${inst.name||'?'}</p>
+                        <p style="font-size:13px;color:#6B7280">${user?.email||inst.email||'?'}</p>
+                        <p style="font-size:11px;color:#4B5563;margin-top:4px">Inscrit le ${user?.created_at ? new Date(user.created_at).toLocaleDateString('fr-FR') : '?'}</p>
+                    </div>
+                    <span style="background:rgba(251,191,36,0.15);color:#FBBF24;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700">⏳ En attente</span>
+                </div>
+                <div style="margin-bottom:16px">
+                    <p style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Documents fournis (${docs.length})</p>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                    ${docs.map(d => `<div style="display:flex;align-items:center;gap:12px;background:#1A1A1A;border-radius:14px;padding:12px 16px">
+                        <span style="font-size:20px">${d.doc_type==='autorisation'?'🪪':d.doc_type==='identite'?'🆔':'🛡️'}</span>
+                        <div style="flex:1">
+                            <p style="font-size:13px;font-weight:700;color:#fff">${d.doc_type==='autorisation'?'Autorisation d\\'enseigner':d.doc_type==='identite'?'Pièce d\\'identité':'Assurance pro'}</p>
+                            <p style="font-size:11px;color:#4B5563">${d.filename||'document'}</p>
+                        </div>
+                        <a href="${d.url}" target="_blank" style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);color:#60A5FA;padding:6px 14px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none">👁️ Voir</a>
+                    </div>`).join('')}
+                    ${docs.length === 0 ? '<p style="color:#4B5563;font-style:italic">Aucun document</p>' : ''}
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px">
+                    <button onclick="adminApproveInstructor('${inst.id}')" style="flex:1;padding:14px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#22C55E;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer">✅ Accepter</button>
+                    <button onclick="adminRejectInstructorModal('${inst.id}','${(inst.name||'').replace(/'/g,"\\\\'")}')" style="flex:1;padding:14px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer">❌ Refuser</button>
+                </div>
+            </div>`;
+        }).join('') + '</div>'}
+
+        ${rejectedInstructors.length > 0 ? `
+        <div style="margin-top:32px">
+            <p style="font-weight:800;font-size:15px;color:#EF4444;margin-bottom:12px">Derniers refusés</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+            ${rejectedInstructors.slice(0,5).map(inst => `
+            <div style="background:#111;border:1px solid #1F1F1F;border-radius:14px;padding:14px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <p style="font-weight:700;font-size:13px;color:#fff">${inst.name||'?'}</p>
+                    <p style="font-size:12px;color:#EF4444;margin-top:2px">${inst.rejection_reason||'Aucun motif'}</p>
+                </div>
+                <span style="background:rgba(239,68,68,0.1);color:#EF4444;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700">Refusé</span>
+            </div>`).join('')}
+            </div>
+        </div>` : ''}`;
+    }
 
     // ── VUE D'ENSEMBLE ──────────────────────────────────────────────────────
     if (tab === 'overview') {
@@ -2445,6 +2738,41 @@ window.adminVerifyInstructor = async (id, v) => {
     await loadAdminData();
 };
 
+// ========== APPROBATION MONITEURS ==========
+window.adminApproveInstructor = async (id) => {
+    if (!confirm('Valider ce moniteur ? Il pourra accéder au tableau de bord et recevoir des réservations.')) return;
+    await sb.from('instructors').update({ approval_status: 'approved', verified: true, rejection_reason: null }).eq('id', id);
+    sendPushToUser(id, '✅ Profil validé !', 'Votre demande a été acceptée. Bienvenue sur DriveConnect NC ! 🎉');
+    notif('✅ Moniteur approuvé', '', 'green');
+    await loadAdminData();
+};
+
+window.adminRejectInstructorModal = (id, name) => {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 flex items-center justify-center z-[9999] p-4';
+    modal.style.background = 'rgba(0,0,0,0.7)';
+    modal.innerHTML = `<div style="background:#1A1A1A;border:1px solid #333;border-radius:20px;padding:24px;max-width:420px;width:100%">
+        <h3 style="font-weight:900;font-size:18px;color:#fff;margin-bottom:8px">❌ Refuser ${name}</h3>
+        <p style="font-size:13px;color:#6B7280;margin-bottom:16px">Indiquez le motif du refus pour aider le moniteur à corriger ses documents.</p>
+        <textarea id="reject-reason" rows="3" style="width:100%;background:#111;border:1px solid #333;border-radius:12px;padding:12px;color:#fff;font-size:14px;resize:none;outline:none;font-family:inherit" placeholder="Ex: Pièce d'identité illisible, autorisation expirée..."></textarea>
+        <div style="display:flex;gap:12px;margin-top:16px">
+            <button onclick="this.closest('.fixed').remove()" style="flex:1;padding:14px;background:#222;color:#999;border:1px solid #333;border-radius:14px;font-weight:600;font-size:14px;cursor:pointer">Annuler</button>
+            <button onclick="adminRejectInstructor('${id}', document.getElementById('reject-reason').value, this.closest('.fixed'))" style="flex:1;padding:14px;background:#DC2626;color:white;border:none;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer">Refuser</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+};
+
+window.adminRejectInstructor = async (id, reason, modal) => {
+    if (!reason.trim()) { notif('⚠️ Motif obligatoire', 'Indiquez le motif du refus', 'yellow'); return; }
+    await sb.from('instructors').update({ approval_status: 'rejected', rejection_reason: reason.trim() }).eq('id', id);
+    sendPushToUser(id, '❌ Demande refusée', 'Votre demande n\'a pas été validée. Consultez l\'app pour plus d\'infos.');
+    if (modal) modal.remove();
+    notif('❌ Moniteur refusé', '', 'red');
+    await loadAdminData();
+};
+
 window.adminRemovePenalty = async (id) => {
     await sb.from('instructors').update({ penalty_until: null, visibility_penalty: 0 }).eq('id', id);
     notif('✅ Pénalité levée', '', 'green');
@@ -2506,6 +2834,9 @@ function render() {
         case 'instructor-login':    app.innerHTML=LoginPage('instructor'); setupLoginForm('instructor'); break;
         case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>initMap(),100); break;
         case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>initMap(),100); break;
+        case 'instructor-upload-docs': app.innerHTML=InstructorUploadDocs(); setTimeout(()=>setupDocUpload(),100); break;
+        case 'instructor-pending':  app.innerHTML=InstructorPending(); break;
+        case 'instructor-rejected': app.innerHTML=InstructorRejected(); setTimeout(()=>setupDocUpload(),100); break;
         case 'admin':               loadAdminData(); break;
         case 'privacy':             app.innerHTML=LegalPage('privacy'); break;
         case 'terms':               app.innerHTML=LegalPage('terms'); break;
@@ -2609,8 +2940,20 @@ async function boot() {
             currentUser = { ...profile, ...session.user };
             if (profile.is_admin) {
                 currentView = 'admin';
+            } else if (profile.user_type === 'instructor') {
+                const { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', session.user.id).single();
+                const status = instProfile?.approval_status || 'pending_documents';
+                if (status === 'approved') {
+                    currentView = 'instructor-dashboard';
+                } else if (status === 'pending_documents') {
+                    currentView = 'instructor-upload-docs';
+                } else if (status === 'rejected') {
+                    currentView = 'instructor-rejected';
+                } else {
+                    currentView = 'instructor-pending';
+                }
             } else {
-                currentView = profile.user_type === 'student' ? 'student-dashboard' : 'instructor-dashboard';
+                currentView = 'student-dashboard';
             }
         }
     } else if (roleParam === 'instructor') {
