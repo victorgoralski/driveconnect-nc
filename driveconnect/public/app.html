@@ -1213,7 +1213,7 @@ function showPaymentModal(slot, instructor, prices) {
 
             <!-- Zone PayPal : 5000 XPF et 4500 XPF -->
             <div id="paypal-btn-zone">
-                ${slot.price === 5000 || slot.price === 4500 ? `
+                ${slot.price === 5000 || slot.price === 4500 || slot.price === 4200 ? `
                 <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;background:#F9FAFB;border-radius:14px">
                     <div style="width:20px;height:20px;border:2px solid #E5E7EB;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite"></div>
                     <span style="color:#9CA3AF;font-size:14px">Chargement du paiement…</span>
@@ -1297,6 +1297,9 @@ function showPaymentModal(slot, instructor, prices) {
         } else if (slot.price === 4500) {
             hostedButtonId = "6929WMFL3HEZL";
             containerId = "paypal-container-6929WMFL3HEZL";
+        } else if (slot.price === 4200) {
+            hostedButtonId = "SXRG8EMYJAMVQ";
+            containerId = "paypal-container-SXRG8EMYJAMVQ";
         } else {
             return; // Pas de bouton pour les autres montants
         }
@@ -1321,7 +1324,7 @@ function showPaymentModal(slot, instructor, prices) {
     }
 
     // Lancer le bouton PayPal pour 5000 et 4500 XPF
-    if (slot.price === 5000 || slot.price === 4500) {
+    if (slot.price === 5000 || slot.price === 4500 || slot.price === 4200) {
         setTimeout(() => {
             if (typeof window.paypal !== 'undefined' && window.paypal.HostedButtons) {
                 renderPayPalButton();
