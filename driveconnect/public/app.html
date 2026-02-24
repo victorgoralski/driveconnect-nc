@@ -420,6 +420,10 @@ function LoginPage(type) {
                 <button onclick="toggleSignup('${type}')" class="text-sm font-medium" style="color:var(--primary)">
                     <span id="toggle-text">Pas de compte ? S'inscrire</span>
                 </button>
+                <br>
+                <button onclick="forgotPassword()" id="forgot-pwd-btn" class="text-sm mt-3 inline-block" style="color:var(--text-muted)">
+                    Mot de passe oublié ?
+                </button>
             </div>
         </div>
     </div>`;
@@ -2117,6 +2121,26 @@ window.toggleSignup=(type)=>{
     document.getElementById('form-title').textContent=s?'Créer un compte':'Se connecter';
     document.getElementById('submit-text').textContent=s?"S'inscrire":'Se connecter';
     document.getElementById('toggle-text').textContent=s?'Déjà un compte ?':"Pas de compte ?";
+    const fpBtn=document.getElementById('forgot-pwd-btn');
+    if(fpBtn) fpBtn.style.display=s?'none':'inline-block';
+};
+
+window.forgotPassword = async () => {
+    const email = document.getElementById('email')?.value?.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        notif('⚠️ Saisissez votre email', 'Remplissez le champ email avant de cliquer', 'orange');
+        const inp = document.getElementById('email');
+        if (inp) { inp.style.border = '2px solid #FF5A1F'; inp.focus(); setTimeout(() => inp.style.border = '', 2000); }
+        return;
+    }
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/app.html?reset=true'
+    });
+    if (error) {
+        notif('❌ Erreur', error.message, 'red');
+    } else {
+        notif('📧 Email envoyé !', 'Vérifiez votre boîte mail pour réinitialiser votre mot de passe', 'green');
+    }
 };
 
 function setupLoginForm(type) {
@@ -2926,8 +2950,48 @@ function checkReferralInUrl() {
     if (ref) localStorage.setItem('pending_referral', ref.toUpperCase());
 }
 
+// ===== RÉINITIALISATION MOT DE PASSE =====
+window.showResetPasswordModal = function() {
+    document.querySelectorAll('.reset-pwd-modal').forEach(m => m.remove());
+    const m = document.createElement('div');
+    m.className = 'reset-pwd-modal fixed inset-0 z-[9999] flex items-center justify-center p-4';
+    m.style.background = 'rgba(0,0,0,0.8)';
+    m.innerHTML = `<div style="background:#fff;border-radius:24px;padding:32px;max-width:400px;width:100%;text-align:center">
+        <div style="font-size:2.5rem;margin-bottom:8px">🔐</div>
+        <h2 style="font-size:1.3rem;font-weight:800;color:#111;margin-bottom:8px">Nouveau mot de passe</h2>
+        <p style="color:#888;font-size:13px;margin-bottom:20px">Choisissez un nouveau mot de passe sécurisé (6 caractères minimum)</p>
+        <input type="password" id="new-pwd-1" placeholder="Nouveau mot de passe" minlength="6" style="width:100%;padding:14px;border:2px solid #E5E7EB;border-radius:14px;font-size:15px;margin-bottom:10px;outline:none;font-family:inherit">
+        <input type="password" id="new-pwd-2" placeholder="Confirmer le mot de passe" minlength="6" style="width:100%;padding:14px;border:2px solid #E5E7EB;border-radius:14px;font-size:15px;margin-bottom:6px;outline:none;font-family:inherit">
+        <p id="reset-pwd-err" style="color:#DC2626;font-size:12px;min-height:20px;margin-bottom:12px"></p>
+        <button onclick="submitNewPassword()" style="width:100%;background:#FF5A1F;color:white;border:none;padding:15px;border-radius:14px;font-weight:800;font-size:16px;cursor:pointer">
+            Changer mon mot de passe
+        </button>
+    </div>`;
+    document.body.appendChild(m);
+    setTimeout(() => document.getElementById('new-pwd-1')?.focus(), 100);
+};
+
+window.submitNewPassword = async function() {
+    const p1 = document.getElementById('new-pwd-1')?.value;
+    const p2 = document.getElementById('new-pwd-2')?.value;
+    const err = document.getElementById('reset-pwd-err');
+    if (!p1 || p1.length < 6) { if(err) err.textContent = '⚠️ Minimum 6 caractères'; return; }
+    if (p1 !== p2) { if(err) err.textContent = '⚠️ Les mots de passe ne correspondent pas'; return; }
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if (error) { if(err) err.textContent = '❌ ' + error.message; return; }
+    document.querySelectorAll('.reset-pwd-modal').forEach(m => m.remove());
+    notif('✅ Mot de passe changé !', 'Vous pouvez maintenant vous connecter', 'green');
+    window.history.replaceState({}, '', window.location.pathname);
+};
+
 async function boot() {
     document.getElementById('app').innerHTML = '<div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center"><div class="text-center"><div class="text-5xl mb-4">🚗</div><p class="text-xl font-bold text-orange-600">DriveConnect NC</p><p class="text-gray-400 mt-2">Connexion à la base de données...</p><div class="mt-4 w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div></div></div>';
+
+    // Détecter le retour de réinitialisation de mot de passe
+    const urlHash = window.location.hash;
+    if (urlHash.includes('type=recovery') || new URLSearchParams(window.location.search).get('reset') === 'true') {
+        setTimeout(() => showResetPasswordModal(), 500);
+    }
 
     // Lire les paramètres URL pour routing direct
     const urlParams = new URLSearchParams(window.location.search);
