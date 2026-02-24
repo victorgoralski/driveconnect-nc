@@ -1319,9 +1319,20 @@ function showPaymentModal(slot, instructor, prices) {
             s.onload = () => renderPayPalButton();
             s.onerror = () => {
                 const z = document.getElementById('paypal-btn-zone');
-                if (z) z.innerHTML = `<div style="background:#FEF2F2;border-radius:14px;padding:16px;text-align:center">
-                    <p style="color:#DC2626;font-weight:700;margin-bottom:8px">⚠️ PayPal bloqué par votre navigateur</p>
-                    <p style="color:#6B7280;font-size:12px">Désactivez votre bloqueur de pub ou essayez un autre navigateur</p>
+                if (z) z.innerHTML = `<div style="background:#FFF7ED;border-radius:14px;padding:18px;text-align:center;border:1.5px solid #FED7AA">
+                    <p style="font-size:22px;margin-bottom:8px">🛡️</p>
+                    <p style="color:#EA580C;font-weight:800;font-size:15px;margin-bottom:6px">PayPal bloqué par un bloqueur de pub</p>
+                    <p style="color:#9CA3AF;font-size:12px;margin-bottom:16px">Désactivez votre extension (uBlock, AdBlock…) ou ouvrez en <strong>navigation privée</strong></p>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                        <button onclick="window.open('https://www.paypal.com/ncp/payment/EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp','_blank','width=500,height=600')" 
+                            style="padding:14px;background:#003087;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer">
+                            💳 Payer via PayPal.com
+                        </button>
+                        <button onclick="payDirectFallback()"
+                            style="padding:12px;background:#F3F4F6;color:#374151;border:none;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer">
+                            ✅ Confirmer sans paiement en ligne
+                        </button>
+                    </div>
                 </div>`;
             };
             document.head.appendChild(s);
