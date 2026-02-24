@@ -1213,7 +1213,7 @@ function showPaymentModal(slot, instructor, prices) {
 
             <!-- Zone PayPal : 5000 XPF et 4500 XPF -->
             <div id="paypal-btn-zone">
-                ${slot.price === 5000 || slot.price === 4500 || slot.price === 4200 || slot.price === 1000 || slot.price === 1500 || slot.price === 2000 || slot.price === 2500 || slot.price === 3000 || slot.price === 3500 || slot.price === 4000 || slot.price === 5500 || slot.price === 6000 || slot.price === 6500 ? `
+                ${slot.price === 5000 || slot.price === 4500 || slot.price === 4200 || slot.price === 1000 || slot.price === 1500 || slot.price === 2000 || slot.price === 2500 || slot.price === 3000 || slot.price === 3500 || slot.price === 4000 || slot.price === 5500 || slot.price === 6000 || slot.price === 6500 || slot.price === 7000 ? `
                 <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;background:#F9FAFB;border-radius:14px">
                     <div style="width:20px;height:20px;border:2px solid #E5E7EB;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite"></div>
                     <span style="color:#9CA3AF;font-size:14px">Chargement du paiement…</span>
@@ -1330,6 +1330,9 @@ function showPaymentModal(slot, instructor, prices) {
         } else if (slot.price === 6500) {
             hostedButtonId = "4G7B39BAXCQTJ";
             containerId = "paypal-container-4G7B39BAXCQTJ";
+        } else if (slot.price === 7000) {
+            hostedButtonId = "SP8HAQEBDQ5PN";
+            containerId = "paypal-container-SP8HAQEBDQ5PN";
         } else {
             return; // Pas de bouton pour les autres montants
         }
@@ -1354,7 +1357,7 @@ function showPaymentModal(slot, instructor, prices) {
     }
 
     // Lancer le bouton PayPal pour 5000 et 4500 XPF
-    if (slot.price === 5000 || slot.price === 4500 || slot.price === 4200 || slot.price === 1000 || slot.price === 1500 || slot.price === 2000 || slot.price === 2500 || slot.price === 3000 || slot.price === 3500 || slot.price === 4000 || slot.price === 5500 || slot.price === 6000 || slot.price === 6500) {
+    if (slot.price === 5000 || slot.price === 4500 || slot.price === 4200 || slot.price === 1000 || slot.price === 1500 || slot.price === 2000 || slot.price === 2500 || slot.price === 3000 || slot.price === 3500 || slot.price === 4000 || slot.price === 5500 || slot.price === 6000 || slot.price === 6500 || slot.price === 7000) {
         setTimeout(() => {
             if (typeof window.paypal !== 'undefined' && window.paypal.HostedButtons) {
                 renderPayPalButton();
