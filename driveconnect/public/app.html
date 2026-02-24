@@ -15,7 +15,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://www.paypal.com/sdk/js?client-id=EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp&currency=USD&components=buttons&intent=capture"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=BAA-pkXDiQDK70NDleUwYfDK09m2Gpfm_yrFugTNqSiGLoHWmHxtD49w6f9SsLdWKk9AKeHVJWe35qNdek&components=hosted-buttons&disable-funding=venmo&currency=USD"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap');
@@ -1211,12 +1211,18 @@ function showPaymentModal(slot, instructor, prices) {
                 <span style="margin-left:auto">🔒</span>
             </div>
 
-            <!-- Zone PayPal -->
+            <!-- Zone PayPal : uniquement pour 5000 XPF -->
             <div id="paypal-btn-zone">
+                ${slot.price === 5000 ? `
                 <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;background:#F9FAFB;border-radius:14px">
                     <div style="width:20px;height:20px;border:2px solid #E5E7EB;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite"></div>
                     <span style="color:#9CA3AF;font-size:14px">Chargement du paiement…</span>
-                </div>
+                </div>` : `
+                <div style="background:#FFF7ED;border-radius:14px;padding:16px;text-align:center;border:1.5px solid #FED7AA">
+                    <p style="font-size:20px;margin-bottom:8px">⚠️</p>
+                    <p style="color:#EA580C;font-weight:800;font-size:14px;margin-bottom:4px">Paiement en ligne non disponible</p>
+                    <p style="color:#9CA3AF;font-size:12px">Le paiement en ligne est uniquement disponible pour les créneaux à 5 000 XPF.</p>
+                </div>`}
             </div>
 
             <p style="text-align:center;font-size:11px;color:#D1D5DB;margin-top:16px;line-height:1.5">
@@ -1279,65 +1285,41 @@ function showPaymentModal(slot, instructor, prices) {
 
     // ── Charger le SDK PayPal dynamiquement ──────────────────────────────────
     function renderPayPalButton() {
+        if (slot.price !== 5000) return; // Seulement pour 5000 XPF
         const zone = document.getElementById('paypal-btn-zone');
         if (!zone) return;
         try {
-            window.paypal.Buttons({
-                style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'pay', height: 52 },
-                createOrder: (data, actions) => actions.order.create({
-                    purchase_units: [{
-                        amount: { value: amountUSD, currency_code: 'USD' },
-                        description: `Cours de conduite – ${instrName} – ${slot.date}`
-                    }]
-                }),
-                onApprove: async (data, actions) => {
+            // Vider le loader
+            zone.innerHTML = '<div id="paypal-container-CRCHZV8RAJNYE"></div>';
+            // Utiliser le bouton hébergé PayPal officiel
+            window.paypal.HostedButtons({
+                hostedButtonId: "CRCHZV8RAJNYE",
+                onApprove: async (data) => {
                     zone.innerHTML = '<div style="text-align:center;padding:14px;color:#9CA3AF;font-size:13px"><div style="width:24px;height:24px;border:2px solid #E5E7EB;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 8px"></div>Traitement…</div>';
-                    const capture = await actions.order.capture();
-                    if (capture.status === 'COMPLETED') await completeBooking('paid', data.orderID);
-                    else notif('❌ Paiement non complété', '', 'red');
+                    await completeBooking('paid', data.orderID);
                 },
-                onCancel: () => {},
                 onError: err => {
                     console.error('PayPal:', err);
-                    zone.innerHTML = '<p style="color:#EF4444;text-align:center;font-size:13px">Erreur PayPal — veuillez réessayer</p>';
+                    zone.innerHTML = '<div style="background:#FFF7ED;border-radius:14px;padding:16px;text-align:center;border:1.5px solid #FED7AA"><p style="color:#EA580C;font-weight:700;margin-bottom:6px">🛡️ PayPal bloqué</p><p style="color:#6B7280;font-size:12px">Désactivez votre bloqueur de pub ou ouvrez en <strong>navigation privée</strong> (Ctrl+Maj+N)</p></div>';
                 }
-            }).render('#paypal-btn-zone');
+            }).render('#paypal-container-CRCHZV8RAJNYE');
         } catch(e) {
             console.error('PayPal render:', e);
-            zone.innerHTML = '<p style="color:#EF4444;text-align:center;font-size:13px">PayPal indisponible pour le moment</p>';
+            zone.innerHTML = '<div style="background:#FFF7ED;border-radius:14px;padding:16px;text-align:center;border:1.5px solid #FED7AA"><p style="color:#EA580C;font-weight:700;margin-bottom:6px">🛡️ PayPal bloqué</p><p style="color:#6B7280;font-size:12px">Désactivez votre bloqueur de pub ou ouvrez en <strong>navigation privée</strong> (Ctrl+Maj+N)</p></div>';
         }
     }
 
-    // Lancer le bouton PayPal après insertion DOM
-    setTimeout(() => {
-        if (typeof window.paypal !== 'undefined') {
-            renderPayPalButton();
-        } else {
-            // SDK pas encore chargé — charger dynamiquement
-            const s = document.createElement('script');
-            s.src = 'https://www.paypal.com/sdk/js?client-id=EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp&currency=USD&components=buttons&intent=capture';
-            s.onload = () => renderPayPalButton();
-            s.onerror = () => {
-                const z = document.getElementById('paypal-btn-zone');
-                if (z) z.innerHTML = `<div style="background:#FFF7ED;border-radius:14px;padding:18px;text-align:center;border:1.5px solid #FED7AA">
-                    <p style="font-size:22px;margin-bottom:8px">🛡️</p>
-                    <p style="color:#EA580C;font-weight:800;font-size:15px;margin-bottom:6px">PayPal bloqué par un bloqueur de pub</p>
-                    <p style="color:#9CA3AF;font-size:12px;margin-bottom:16px">Désactivez votre extension (uBlock, AdBlock…) ou ouvrez en <strong>navigation privée</strong></p>
-                    <div style="display:flex;flex-direction:column;gap:8px">
-                        <button onclick="window.open('https://www.paypal.com/ncp/payment/EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp','_blank','width=500,height=600')" 
-                            style="padding:14px;background:#003087;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer">
-                            💳 Payer via PayPal.com
-                        </button>
-                        <button onclick="payDirectFallback()"
-                            style="padding:12px;background:#F3F4F6;color:#374151;border:none;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer">
-                            ✅ Confirmer sans paiement en ligne
-                        </button>
-                    </div>
-                </div>`;
-            };
-            document.head.appendChild(s);
-        }
-    }, 400);
+    // Lancer le bouton PayPal uniquement si créneau à 5000 XPF
+    if (slot.price === 5000) {
+        setTimeout(() => {
+            if (typeof window.paypal !== 'undefined' && window.paypal.HostedButtons) {
+                renderPayPalButton();
+            } else {
+                const zone = document.getElementById('paypal-btn-zone');
+                if (zone) zone.innerHTML = '<div style="background:#FFF7ED;border-radius:14px;padding:16px;text-align:center;border:1.5px solid #FED7AA"><p style="color:#EA580C;font-weight:700;margin-bottom:6px">🛡️ PayPal bloqué</p><p style="color:#6B7280;font-size:12px">Désactivez votre bloqueur de pub ou ouvrez en <strong>navigation privée</strong> (Ctrl+Maj+N)</p></div>';
+            }
+        }, 400);
+    }
 }
 
 
