@@ -1951,137 +1951,550 @@ let adminTab = 'overview';
 async function loadAdminData() {
     const [u, i, b, s] = await Promise.all([
         sb.from('users').select('*').order('created_at', { ascending: false }),
-        sb.from('instructors').select('*'),
+        sb.from('instructors').select('*').order('created_at', { ascending: false }),
         sb.from('bookings').select('*').order('created_at', { ascending: false }),
-        sb.from('slots').select('*')
+        sb.from('slots').select('*').order('date', { ascending: false })
     ]);
-    adminData.users = u.data || [];
-    adminData.instructors = i.data || [];
-    adminData.bookings = b.data || [];
-    adminData.slots = s.data || [];
+    adminData.users        = u.data || [];
+    adminData.instructors  = i.data || [];
+    adminData.bookings     = b.data || [];
+    adminData.slots        = s.data || [];
     document.getElementById('app').innerHTML = AdminDashboard();
+    // Carte admin si onglet map
+    if (adminTab === 'map') setTimeout(() => initMap(), 100);
 }
 
 function AdminDashboard() {
-    const totalRevenue = adminData.bookings.filter(b=>b.status==='confirmed'&&b.payment_status==='paid').reduce((s,b)=>s+(b.amount||0),0);
-    const totalCommission = Math.round(totalRevenue * COMMISSION);
-    const tabs = [{id:'overview',label:'📊 Vue globale'},{id:'users',label:'👥 Utilisateurs'},{id:'instructors',label:'🚗 Moniteurs'},{id:'bookings',label:'📋 Réservations'},{id:'danger',label:'⚠️ Danger Zone'}];
-    return `<div class="min-h-screen bg-gray-900 text-white">
-        <header class="bg-gray-800 border-b border-gray-700 sticky top-0 z-40">
-            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <span class="text-2xl">🛡️</span>
-                    <div><h1 class="text-xl font-extrabold text-orange-400">Admin Panel</h1><p class="text-xs text-gray-400">DriveConnect NC</p></div>
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+
+    // ── Métriques globales ──
+    const totalUsers       = adminData.users.length;
+    const totalStudents    = adminData.users.filter(u => u.user_type === 'student').length;
+    const totalInstructors = adminData.instructors.length;
+    const onlineInst       = adminData.instructors.filter(i => i.is_online).length;
+    const verifiedInst     = adminData.instructors.filter(i => i.verified).length;
+    const totalBookings    = adminData.bookings.length;
+    const confirmedBook    = adminData.bookings.filter(b => b.status === 'confirmed').length;
+    const cancelledBook    = adminData.bookings.filter(b => b.status === 'cancelled').length;
+    const pendingBook      = adminData.bookings.filter(b => b.status === 'pending').length;
+    const totalRevenue     = adminData.bookings.filter(b => b.status === 'confirmed' && b.payment_status === 'paid').reduce((s,b) => s + (b.amount||0), 0);
+    const totalCommission  = adminData.bookings.filter(b => b.status === 'confirmed' && b.payment_status === 'paid').reduce((s,b) => s + (b.commission||0), 0);
+    const availableSlots   = adminData.slots.filter(s => s.available).length;
+    const todayBookings    = adminData.bookings.filter(b => b.date === today).length;
+    const recentUsers      = adminData.users.filter(u => u.created_at && new Date(u.created_at) > new Date(Date.now() - 7*24*60*60*1000)).length;
+
+    const tabs = [
+        { id: 'overview',     icon: '📊', label: 'Vue d\'ensemble' },
+        { id: 'bookings',     icon: '📋', label: `Réservations ${pendingBook > 0 ? '🔴' : ''}` },
+        { id: 'students',     icon: '👨‍🎓', label: 'Élèves' },
+        { id: 'instructors',  icon: '🚗', label: 'Moniteurs' },
+        { id: 'revenue',      icon: '💰', label: 'Revenus' },
+        { id: 'map',          icon: '🗺️', label: 'Carte live' },
+        { id: 'danger',       icon: '⚠️', label: 'Admin' }
+    ];
+
+    return `<div style="min-height:100vh;background:#0A0A0A;color:#fff;font-family:'DM Sans',sans-serif">
+
+        <!-- Header Admin -->
+        <div style="background:linear-gradient(135deg,#0D0D0D,#1A0A00);border-bottom:1px solid rgba(255,90,31,0.2);padding:0 24px;position:sticky;top:0;z-index:50">
+            <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div style="width:36px;height:36px;background:#FF5A1F;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px">🛡️</div>
+                    <div>
+                        <p style="font-weight:900;font-size:16px;color:#fff">DriveConnect Admin</p>
+                        <p style="font-size:11px;color:#FF5A1F;font-weight:600">Accès restreint — Victor Goralski</p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <span class="text-sm text-gray-400">👋 ${currentUser.name}</span>
-                    <button onclick="showView('student-dashboard')" class="px-3 py-2 text-sm bg-orange-500 hover:bg-orange-600 rounded-xl">🚗 App</button>
-                    <button onclick="logout()" class="px-3 py-2 text-sm text-gray-400 hover:bg-gray-700 rounded-xl">Déconnexion</button>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:6px">
+                        <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;animation:pulse-ring 2s infinite"></div>
+                        <span style="font-size:12px;font-weight:700;color:#22C55E">${onlineInst} moniteur${onlineInst>1?'s':''} en ligne</span>
+                    </div>
+                    <button onclick="loadAdminData()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">🔄 Actualiser</button>
+                    <button onclick="logout()" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">Déconnexion</button>
                 </div>
             </div>
-        </header>
-        <div class="container mx-auto px-4 py-8">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-gray-800 rounded-2xl p-5 border border-gray-700"><p class="text-gray-400 text-sm">Utilisateurs</p><p class="text-3xl font-extrabold">${adminData.users.length}</p></div>
-                <div class="bg-gray-800 rounded-2xl p-5 border border-gray-700"><p class="text-gray-400 text-sm">Moniteurs</p><p class="text-3xl font-extrabold text-orange-400">${adminData.instructors.length}</p></div>
-                <div class="bg-gray-800 rounded-2xl p-5 border border-gray-700"><p class="text-gray-400 text-sm">Réservations</p><p class="text-3xl font-extrabold text-green-400">${adminData.bookings.length}</p></div>
-                <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5"><p class="text-orange-200 text-sm">Commission totale</p><p class="text-3xl font-extrabold">${totalCommission.toLocaleString()} XPF</p></div>
+        </div>
+
+        <div style="max-width:1200px;margin:0 auto;padding:24px">
+
+            <!-- KPIs top -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px">
+                ${[
+                    { icon:'👥', val: totalUsers,       label:'Utilisateurs',    sub:`+${recentUsers} cette semaine`,  color:'#60A5FA' },
+                    { icon:'👨‍🎓', val: totalStudents,   label:'Élèves',          sub:`${totalStudents} inscrits`,      color:'#818CF8' },
+                    { icon:'🚗', val: totalInstructors, label:'Moniteurs',       sub:`${onlineInst} en ligne`,         color:'#FF5A1F' },
+                    { icon:'📋', val: totalBookings,    label:'Réservations',    sub:`${confirmedBook} confirmées`,    color:'#34D399' },
+                    { icon:'💰', val: totalRevenue.toLocaleString()+' XPF', label:'Chiffre d\'affaires', sub:`${totalCommission.toLocaleString()} XPF commission`, color:'#FBBF24' },
+                    { icon:'📅', val: availableSlots,   label:'Créneaux dispo',  sub:`${todayBookings} cours aujourd\'hui`, color:'#F472B6' },
+                ].map(k => `
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:18px;padding:18px;position:relative;overflow:hidden">
+                    <div style="position:absolute;top:-10px;right:-10px;font-size:48px;opacity:0.06">${k.icon}</div>
+                    <p style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${k.label}</p>
+                    <p style="font-size:26px;font-weight:900;color:${k.color};margin-bottom:4px">${k.val}</p>
+                    <p style="font-size:11px;color:#4B5563">${k.sub}</p>
+                </div>`).join('')}
             </div>
-            <div class="bg-gray-800 rounded-3xl overflow-hidden border border-gray-700">
-                <div class="flex border-b border-gray-700 overflow-x-auto">
-                    ${tabs.map(t=>`<button onclick="switchAdminTab('${t.id}')" class="px-6 py-4 font-semibold whitespace-nowrap text-sm transition ${adminTab===t.id?'text-orange-400 border-b-2 border-orange-400 bg-gray-700':'text-gray-400 hover:text-white'}">${t.label}</button>`).join('')}
-                </div>
-                <div class="p-6">${getAdminTabContent()}</div>
+
+            <!-- Onglets -->
+            <div style="display:flex;gap:4px;background:#111;border-radius:16px;padding:6px;margin-bottom:24px;overflow-x:auto;border:1px solid #1F1F1F">
+                ${tabs.map(t => `
+                <button onclick="switchAdminTab('${t.id}')"
+                    style="white-space:nowrap;padding:10px 18px;border-radius:12px;border:none;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;
+                    background:${adminTab===t.id?'#FF5A1F':'transparent'};
+                    color:${adminTab===t.id?'#fff':'#6B7280'}">
+                    ${t.icon} ${t.label}
+                </button>`).join('')}
+            </div>
+
+            <!-- Contenu onglet -->
+            <div id="admin-content">
+                ${getAdminTabContent(adminTab, { totalRevenue, totalCommission, confirmedBook, cancelledBook, pendingBook, today })}
             </div>
         </div>
     </div>`;
 }
 
-function getAdminTabContent() {
-    if (adminTab==='overview') return `<h3 class="font-bold text-lg mb-4">📋 Dernières réservations</h3><div class="space-y-3">${adminData.bookings.slice(0,10).map(b=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${b.student_name||'?'} → ${b.instructor_name||'?'}</p><p class="text-sm text-gray-400">📅 ${b.date} à ${b.time} · ${b.amount||0} XPF</p></div><span class="px-3 py-1 rounded-full text-xs font-bold ${b.status==='confirmed'?'bg-green-900 text-green-400':b.status==='cancelled'?'bg-red-900 text-red-400':'bg-yellow-900 text-yellow-400'}">${b.status}</span></div>`).join('')||'<p class="text-gray-400">Aucune réservation</p>'}</div>`;
-    if (adminTab==='users') return `<h3 class="font-bold text-lg mb-4">👥 Utilisateurs (${adminData.users.length})</h3><div class="space-y-2">${adminData.users.map(u=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${u.name||'?'} ${u.is_admin?'🛡️':''}</p><p class="text-sm text-gray-400">${u.email}</p></div><div class="flex gap-2"><span class="px-2 py-1 rounded-full text-xs font-bold ${u.user_type==='student'?'bg-blue-900 text-blue-400':'bg-orange-900 text-orange-400'}">${u.user_type||'?'}</span>${!u.is_admin?`<button onclick="adminDeleteUser('${u.id}')" class="text-red-400 text-xs">🗑️</button>`:''}</div></div>`).join('')||'<p class="text-gray-400">Aucun</p>'}</div>`;
-    if (adminTab==='instructors') return `<h3 class="font-bold text-lg mb-4">🚗 Moniteurs (${adminData.instructors.length})</h3><div class="space-y-2">${adminData.instructors.map(i=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${i.name||'?'}</p><p class="text-sm text-gray-400">📍 ${i.location||'?'} · ⭐ ${i.rating||0} · ${i.hourly_rate||0} XPF/h</p>${i.penalty_until&&new Date(i.penalty_until)>new Date()?'<p class="text-xs text-red-400">⚠️ Pénalisé</p>':''}</div><div class="flex gap-2"><span class="px-2 py-1 rounded-full text-xs ${i.is_online?'bg-green-900 text-green-400':'bg-gray-600 text-gray-400'}">${i.is_online?'🟢':'⚫'}</span><button onclick="adminVerifyInstructor('${i.id}',${!i.verified})" class="text-xs px-2 py-1 rounded-lg ${i.verified?'bg-green-800 text-green-400':'bg-gray-600 text-gray-300'}">${i.verified?'✅':'Vérifier'}</button>${i.penalty_until?`<button onclick="adminRemovePenalty('${i.id}')" class="text-xs px-2 py-1 bg-red-900 text-red-400 rounded-lg">Lever</button>`:''}</div></div>`).join('')||'<p class="text-gray-400">Aucun</p>'}</div>`;
-    if (adminTab==='bookings') return `<h3 class="font-bold text-lg mb-4">📋 Réservations (${adminData.bookings.length})</h3><div class="space-y-2">${adminData.bookings.map(b=>`<div class="bg-gray-700 rounded-xl p-4 flex justify-between items-center"><div><p class="font-semibold">${b.student_name||'?'} → ${b.instructor_name||'?'}</p><p class="text-sm text-gray-400">📅 ${b.date} · ${b.amount||0} XPF · Net: ${b.net||0} XPF</p></div><span class="px-3 py-1 rounded-full text-xs font-bold ${b.status==='confirmed'?'bg-green-900 text-green-400':b.status==='cancelled'?'bg-red-900 text-red-400':'bg-yellow-900 text-yellow-400'}">${b.status}</span></div>`).join('')||'<p class="text-gray-400">Aucune</p>'}</div>`;
-    if (adminTab==='danger') return `<h3 class="font-bold text-lg mb-4 text-red-400">⚠️ Zone Danger</h3><div class="space-y-4"><div class="bg-red-900/30 border border-red-700 rounded-xl p-4"><p class="font-bold text-red-400 mb-1">Nettoyer les créneaux passés</p><p class="text-sm text-gray-400 mb-3">Supprime tous les créneaux dont la date est dépassée.</p><button onclick="adminCleanSlots()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold">🗑️ Nettoyer</button></div><div class="bg-gray-700 rounded-xl p-4"><p class="text-sm text-gray-400">👥 ${adminData.users.length} users · 🚗 ${adminData.instructors.length} moniteurs · 📋 ${adminData.bookings.length} réservations · 📅 ${adminData.slots.length} créneaux</p></div></div>`;
+function getAdminTabContent(tab, stats) {
+    const now = new Date();
+
+    // ── VUE D'ENSEMBLE ──────────────────────────────────────────────────────
+    if (tab === 'overview') {
+        const recent = adminData.bookings.slice(0, 8);
+        const alerts = [];
+        if (stats.pendingBook > 0) alerts.push({ type: 'warn', msg: `${stats.pendingBook} réservation(s) en attente de confirmation` });
+        adminData.instructors.filter(i => i.penalty_until && new Date(i.penalty_until) > now).forEach(i => alerts.push({ type: 'danger', msg: `Moniteur ${i.name||'?'} pénalisé jusqu\'au ${i.penalty_until?.split('T')[0]}` }));
+        adminData.instructors.filter(i => !i.verified).forEach(i => alerts.push({ type: 'info', msg: `Moniteur ${i.name||'?'} non vérifié — en attente de validation` }));
+
+        return `
+        ${alerts.length > 0 ? `
+        <div style="margin-bottom:24px;display:flex;flex-direction:column;gap:8px">
+            <p style="font-weight:800;font-size:15px;color:#fff;margin-bottom:8px">🚨 Alertes (${alerts.length})</p>
+            ${alerts.map(a => `
+            <div style="background:${a.type==='danger'?'rgba(239,68,68,0.08)':a.type==='warn'?'rgba(251,191,36,0.08)':'rgba(96,165,250,0.08)'};border:1px solid ${a.type==='danger'?'rgba(239,68,68,0.2)':a.type==='warn'?'rgba(251,191,36,0.2)':'rgba(96,165,250,0.2)'};border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px">
+                <span>${a.type==='danger'?'🔴':a.type==='warn'?'🟡':'🔵'}</span>
+                <span style="font-size:13px;color:#E5E7EB">${a.msg}</span>
+            </div>`).join('')}
+        </div>` : ''}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <!-- Dernières réservations -->
+            <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
+                <p style="font-weight:800;font-size:15px;margin-bottom:16px">📋 Dernières réservations</p>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                ${recent.length === 0 ? '<p style="color:#4B5563;text-align:center;padding:20px">Aucune réservation</p>' :
+                recent.map(b => `
+                <div style="background:#1A1A1A;border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <p style="font-weight:700;font-size:13px">${b.student_name||'?'} → ${b.instructor_name||'?'}</p>
+                        <p style="font-size:11px;color:#6B7280;margin-top:2px">📅 ${b.date} · ${(b.amount||0).toLocaleString()} XPF</p>
+                    </div>
+                    <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;
+                        background:${b.status==='confirmed'?'rgba(52,211,153,0.1)':b.status==='cancelled'?'rgba(239,68,68,0.1)':'rgba(251,191,36,0.1)'};
+                        color:${b.status==='confirmed'?'#34D399':b.status==='cancelled'?'#EF4444':'#FBBF24'}">
+                        ${b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':'⏳ En attente'}
+                    </span>
+                </div>`).join('')}
+                </div>
+            </div>
+
+            <!-- Moniteurs actifs + Stats -->
+            <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
+                    <p style="font-weight:800;font-size:15px;margin-bottom:16px">🚗 Moniteurs en ligne maintenant</p>
+                    ${adminData.instructors.filter(i => i.is_online).length === 0 ?
+                    '<p style="color:#4B5563;text-align:center;padding:16px">Aucun moniteur en ligne</p>' :
+                    adminData.instructors.filter(i => i.is_online).map(i => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#1A1A1A;border-radius:12px;margin-bottom:8px">
+                        <div style="width:36px;height:36px;border-radius:10px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0">
+                            ${(i.name||'?').charAt(0)}
+                        </div>
+                        <div style="flex:1">
+                            <p style="font-weight:700;font-size:13px">${i.name||'?'}</p>
+                            <p style="font-size:11px;color:#6B7280">📍 ${i.location||'?'} · ⭐ ${i.rating||0}</p>
+                        </div>
+                        <div style="width:8px;height:8px;border-radius:50%;background:#22C55E"></div>
+                    </div>`).join('')}
+                </div>
+
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
+                    <p style="font-weight:800;font-size:15px;margin-bottom:16px">📊 Statuts réservations</p>
+                    ${[
+                        { label: 'Confirmées', val: stats.confirmedBook, color: '#34D399', pct: Math.round(stats.confirmedBook / Math.max(adminData.bookings.length,1) * 100) },
+                        { label: 'En attente', val: stats.pendingBook,   color: '#FBBF24', pct: Math.round(stats.pendingBook / Math.max(adminData.bookings.length,1) * 100) },
+                        { label: 'Annulées',   val: stats.cancelledBook, color: '#EF4444', pct: Math.round(stats.cancelledBook / Math.max(adminData.bookings.length,1) * 100) },
+                    ].map(s => `
+                    <div style="margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                            <span style="font-size:12px;color:#9CA3AF">${s.label}</span>
+                            <span style="font-size:12px;font-weight:700;color:${s.color}">${s.val} (${s.pct}%)</span>
+                        </div>
+                        <div style="background:#1F1F1F;border-radius:4px;height:6px">
+                            <div style="background:${s.color};height:6px;border-radius:4px;width:${s.pct}%;transition:width 0.5s"></div>
+                        </div>
+                    </div>`).join('')}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // ── RÉSERVATIONS ────────────────────────────────────────────────────────
+    if (tab === 'bookings') {
+        const pending   = adminData.bookings.filter(b => b.status === 'pending');
+        const confirmed = adminData.bookings.filter(b => b.status === 'confirmed');
+        const cancelled = adminData.bookings.filter(b => b.status === 'cancelled');
+
+        const bookingRow = (b, showActions) => `
+        <div style="background:#1A1A1A;border-radius:14px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                    <p style="font-weight:800;font-size:14px">${b.student_name||'?'}</p>
+                    <span style="color:#6B7280;font-size:12px">→</span>
+                    <p style="font-weight:700;font-size:14px;color:#FF5A1F">${b.instructor_name||'?'}</p>
+                </div>
+                <p style="font-size:12px;color:#6B7280">📅 ${b.date} à ${b.time||'?'} · ⏱️ ${b.duration||1}h · 💰 ${(b.amount||0).toLocaleString()} XPF</p>
+                ${b.paypal_order_id ? `<p style="font-size:10px;color:#4B5563;margin-top:2px">PayPal: ${b.paypal_order_id}</p>` : ''}
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+                <span style="padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;
+                    background:${b.payment_status==='paid'?'rgba(52,211,153,0.1)':'rgba(251,191,36,0.1)'};
+                    color:${b.payment_status==='paid'?'#34D399':'#FBBF24'}">
+                    ${b.payment_status==='paid'?'💳 Payé':'⏳ Non payé'}
+                </span>
+                ${showActions ? `
+                <button onclick="adminForceCancel('${b.id}')" style="padding:6px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#EF4444;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">Annuler</button>
+                ` : ''}
+            </div>
+        </div>`;
+
+        return `
+        <div style="display:flex;flex-direction:column;gap:24px">
+            ${pending.length > 0 ? `
+            <div>
+                <p style="font-weight:800;font-size:16px;color:#FBBF24;margin-bottom:12px">⏳ En attente (${pending.length})</p>
+                <div style="display:flex;flex-direction:column;gap:8px">${pending.map(b => bookingRow(b, true)).join('')}</div>
+            </div>` : ''}
+
+            <div>
+                <p style="font-weight:800;font-size:16px;color:#34D399;margin-bottom:12px">✅ Confirmées (${confirmed.length})</p>
+                <div style="display:flex;flex-direction:column;gap:8px">${confirmed.length ? confirmed.map(b => bookingRow(b, true)).join('') : '<p style="color:#4B5563;padding:20px;text-align:center">Aucune</p>'}</div>
+            </div>
+
+            <div>
+                <p style="font-weight:800;font-size:16px;color:#EF4444;margin-bottom:12px">❌ Annulées (${cancelled.length})</p>
+                <div style="display:flex;flex-direction:column;gap:8px">${cancelled.length ? cancelled.slice(0,10).map(b => bookingRow(b, false)).join('') : '<p style="color:#4B5563;padding:20px;text-align:center">Aucune</p>'}</div>
+            </div>
+        </div>`;
+    }
+
+    // ── ÉLÈVES ──────────────────────────────────────────────────────────────
+    if (tab === 'students') {
+        const students = adminData.users.filter(u => u.user_type === 'student');
+        return `
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <p style="font-weight:800;font-size:16px">${students.length} élève${students.length>1?'s':''} inscrits</p>
+                <input id="search-students" oninput="adminFilter('students')" placeholder="🔍 Rechercher..." 
+                    style="background:#1A1A1A;border:1px solid #2A2A2A;border-radius:10px;padding:8px 14px;color:#fff;font-size:13px;outline:none">
+            </div>
+            <div id="students-list" style="display:flex;flex-direction:column;gap:8px">
+            ${students.map(u => {
+                const myBookings = adminData.bookings.filter(b => b.student_id === u.id);
+                const spent = myBookings.filter(b => b.payment_status === 'paid').reduce((s,b) => s+(b.amount||0), 0);
+                return `
+                <div style="background:#1A1A1A;border-radius:14px;padding:16px;display:flex;align-items:center;gap:14px">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#1D4ED8;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;flex-shrink:0;color:#fff">
+                        ${(u.name||'?').charAt(0).toUpperCase()}
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <p style="font-weight:800;font-size:14px">${u.name||'?'} ${u.phone_verified?'📱':''}${u.is_admin?'🛡️':''}</p>
+                        <p style="font-size:12px;color:#6B7280;margin-top:1px">${u.email}</p>
+                        ${u.phone_number ? `<p style="font-size:11px;color:#4B5563">${u.phone_number}</p>` : ''}
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                        <p style="font-size:13px;font-weight:700;color:#FBBF24">${spent.toLocaleString()} XPF</p>
+                        <p style="font-size:11px;color:#6B7280">${myBookings.length} réservation${myBookings.length>1?'s':''}</p>
+                        <p style="font-size:10px;color:#4B5563">${u.created_at?.split('T')[0]||'?'}</p>
+                    </div>
+                    <button onclick="adminDeleteUser('${u.id}')" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#EF4444;border-radius:8px;font-size:12px;cursor:pointer;flex-shrink:0">🗑️</button>
+                </div>`}).join('') || '<p style="color:#4B5563;text-align:center;padding:40px">Aucun élève</p>'}
+            </div>
+        </div>`;
+    }
+
+    // ── MONITEURS ────────────────────────────────────────────────────────────
+    if (tab === 'instructors') {
+        return `
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <p style="font-weight:800;font-size:16px">${adminData.instructors.length} moniteur${adminData.instructors.length>1?'s':''}</p>
+                <input id="search-instructors" oninput="adminFilter('instructors')" placeholder="🔍 Rechercher..."
+                    style="background:#1A1A1A;border:1px solid #2A2A2A;border-radius:10px;padding:8px 14px;color:#fff;font-size:13px;outline:none">
+            </div>
+            <div id="instructors-list" style="display:flex;flex-direction:column;gap:10px">
+            ${adminData.instructors.map(i => {
+                const myBookings = adminData.bookings.filter(b => b.instructor_id === i.id);
+                const revenue = myBookings.filter(b => b.status === 'confirmed' && b.payment_status === 'paid').reduce((s,b) => s+(b.net||0), 0);
+                const penalised = i.penalty_until && new Date(i.penalty_until) > now;
+                return `
+                <div style="background:#1A1A1A;border-radius:16px;padding:16px;border:1px solid ${penalised?'rgba(239,68,68,0.3)':i.is_online?'rgba(34,197,94,0.15)':'#222'}">
+                    <div style="display:flex;align-items:flex-start;gap:14px">
+                        <div style="width:50px;height:50px;border-radius:14px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex-shrink:0;color:#fff;overflow:hidden">
+                            ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : (i.name||'?').charAt(0).toUpperCase()}
+                        </div>
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                                <p style="font-weight:900;font-size:15px">${i.name||'?'}</p>
+                                <span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:${i.is_online?'rgba(34,197,94,0.1)':'rgba(107,114,128,0.1)'};color:${i.is_online?'#34D399':'#6B7280'}">${i.is_online?'🟢 En ligne':'⚫ Hors ligne'}</span>
+                                ${i.verified ? '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(52,211,153,0.1);color:#34D399">✅ Vérifié</span>' : '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(251,191,36,0.1);color:#FBBF24">⚠️ Non vérifié</span>'}
+                                ${penalised ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(239,68,68,0.1);color:#EF4444">🚫 Pénalisé</span>` : ''}
+                            </div>
+                            <p style="font-size:12px;color:#6B7280">📍 ${i.location||'?'} · ⭐ ${i.rating||0} · ${(i.hourly_rate||0).toLocaleString()} XPF/h · ${i.experience||0} ans exp.</p>
+                            ${i.phone_number ? `<p style="font-size:11px;color:#4B5563;margin-top:2px">📱 ${i.phone_number} ${i.phone_verified?'✅':''}</p>` : ''}
+                            <div style="display:flex;gap:16px;margin-top:8px">
+                                <span style="font-size:12px;color:#FBBF24">💰 ${revenue.toLocaleString()} XPF gagnés</span>
+                                <span style="font-size:12px;color:#60A5FA">📋 ${myBookings.length} réservations</span>
+                                <span style="font-size:12px;color:#A78BFA">📅 ${adminData.slots.filter(s=>s.instructor_id===i.id&&s.available).length} créneaux dispo</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+                        <button onclick="adminVerifyInstructor('${i.id}',${!i.verified})" 
+                            style="padding:7px 14px;background:${i.verified?'rgba(239,68,68,0.1)':'rgba(52,211,153,0.1)'};border:1px solid ${i.verified?'rgba(239,68,68,0.2)':'rgba(52,211,153,0.2)'};color:${i.verified?'#EF4444':'#34D399'};border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+                            ${i.verified ? '❌ Retirer vérification' : '✅ Vérifier'}
+                        </button>
+                        ${penalised ? `
+                        <button onclick="adminRemovePenalty('${i.id}')" style="padding:7px 14px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);color:#FBBF24;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+                            🔓 Lever la pénalité
+                        </button>` : `
+                        <button onclick="adminPenalizeInstructor('${i.id}')" style="padding:7px 14px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);color:#6B7280;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
+                            🚫 Pénaliser
+                        </button>`}
+                        <button onclick="adminSetOnline('${i.id}',${!i.is_online})" style="padding:7px 14px;background:rgba(255,255,255,0.03);border:1px solid #2A2A2A;color:#9CA3AF;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
+                            ${i.is_online ? '📴 Mettre hors ligne' : '📶 Mettre en ligne'}
+                        </button>
+                        <button onclick="adminDeleteUser('${i.user_id||i.id}')" style="padding:7px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.1);color:#EF4444;border-radius:8px;font-size:12px;cursor:pointer">🗑️</button>
+                    </div>
+                </div>`}).join('') || '<p style="color:#4B5563;text-align:center;padding:40px">Aucun moniteur</p>'}
+            </div>
+        </div>`;
+    }
+
+    // ── REVENUS ──────────────────────────────────────────────────────────────
+    if (tab === 'revenue') {
+        const paid = adminData.bookings.filter(b => b.status === 'confirmed' && b.payment_status === 'paid');
+        const totalRev = paid.reduce((s,b) => s+(b.amount||0), 0);
+        const totalCom = paid.reduce((s,b) => s+(b.commission||0), 0);
+        const totalNet = paid.reduce((s,b) => s+(b.net||0), 0);
+
+        // Regrouper par mois
+        const byMonth = {};
+        paid.forEach(b => {
+            const m = (b.date||'').substring(0, 7);
+            if (!byMonth[m]) byMonth[m] = { amount: 0, commission: 0, count: 0 };
+            byMonth[m].amount     += b.amount     || 0;
+            byMonth[m].commission += b.commission || 0;
+            byMonth[m].count++;
+        });
+        const months = Object.entries(byMonth).sort((a,b) => b[0].localeCompare(a[0]));
+
+        // Top moniteurs
+        const byInstructor = {};
+        paid.forEach(b => {
+            if (!byInstructor[b.instructor_id]) byInstructor[b.instructor_id] = { name: b.instructor_name, amount: 0, count: 0 };
+            byInstructor[b.instructor_id].amount += b.net || 0;
+            byInstructor[b.instructor_id].count++;
+        });
+        const topInst = Object.values(byInstructor).sort((a,b) => b.amount - a.amount).slice(0, 5);
+
+        return `
+        <div style="display:flex;flex-direction:column;gap:20px">
+            <!-- Totaux -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+                <div style="background:linear-gradient(135deg,rgba(255,90,31,0.1),rgba(255,90,31,0.05));border:1px solid rgba(255,90,31,0.2);border-radius:18px;padding:20px;text-align:center">
+                    <p style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Chiffre d'affaires</p>
+                    <p style="font-size:28px;font-weight:900;color:#FF5A1F">${totalRev.toLocaleString()}</p>
+                    <p style="font-size:13px;color:#6B7280">XPF total</p>
+                </div>
+                <div style="background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.05));border:1px solid rgba(251,191,36,0.2);border-radius:18px;padding:20px;text-align:center">
+                    <p style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Commission DriveConnect</p>
+                    <p style="font-size:28px;font-weight:900;color:#FBBF24">${totalCom.toLocaleString()}</p>
+                    <p style="font-size:13px;color:#6B7280">XPF (${totalRev > 0 ? Math.round(totalCom/totalRev*100) : 0}%)</p>
+                </div>
+                <div style="background:linear-gradient(135deg,rgba(52,211,153,0.1),rgba(52,211,153,0.05));border:1px solid rgba(52,211,153,0.2);border-radius:18px;padding:20px;text-align:center">
+                    <p style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Reversé aux moniteurs</p>
+                    <p style="font-size:28px;font-weight:900;color:#34D399">${totalNet.toLocaleString()}</p>
+                    <p style="font-size:13px;color:#6B7280">XPF net</p>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                <!-- Par mois -->
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
+                    <p style="font-weight:800;font-size:15px;margin-bottom:16px">📈 Par mois</p>
+                    ${months.length === 0 ? '<p style="color:#4B5563;text-align:center;padding:20px">Pas encore de données</p>' :
+                    months.map(([m, d]) => `
+                    <div style="margin-bottom:14px">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                            <span style="font-size:13px;font-weight:700">${m}</span>
+                            <span style="font-size:13px;color:#FBBF24">${d.amount.toLocaleString()} XPF · ${d.count} cours</span>
+                        </div>
+                        <div style="background:#1F1F1F;border-radius:4px;height:6px">
+                            <div style="background:#FF5A1F;height:6px;border-radius:4px;width:${Math.round(d.amount / Math.max(...months.map(([,x])=>x.amount)) * 100)}%"></div>
+                        </div>
+                        <p style="font-size:10px;color:#4B5563;margin-top:2px">Commission: ${d.commission.toLocaleString()} XPF</p>
+                    </div>`).join('')}
+                </div>
+
+                <!-- Top moniteurs -->
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
+                    <p style="font-weight:800;font-size:15px;margin-bottom:16px">🏆 Top moniteurs</p>
+                    ${topInst.length === 0 ? '<p style="color:#4B5563;text-align:center;padding:20px">Pas encore de données</p>' :
+                    topInst.map((inst, idx) => `
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px;background:#1A1A1A;border-radius:12px;margin-bottom:8px">
+                        <span style="font-size:18px">${['🥇','🥈','🥉','4️⃣','5️⃣'][idx]}</span>
+                        <div style="flex:1">
+                            <p style="font-weight:700;font-size:13px">${inst.name||'?'}</p>
+                            <p style="font-size:11px;color:#6B7280">${inst.count} cours</p>
+                        </div>
+                        <p style="font-weight:800;color:#34D399;font-size:14px">${inst.amount.toLocaleString()} XPF</p>
+                    </div>`).join('')}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // ── CARTE LIVE ───────────────────────────────────────────────────────────
+    if (tab === 'map') {
+        return `
+        <div>
+            <p style="font-weight:800;font-size:16px;margin-bottom:16px">🗺️ Position des moniteurs en temps réel</p>
+            <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;overflow:hidden">
+                <div id="map" style="height:500px"></div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+                ${adminData.instructors.filter(i => i.lat).map(i => `
+                <div style="background:#1A1A1A;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:${i.is_online?'#22C55E':'#6B7280'}"></div>
+                    <span style="font-size:13px;font-weight:600">${i.name||'?'}</span>
+                    <span style="font-size:11px;color:#4B5563">${i.location||''}</span>
+                </div>`).join('')}
+            </div>
+        </div>`;
+    }
+
+    // ── ZONE ADMIN ───────────────────────────────────────────────────────────
+    if (tab === 'danger') {
+        return `
+        <div style="display:flex;flex-direction:column;gap:16px;max-width:600px">
+            <div style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.2);border-radius:16px;padding:20px">
+                <p style="font-weight:800;font-size:15px;color:#FBBF24;margin-bottom:4px">🧹 Nettoyer les créneaux passés</p>
+                <p style="font-size:13px;color:#6B7280;margin-bottom:14px">Supprime tous les créneaux dont la date est dépassée.</p>
+                <button onclick="adminCleanSlots()" style="padding:10px 20px;background:#FBBF24;color:#000;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer">🗑️ Nettoyer</button>
+            </div>
+
+            <div style="background:rgba(96,165,250,0.05);border:1px solid rgba(96,165,250,0.2);border-radius:16px;padding:20px">
+                <p style="font-weight:800;font-size:15px;color:#60A5FA;margin-bottom:4px">📊 État de la base de données</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+                    ${[
+                        { label: 'Utilisateurs',   val: adminData.users.length },
+                        { label: 'Moniteurs',       val: adminData.instructors.length },
+                        { label: 'Réservations',    val: adminData.bookings.length },
+                        { label: 'Créneaux total',  val: adminData.slots.length },
+                        { label: 'Créneaux dispo',  val: adminData.slots.filter(s=>s.available).length },
+                        { label: 'Créneaux réservés', val: adminData.slots.filter(s=>!s.available).length },
+                    ].map(s => `
+                    <div style="background:#1A1A1A;border-radius:10px;padding:12px;text-align:center">
+                        <p style="font-size:22px;font-weight:900;color:#60A5FA">${s.val}</p>
+                        <p style="font-size:11px;color:#6B7280">${s.label}</p>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <div style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:16px;padding:20px">
+                <p style="font-weight:800;font-size:15px;color:#EF4444;margin-bottom:4px">🚨 Réinitialiser tous les GPS</p>
+                <p style="font-size:13px;color:#6B7280;margin-bottom:14px">Remet tous les moniteurs hors ligne (GPS).</p>
+                <button onclick="adminResetAllGPS()" style="padding:10px 20px;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer">📴 Mettre tous hors ligne</button>
+            </div>
+        </div>`;
+    }
+
     return '';
 }
 
-window.switchAdminTab = (t) => { adminTab = t; document.getElementById('app').innerHTML = AdminDashboard(); };
-window.adminVerifyInstructor = async (id, v) => { await sb.from('instructors').update({verified:v}).eq('id',id); notif(v?'✅ Vérifié':'Retiré','','green'); await loadAdminData(); };
-window.adminRemovePenalty = async (id) => { await sb.from('instructors').update({penalty_until:null,visibility_penalty:0}).eq('id',id); notif('✅ Pénalité levée','','green'); await loadAdminData(); };
-window.adminDeleteUser = async (id) => { if(!confirm('Supprimer ?')) return; await sb.from('users').delete().eq('id',id); notif('Supprimé','','red'); await loadAdminData(); };
-window.adminCleanSlots = async () => { if(!confirm('Supprimer créneaux passés ?')) return; const t=new Date().toISOString().split('T')[0]; await sb.from('slots').delete().lt('date',t); notif('✅ Nettoyé','','green'); await loadAdminData(); };
+window.switchAdminTab = (t) => {
+    adminTab = t;
+    document.getElementById('app').innerHTML = AdminDashboard();
+    if (t === 'map') setTimeout(() => initMap(), 100);
+};
 
+window.adminFilter = (type) => {
+    const q = (document.getElementById(`search-${type}`)?.value || '').toLowerCase();
+    const items = type === 'students'
+        ? adminData.users.filter(u => u.user_type === 'student')
+        : adminData.instructors;
+    const filtered = items.filter(u => (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q));
+    // Simple re-render
+    loadAdminData();
+};
 
+window.adminVerifyInstructor = async (id, v) => {
+    await sb.from('instructors').update({ verified: v }).eq('id', id);
+    notif(v ? '✅ Moniteur vérifié' : '❌ Vérification retirée', '', v ? 'green' : 'orange');
+    await loadAdminData();
+};
 
-// ========== PAGES LÉGALES ==========
-function LegalPage(tab) {
-    const privacy = `
-        <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">🔒 Politique de confidentialité</h2>
-        <p style="color:#6b7280;margin-bottom:1.5rem">Dernière mise à jour : Février 2026</p>
+window.adminRemovePenalty = async (id) => {
+    await sb.from('instructors').update({ penalty_until: null, visibility_penalty: 0 }).eq('id', id);
+    notif('✅ Pénalité levée', '', 'green');
+    await loadAdminData();
+};
 
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Données collectées</h3>
-        <p style="margin-bottom:1rem">Nous collectons votre nom, email, type de compte, et pour les moniteurs votre position GPS en temps réel.</p>
+window.adminPenalizeInstructor = async (id) => {
+    const days = prompt('Durée de la pénalité (jours) :', '7');
+    if (!days) return;
+    const until = new Date(Date.now() + parseInt(days) * 86400000).toISOString();
+    await sb.from('instructors').update({ penalty_until: until, visibility_penalty: 100 }).eq('id', id);
+    notif(`🚫 Pénalisé ${days} jours`, '', 'red');
+    await loadAdminData();
+};
 
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Hébergement</h3>
-        <p style="margin-bottom:1rem"><strong>Supabase</strong> — base de données et authentification (Corée du Sud).<br><strong>Vercel</strong> — hébergement de l'application web.<br><strong>PayPal</strong> — traitement des paiements. Vos données bancaires ne sont jamais stockées sur nos serveurs.</p>
+window.adminSetOnline = async (id, online) => {
+    await sb.from('instructors').update({ is_online: online }).eq('id', id);
+    notif(online ? '🟢 Mis en ligne' : '⚫ Mis hors ligne', '', 'green');
+    await loadAdminData();
+};
 
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Cookies</h3>
-        <p style="margin-bottom:1rem">Nous utilisons uniquement des cookies fonctionnels essentiels (session Supabase). Aucun cookie publicitaire ou tracking tiers.</p>
+window.adminDeleteUser = async (id) => {
+    if (!confirm('⚠️ Supprimer cet utilisateur définitivement ?')) return;
+    await sb.from('users').delete().eq('id', id);
+    notif('🗑️ Utilisateur supprimé', '', 'red');
+    await loadAdminData();
+};
 
-        <h3 style="font-weight:700;margin-bottom:0.5rem">GPS</h3>
-        <p style="margin-bottom:1rem">Le partage de position est optionnel et réservé aux moniteurs. Les données GPS ne sont pas conservées après la session.</p>
+window.adminForceCancel = async (id) => {
+    if (!confirm('Annuler cette réservation ?')) return;
+    await sb.from('bookings').update({ status: 'cancelled' }).eq('id', id);
+    notif('❌ Réservation annulée', '', 'red');
+    await loadAdminData();
+};
 
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Droit de suppression</h3>
-        <p style="margin-bottom:1rem">Vous pouvez demander la suppression de toutes vos données à tout moment en nous contactant. Nous répondons sous 30 jours.</p>
+window.adminCleanSlots = async () => {
+    if (!confirm('Supprimer tous les créneaux passés ?')) return;
+    const t = new Date().toISOString().split('T')[0];
+    await sb.from('slots').delete().lt('date', t);
+    notif('✅ Créneaux passés supprimés', '', 'green');
+    await loadAdminData();
+};
 
-        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:1rem;margin-top:1.5rem">
-            <p style="font-weight:600;color:#ea580c">Contact</p>
-            <p style="color:#374151">📧 privacy@driveconnect-nc.app<br>📞 +687 84.40.22</p>
-        </div>`;
+window.adminResetAllGPS = async () => {
+    if (!confirm('Mettre TOUS les moniteurs hors ligne ?')) return;
+    await sb.from('instructors').update({ is_online: false });
+    notif('📴 Tous les moniteurs mis hors ligne', '', 'orange');
+    await loadAdminData();
+};
 
-    const terms = `
-        <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:1rem">📋 Conditions Générales d'Utilisation</h2>
-        <p style="color:#6b7280;margin-bottom:1.5rem">Dernière mise à jour : Février 2026</p>
-
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Objet de la plateforme</h3>
-        <p style="margin-bottom:1rem">DriveConnect NC est une plateforme de mise en relation entre élèves et moniteurs de conduite à Nouméa, Nouvelle-Calédonie.</p>
-
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Rôle de DriveConnect</h3>
-        <p style="margin-bottom:1rem">DriveConnect NC agit comme intermédiaire technique. Nous ne sommes pas employeur des moniteurs et prélevons une commission de 2% sur chaque transaction.</p>
-
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Responsabilité des moniteurs</h3>
-        <p style="margin-bottom:1rem">Les moniteurs doivent être titulaires des diplômes légaux requis, disposer d'un véhicule assuré, et honorer les créneaux réservés.</p>
-
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Politique d'annulation</h3>
-        <p style="margin-bottom:0.5rem">• Plus de 48h avant le cours → remboursement 100%</p>
-        <p style="margin-bottom:0.5rem">• Entre 24h et 48h → remboursement 50%</p>
-        <p style="margin-bottom:1rem">• Moins de 24h → aucun remboursement</p>
-
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Paiements</h3>
-        <p style="margin-bottom:1rem">Tous les paiements sont traités via PayPal. Les remboursements sont effectués sous 5 à 10 jours ouvrés.</p>
-
-        <h3 style="font-weight:700;margin-bottom:0.5rem">Suspension de compte</h3>
-        <p style="margin-bottom:1rem">DriveConnect NC peut suspendre tout compte en cas de violation des CGU, fausse déclaration, comportement abusif ou fraude avérée.</p>
-
-        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:1rem;margin-top:1.5rem">
-            <p style="font-weight:600;color:#ea580c">Contact</p>
-            <p style="color:#374151">📧 legal@driveconnect-nc.app<br>📞 +687 84.40.22</p>
-        </div>`;
-
-    return `<div class="min-h-screen bg-gray-50">
-        <div class="max-w-2xl mx-auto px-4 py-8">
-            <button onclick="showView('home')" class="mb-6 text-orange-500 font-semibold flex items-center gap-2">← Retour</button>
-            <div class="flex gap-3 mb-8">
-                <button onclick="showView('privacy')" class="px-5 py-2 rounded-xl font-semibold text-sm transition ${tab==='privacy'?'bg-orange-500 text-white':'bg-white border border-gray-200 text-gray-500'}"}>🔒 Confidentialité</button>
-                <button onclick="showView('terms')" class="px-5 py-2 rounded-xl font-semibold text-sm transition ${tab==='terms'?'bg-orange-500 text-white':'bg-white border border-gray-200 text-gray-500'}"}>📋 CGU</button>
-            </div>
-            <div class="bg-white rounded-3xl shadow-sm p-8" style="line-height:1.7">
-                ${tab==='privacy' ? privacy : terms}
-            </div>
-        </div>
-    </div>`;
-}
 
 function render() {
     if(map){map.remove();map=null;iMarkers=[];}
