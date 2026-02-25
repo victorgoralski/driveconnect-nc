@@ -2345,7 +2345,7 @@ function getAdminTabContent(tab, stats) {
                     ${docs.map(d => `<div style="display:flex;align-items:center;gap:12px;background:#1A1A1A;border-radius:14px;padding:12px 16px">
                         <span style="font-size:20px">${d.doc_type==='autorisation'?'🪪':d.doc_type==='identite'?'🆔':'🛡️'}</span>
                         <div style="flex:1">
-                            <p style="font-size:13px;font-weight:700;color:#fff">${d.doc_type==='autorisation'?'Autorisation d\\'enseigner':d.doc_type==='identite'?'Pièce d\\'identité':'Assurance pro'}</p>
+                            <p style="font-size:13px;font-weight:700;color:#fff">${d.doc_type==='autorisation'?'Autorisation d&#39;enseigner':d.doc_type==='identite'?'Pièce d&#39;identit\u00e9':'Assurance pro'}</p>
                             <p style="font-size:11px;color:#4B5563">${d.filename||'document'}</p>
                         </div>
                         <a href="${d.url}" target="_blank" style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);color:#60A5FA;padding:6px 14px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none">👁️ Voir</a>
@@ -2355,7 +2355,7 @@ function getAdminTabContent(tab, stats) {
                 </div>
                 <div style="display:flex;gap:12px">
                     <button onclick="adminApproveInstructor('${inst.id}')" style="flex:1;padding:14px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#22C55E;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer">✅ Accepter</button>
-                    <button onclick="adminRejectInstructorModal('${inst.id}','${(inst.name||'').replace(/'/g,"\\\\'")}')" style="flex:1;padding:14px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer">❌ Refuser</button>
+                    <button onclick="adminRejectInstructorModal('${inst.id}','${(inst.name||'').replace(/'/g,'')}')" style="flex:1;padding:14px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer">❌ Refuser</button>
                 </div>
             </div>`;
         }).join('') + '</div>'}
