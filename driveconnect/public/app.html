@@ -22,18 +22,28 @@
         :root {
             --primary: #FF5A1F;
             --primary-dark: #e04a12;
+            --primary-glow: rgba(255,90,31,0.2);
             --surface: #FFFFFF;
-            --bg: #F7F7F7;
-            --text: #1A1A1A;
-            --text-muted: #717171;
-            --border: #EBEBEB;
-            --shadow: 0 2px 16px rgba(0,0,0,0.08);
-            --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+            --bg: #F5F5F5;
+            --text: #111111;
+            --text-secondary: #555555;
+            --text-muted: #999999;
+            --border: #E8E8E8;
+            --border-hover: #CCCCCC;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow: 0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 24px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+            --shadow-lg: 0 12px 48px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-orange: 0 4px 24px rgba(255,90,31,0.25);
             --radius: 16px;
             --radius-lg: 24px;
+            --radius-xl: 28px;
+            --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         * { font-family: 'DM Sans', sans-serif; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); overscroll-behavior-y: contain; }
+        body { background: var(--bg); color: var(--text); overscroll-behavior-y: contain; -webkit-font-smoothing: antialiased; }
         input, textarea, select { font-size: 16px !important; font-family: 'DM Sans', sans-serif; }
 
         /* TYPOGRAPHIE */
@@ -41,14 +51,28 @@
         .gradient-text { background: linear-gradient(135deg, #FF5A1F, #FF8C42); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
         /* COMPOSANTS */
-        .card { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow); border: 1px solid var(--border); }
-        .btn-primary { background: var(--primary); color: white; border-radius: 12px; font-weight: 600; padding: 14px 24px; transition: all 0.2s; border: none; cursor: pointer; }
-        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,90,31,0.3); }
-        .btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); border-radius: 12px; font-weight: 600; padding: 13px 24px; transition: all 0.2s; cursor: pointer; }
-        .btn-secondary:hover { border-color: var(--text); background: var(--bg); }
-        .input-field { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; outline: none; background: var(--surface); color: var(--text); transition: border-color 0.2s; }
-        .input-field:focus { border-color: var(--primary); }
-        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 100px; font-size: 12px; font-weight: 600; }
+        .card { background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .btn-primary { 
+            background: linear-gradient(135deg, #FF5A1F, #FF7340); color: white; border-radius: 14px; font-weight: 700; padding: 15px 28px; 
+            transition: all var(--transition); border: none; cursor: pointer; position: relative; overflow: hidden;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-orange); filter: brightness(1.05); }
+        .btn-primary:active { transform: translateY(0); box-shadow: var(--shadow-sm); filter: brightness(0.95); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; filter: grayscale(0.3); }
+        .btn-secondary { 
+            background: var(--surface); color: var(--text); border: 1.5px solid var(--border); border-radius: 14px; font-weight: 600; padding: 14px 24px; 
+            transition: all var(--transition); cursor: pointer; 
+        }
+        .btn-secondary:hover { border-color: var(--text); background: var(--bg); transform: translateY(-1px); box-shadow: var(--shadow); }
+        .btn-secondary:active { transform: translateY(0); }
+        .input-field { 
+            width: 100%; padding: 15px 18px; border: 2px solid var(--border); border-radius: 14px; outline: none; 
+            background: var(--surface); color: var(--text); transition: all var(--transition-fast); font-size: 15px !important;
+        }
+        .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-glow); }
+        .input-field:hover:not(:focus) { border-color: var(--border-hover); }
+        .input-field::placeholder { color: var(--text-muted); }
+        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 100px; font-size: 12px; font-weight: 700; letter-spacing: 0.2px; }
         .badge-green { background: #ECFDF5; color: #059669; }
         .badge-red { background: #FEF2F2; color: #DC2626; }
         .badge-yellow { background: #FFFBEB; color: #D97706; }
@@ -58,29 +82,49 @@
 
         /* MAP */
         #map { height: 380px; width: 100%; border-radius: var(--radius); overflow: hidden; }
-        .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
+        .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
 
         /* TABS */
-        .tab-btn { transition: all 0.2s; color: var(--text-muted); font-weight: 500; padding: 14px 20px; border-bottom: 2px solid transparent; white-space: nowrap; }
-        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
-        .tab-btn:hover { color: var(--text); }
+        .tab-btn { transition: all var(--transition); color: var(--text-muted); font-weight: 500; padding: 14px 20px; border-bottom: 2px solid transparent; white-space: nowrap; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+        .tab-btn:hover:not(.active) { color: var(--text-secondary); }
 
         /* ANIMATIONS */
-        @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes slideIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
-        .fade-in { animation: fadeUp 0.35s ease forwards; }
-        .slide-in { animation: slideIn 0.25s ease forwards; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes slideIn { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes successPop { 0% { transform:scale(0.5); opacity:0; } 50% { transform:scale(1.1); } 100% { transform:scale(1); opacity:1; } }
+        @keyframes shake { 0%,100% { transform:translateX(0); } 20%,60% { transform:translateX(-6px); } 40%,80% { transform:translateX(6px); } }
+        .fade-in { animation: fadeUp 0.4s ease-out forwards; }
+        .slide-in { animation: slideIn 0.3s ease-out forwards; }
+        .scale-in { animation: scaleIn 0.3s ease-out forwards; }
+        .success-pop { animation: successPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .shake { animation: shake 0.4s ease-in-out; }
+
+        /* Staggered children animation */
+        .stagger > * { opacity: 0; animation: fadeUp 0.4s ease-out forwards; }
+        .stagger > *:nth-child(1) { animation-delay: 0.05s; }
+        .stagger > *:nth-child(2) { animation-delay: 0.1s; }
+        .stagger > *:nth-child(3) { animation-delay: 0.15s; }
+        .stagger > *:nth-child(4) { animation-delay: 0.2s; }
+        .stagger > *:nth-child(5) { animation-delay: 0.25s; }
+        .stagger > *:nth-child(6) { animation-delay: 0.3s; }
+        .stagger > *:nth-child(7) { animation-delay: 0.35s; }
+        .stagger > *:nth-child(8) { animation-delay: 0.4s; }
 
         /* HEADER */
-        .app-header { background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 40; }
+        .app-header { background: rgba(255,255,255,0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 40; }
 
         /* INSTRUCTOR CARD */
-        .instructor-card { background: var(--surface); border-radius: var(--radius-lg); border: 1.5px solid var(--border); overflow: hidden; transition: all 0.25s; cursor: pointer; }
-        .instructor-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
-        .instructor-card-header { background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%); padding: 24px; }
+        .instructor-card { background: var(--surface); border-radius: var(--radius-xl); border: 1.5px solid var(--border); overflow: hidden; transition: all var(--transition); cursor: pointer; }
+        .instructor-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); transform: translateY(-3px); }
+        .instructor-card:active { transform: translateY(-1px); }
+        .instructor-card-header { background: linear-gradient(135deg, #0D0D0D 0%, #1F1F1F 100%); padding: 28px; }
 
         /* MODE SOMBRE */
-        .dark { --surface: #1C1C1E; --bg: #000000; --text: #F5F5F5; --text-muted: #8E8E93; --border: #2C2C2E; --shadow: 0 2px 16px rgba(0,0,0,0.4); }
+        .dark { --surface: #1C1C1E; --bg: #000000; --text: #F5F5F5; --text-secondary: #AEAEB2; --text-muted: #636366; --border: #2C2C2E; --border-hover: #3A3A3C; --shadow: 0 2px 16px rgba(0,0,0,0.4); }
         .dark .app-header { background: rgba(28,28,30,0.92); }
         .dark .input-field { background: #2C2C2E; color: #F5F5F5; }
         .dark .badge-gray { background: #3A3A3C; color: #AEAEB2; }
@@ -91,7 +135,8 @@
             .hide-mobile { display: none !important; }
         }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-        /* MODE SOMBRE */
+
+        /* MODE SOMBRE — COULEURS */
         .dark body { background: #0f172a !important; color: #e2e8f0 !important; }
         .dark .bg-white { background: #1e293b !important; }
         .dark .bg-gray-50 { background: #0f172a !important; }
@@ -108,34 +153,132 @@
         .dark header { background: #1e293b !important; border-color: #334155 !important; }
         .dark .tab-btn { color: #94a3b8; }
         .dark .tab-btn.active { color: #f97316; }
+
         /* ÉTOILES */
         .stars { display:flex; gap:4px; }
-        .star { font-size:1.5rem; cursor:pointer; transition: transform 0.1s; }
-        .star:hover { transform: scale(1.2); }
+        .star { font-size:1.5rem; cursor:pointer; transition: transform var(--transition-fast); }
+        .star:hover { transform: scale(1.25); }
 
         /* ── UBER DASHBOARD ── */
         .db-hero { background: linear-gradient(160deg,#0D0D0D 0%,#1A1A1A 100%); }
-        .db-stat-pill { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1); border-radius:16px; padding:14px 18px; text-align:center; min-width:90px; flex-shrink:0; }
-        .db-booking-card { background:#fff; border-radius:20px; padding:16px; border:1px solid #F0F0F0; box-shadow:0 2px 12px rgba(0,0,0,0.06); transition: transform 0.15s, box-shadow 0.15s; }
-        .db-booking-card:hover { transform:translateY(-2px); box-shadow:0 6px 24px rgba(0,0,0,0.1); }
+        .db-stat-pill { 
+            background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); border-radius:18px; 
+            padding:16px 20px; text-align:center; min-width:96px; flex-shrink:0; 
+            transition: all var(--transition-fast); 
+        }
+        .db-stat-pill:hover { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.15); }
+
+        .db-section-title {
+            font-size: 13px; font-weight: 800; color: var(--text-muted); letter-spacing: 1.2px; text-transform: uppercase;
+            margin: 0 0 16px; padding: 0;
+        }
+
+        .db-booking-card { 
+            background:#fff; border-radius:22px; padding:20px; border:1px solid #F0F0F0; 
+            box-shadow: var(--shadow); transition: all var(--transition); 
+        }
+        .db-booking-card:hover { transform:translateY(-2px); box-shadow: var(--shadow-md); border-color: #E0E0E0; }
+        .db-booking-card:active { transform:translateY(0); }
         .dark .db-booking-card { background:#1C1C1E; border-color:#2C2C2E; }
-        .db-action-btn { display:flex; flex-direction:column; align-items:center; gap:6px; padding:16px 12px; background:#fff; border-radius:18px; border:1px solid #F0F0F0; cursor:pointer; transition:all 0.15s; flex:1; border:none; }
-        .db-action-btn:hover { background:#FFF7F5; }
-        .dark .db-action-btn { background:#1C1C1E; }
-        .db-action-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; }
-        .db-tab-bar { position:sticky; bottom:0; background:rgba(255,255,255,0.96); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-top:1px solid #EBEBEB; padding:8px 0 env(safe-area-inset-bottom); z-index:30; display:flex; }
-        .dark .db-tab-bar { background:rgba(28,28,30,0.96); border-color:#2C2C2E; }
-        .db-tab { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; flex:1; cursor:pointer; border:none; background:none; color:#9CA3AF; transition:color 0.15s; }
+
+        .db-action-btn { 
+            display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px 12px; 
+            background:#fff; border-radius:20px; border:1.5px solid #F0F0F0; cursor:pointer; 
+            transition: all var(--transition); flex:1; box-shadow: var(--shadow-sm);
+        }
+        .db-action-btn:hover { background:#FFF7F3; border-color:#FFD6C4; transform:translateY(-2px); box-shadow: var(--shadow); }
+        .db-action-btn:active { transform:translateY(0); }
+        .dark .db-action-btn { background:#1C1C1E; border-color:#2C2C2E; }
+        .db-action-icon { width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:24px; }
+
+        .db-tab-bar { 
+            position:sticky; bottom:0; background:rgba(255,255,255,0.97); backdrop-filter:blur(24px); 
+            -webkit-backdrop-filter:blur(24px); border-top:1px solid #E8E8E8; 
+            padding:10px 0 env(safe-area-inset-bottom); z-index:30; display:flex; 
+        }
+        .dark .db-tab-bar { background:rgba(28,28,30,0.97); border-color:#2C2C2E; }
+        .db-tab { 
+            display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px 0; flex:1; 
+            cursor:pointer; border:none; background:none; color:#BBBBBB; transition: all var(--transition-fast); 
+            position: relative;
+        }
         .db-tab.active { color:#FF5A1F; }
-        .db-tab .tab-icon { font-size:22px; }
+        .db-tab.active::after { 
+            content:''; position:absolute; top:-1px; left:50%; transform:translateX(-50%); 
+            width:24px; height:3px; background:#FF5A1F; border-radius:0 0 3px 3px; 
+        }
+        .db-tab:not(.active):hover { color:#888; }
+        .db-tab .tab-icon { font-size:22px; transition: transform var(--transition-fast); }
+        .db-tab.active .tab-icon { transform: scale(1.1); }
         .db-tab .tab-label { font-size:10px; font-weight:700; letter-spacing:0.3px; }
-        .db-instructor-chip { display:flex; align-items:center; gap:12px; padding:14px 16px; background:#fff; border-radius:18px; border:1px solid #F0F0F0; box-shadow:0 2px 8px rgba(0,0,0,0.05); cursor:pointer; transition:all 0.15s; }
-        .db-instructor-chip:hover { border-color:#FF5A1F; box-shadow:0 4px 20px rgba(255,90,31,0.15); }
+
+        .db-instructor-chip { 
+            display:flex; align-items:center; gap:14px; padding:16px 18px; background:#fff; 
+            border-radius:20px; border:1.5px solid #F0F0F0; box-shadow: var(--shadow-sm); 
+            cursor:pointer; transition: all var(--transition); 
+        }
+        .db-instructor-chip:hover { border-color:#FF5A1F; box-shadow: 0 4px 24px rgba(255,90,31,0.12); transform:translateY(-2px); }
+        .db-instructor-chip:active { transform:translateY(0); }
         .dark .db-instructor-chip { background:#1C1C1E; border-color:#2C2C2E; }
-        .slot-card { background:#fff; border-radius:16px; padding:14px 16px; border:1px solid #F0F0F0; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+
+        .slot-card { 
+            background:#fff; border-radius:18px; padding:16px 18px; border:1px solid #F0F0F0; 
+            display:flex; align-items:center; justify-content:space-between; gap:14px; 
+            transition: all var(--transition); box-shadow: var(--shadow-sm);
+        }
+        .slot-card:hover { box-shadow: var(--shadow); }
         .dark .slot-card { background:#1C1C1E; border-color:#2C2C2E; }
-        .slot-card.booked { border-color:#BFDBFE; background:#EFF6FF; }
+        .slot-card.booked { border-color:#93C5FD; background:#EFF6FF; }
         .dark .slot-card.booked { background:#0c1f3d; border-color:#1e3a6e; }
+
+        /* ── BOUTONS ACTIONS ── */
+        button[onclick*="openValidateModal"],
+        button[onclick*="openProgressNoteModal"],
+        button[onclick*="openChat"],
+        button[onclick*="cancelStudent"],
+        button[onclick*="cancelInstructor"],
+        button[onclick*="showRating"],
+        button[onclick*="viewStudentProgress"],
+        button[onclick*="confirmB"],
+        button[onclick*="rejectB"] {
+            transition: all var(--transition-fast) !important;
+        }
+        button[onclick*="openValidateModal"]:hover,
+        button[onclick*="openProgressNoteModal"]:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        button[onclick*="openValidateModal"]:active,
+        button[onclick*="openProgressNoteModal"]:active { transform: translateY(0); filter: brightness(0.95); }
+        button[onclick*="openChat"]:hover { background: #DBEAFE !important; }
+        button[onclick*="confirmB"]:hover { background: #D1FAE5 !important; }
+        button[onclick*="rejectB"]:hover { background: #FEE2E2 !important; }
+        button[onclick*="cancelStudent"]:hover,
+        button[onclick*="cancelInstructor"]:hover { color: #991B1B !important; }
+        button[onclick*="showRating"]:hover { background: #FED7AA !important; }
+        button[onclick*="viewStudentProgress"]:hover { background: #E5E7EB !important; }
+
+        /* ── NOTIFICATION AMÉLIORÉE ── */
+        .notif-toast {
+            animation: fadeUp 0.35s ease-out forwards;
+            transition: all var(--transition);
+        }
+        .notif-toast.hiding {
+            animation: none;
+            opacity: 0; transform: translateY(-20px);
+            transition: all 0.3s ease-in;
+        }
+
+        /* ── MODALS OVERLAY ── */
+        .validate-modal, .progress-modal, .progress-view-modal, .reset-pwd-modal, .dc-modal-overlay {
+            animation: fadeUp 0.3s ease-out;
+        }
+        .validate-modal > div, .progress-modal > div, .progress-view-modal > div {
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        /* ── SMOOTH SCROLLBAR ── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -196,11 +339,36 @@ let DB = { instructors: [], slots: [], bookings: [], progressNotes: [] };
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
 
 function notif(title, msg, color='orange') {
+    const colors = {
+        green: { bg:'#ECFDF5', border:'#059669', icon:'#059669', iconBg:'#D1FAE5' },
+        red:   { bg:'#FEF2F2', border:'#DC2626', icon:'#DC2626', iconBg:'#FEE2E2' },
+        orange:{ bg:'#FFF7ED', border:'#EA580C', icon:'#EA580C', iconBg:'#FED7AA' },
+        yellow:{ bg:'#FFFBEB', border:'#D97706', icon:'#D97706', iconBg:'#FEF3C7' }
+    };
+    const c = colors[color] || colors.orange;
+    const icons = { green:'✅', red:'❌', orange:'⚠️', yellow:'⏳' };
     const n = document.createElement('div');
-    n.className = `fixed top-4 right-4 bg-white p-4 rounded-2xl shadow-2xl z-[9999] border-l-4 border-${color}-500 max-w-sm fade-in`;
-    n.innerHTML = `<p class="font-bold text-gray-800">${title}</p>${msg?`<p class="text-sm text-gray-500 mt-1">${msg}</p>`:''}`;
+    n.className = 'notif-toast';
+    n.style.cssText = `position:fixed;top:20px;right:20px;max-width:380px;z-index:99999;display:flex;align-items:flex-start;gap:14px;padding:18px 20px;border-radius:20px;background:${c.bg};border:1.5px solid ${c.border}22;box-shadow:0 12px 48px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.06);cursor:pointer`;
+    n.innerHTML = `
+        <div style="width:38px;height:38px;border-radius:12px;background:${c.iconBg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icons[color]||'⚠️'}</div>
+        <div style="flex:1;min-width:0">
+            <p style="font-weight:800;font-size:14px;color:#111;margin-bottom:${msg?'3px':'0'}">${title}</p>
+            ${msg?`<p style="font-size:13px;color:#6B7280;line-height:1.4">${msg}</p>`:''}
+        </div>
+        <div style="width:4px;height:100%;min-height:32px;background:${c.border};border-radius:2px;position:absolute;left:0;top:50%;transform:translateY(-50%);border-radius:20px 0 0 20px"></div>`;
+    n.onclick = () => { n.classList.add('hiding'); setTimeout(() => n.remove(), 300); };
     document.body.appendChild(n);
-    setTimeout(() => n.remove(), 5000);
+    // Progress bar
+    const bar = document.createElement('div');
+    bar.style.cssText = `position:absolute;bottom:0;left:20px;right:20px;height:3px;border-radius:2px;background:${c.border}40;overflow:hidden`;
+    const fill = document.createElement('div');
+    fill.style.cssText = `height:100%;background:${c.border};border-radius:2px;width:100%;transition:width 4.5s linear`;
+    bar.appendChild(fill);
+    n.appendChild(bar);
+    n.style.position = 'fixed'; // ensure relative for bar
+    requestAnimationFrame(() => fill.style.width = '0%');
+    setTimeout(() => { n.classList.add('hiding'); setTimeout(() => n.remove(), 300); }, 5000);
 }
 
 function calcPrices(amount) {
@@ -453,49 +621,49 @@ function StudentDashboard() {
     return `<div class="min-h-screen" style="background:var(--bg)">
 
         <!-- HEADER UBER SOMBRE -->
-        <div class="db-hero px-5 pt-12 pb-6">
-            <div class="flex justify-between items-start mb-6">
+        <div class="db-hero px-5 pt-14 pb-8">
+            <div class="flex justify-between items-start mb-8">
                 <div>
-                    <p style="color:rgba(255,255,255,0.45);font-size:13px;font-weight:600;letter-spacing:0.5px">BONJOUR</p>
-                    <h1 style="color:#fff;font-size:26px;font-weight:900;margin:2px 0">${firstName} 👋</h1>
-                    <p style="color:rgba(255,255,255,0.4);font-size:13px">Prêt pour votre prochain cours ?</p>
+                    <p style="color:rgba(255,255,255,0.4);font-size:12px;font-weight:700;letter-spacing:1.5px">BONJOUR</p>
+                    <h1 style="color:#fff;font-size:28px;font-weight:900;margin:4px 0 2px">${firstName} 👋</h1>
+                    <p style="color:rgba(255,255,255,0.35);font-size:14px">Prêt pour votre prochain cours ?</p>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                    <button onclick="toggleDark()" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center" id="dark-btn">🌙</button>
-                    <div style="width:40px;height:40px;border-radius:50%;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:16px;flex-shrink:0">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <button onclick="toggleDark()" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s" id="dark-btn" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">🌙</button>
+                    <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px;flex-shrink:0;box-shadow:0 4px 16px rgba(255,90,31,0.3)">
                         ${(currentUser.name||'?').charAt(0).toUpperCase()}
                     </div>
                 </div>
             </div>
             <!-- Stats pills -->
-            <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">
+            <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:4px">
                 <div class="db-stat-pill">
-                    <p style="color:rgba(255,255,255,0.4);font-size:10px;font-weight:700;margin-bottom:4px">COURS</p>
-                    <p style="color:#fff;font-size:22px;font-weight:900">${confirmed}</p>
+                    <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:6px">COURS</p>
+                    <p style="color:#fff;font-size:24px;font-weight:900">${confirmed}</p>
                 </div>
                 <div class="db-stat-pill">
-                    <p style="color:rgba(255,255,255,0.4);font-size:10px;font-weight:700;margin-bottom:4px">DÉPENSÉ</p>
-                    <p style="color:#FF5A1F;font-size:16px;font-weight:900">${totalSpent.toLocaleString()}</p>
-                    <p style="color:rgba(255,255,255,0.3);font-size:9px">XPF</p>
+                    <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:6px">DÉPENSÉ</p>
+                    <p style="color:#FF5A1F;font-size:18px;font-weight:900">${totalSpent.toLocaleString()}</p>
+                    <p style="color:rgba(255,255,255,0.25);font-size:10px;margin-top:2px">XPF</p>
                 </div>
                 <div class="db-stat-pill">
-                    <p style="color:rgba(255,255,255,0.4);font-size:10px;font-weight:700;margin-bottom:4px">MONITEURS</p>
-                    <p style="color:#fff;font-size:22px;font-weight:900">${instructors.length}</p>
+                    <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:6px">MONITEURS</p>
+                    <p style="color:#fff;font-size:24px;font-weight:900">${instructors.length}</p>
                 </div>
             </div>
         </div>
 
         <!-- CONTENU PRINCIPAL -->
-        <div style="padding:20px 16px 100px">
+        <div style="padding:24px 20px 120px">
 
         ${tab==='home' ? `
-            <!-- Carte Carte -->
-            <div style="background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin-bottom:20px;border:1px solid #F0F0F0">
-                <div style="padding:16px 18px 10px;display:flex;justify-content:space-between;align-items:center">
+            <!-- Carte -->
+            <div class="fade-in" style="background:#fff;border-radius:24px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:28px;border:1px solid #F0F0F0">
+                <div style="padding:18px 20px 12px;display:flex;justify-content:space-between;align-items:center">
                     <p class="db-section-title" style="margin:0">Moniteurs à proximité</p>
                     <span class="badge badge-online" style="font-size:11px">● Temps réel</span>
                 </div>
-                <div style="display:flex;gap:8px;padding:0 18px 12px">
+                <div style="display:flex;gap:8px;padding:0 20px 14px">
                     <span class="badge badge-online" style="font-size:11px"><span style="color:#16A34A">●</span> Disponible</span>
                     <span class="badge badge-gray" style="font-size:11px">○ Hors ligne</span>
                 </div>
@@ -504,16 +672,16 @@ function StudentDashboard() {
 
             <!-- Actions rapides -->
             <p class="db-section-title">Actions rapides</p>
-            <div style="display:flex;gap:10px;margin-bottom:20px">
-                <button class="db-action-btn" onclick="switchTab('bookings')" style="background:#fff;border:1px solid #F0F0F0;border-radius:18px;padding:16px 12px;flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer">
+            <div class="stagger" style="display:flex;gap:12px;margin-bottom:28px">
+                <button class="db-action-btn" onclick="switchTab('bookings')">
                     <div class="db-action-icon" style="background:#FFF7ED">📋</div>
                     <span style="font-size:12px;font-weight:700;color:var(--text)">Mes cours</span>
                 </button>
-                <button class="db-action-btn" onclick="switchTab('map')" style="background:#fff;border:1px solid #F0F0F0;border-radius:18px;padding:16px 12px;flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer">
+                <button class="db-action-btn" onclick="switchTab('map')">
                     <div class="db-action-icon" style="background:#EFF6FF">🗺️</div>
                     <span style="font-size:12px;font-weight:700;color:var(--text)">Carte</span>
                 </button>
-                <button class="db-action-btn" onclick="logout()" style="background:#fff;border:1px solid #F0F0F0;border-radius:18px;padding:16px 12px;flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer">
+                <button class="db-action-btn" onclick="logout()">
                     <div class="db-action-icon" style="background:#FEF2F2">🚪</div>
                     <span style="font-size:12px;font-weight:700;color:#DC2626">Sortir</span>
                 </button>
@@ -524,13 +692,13 @@ function StudentDashboard() {
                 const next = myBookings.filter(b=>b.status==='confirmed'&&new Date(b.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date))[0];
                 if (!next) return '';
                 const daysLeft = Math.ceil((new Date(next.date)-new Date())/(1000*60*60*24));
-                return `<p class="db-section-title">Prochain cours</p>
-                <div class="db-booking-card" style="border-left:4px solid #FF5A1F;margin-bottom:20px">
+                return `<p class="db-section-title" style="margin-top:4px">Prochain cours</p>
+                <div class="db-booking-card fade-in" style="border-left:4px solid #FF5A1F;margin-bottom:28px">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start">
                         <div>
-                            <p style="font-weight:800;font-size:16px;color:var(--text)">${next.instructor_name||'Moniteur'}</p>
-                            <p style="color:var(--text-muted);font-size:13px;margin:3px 0">📅 ${next.date} · ${next.time} · ${next.duration}h</p>
-                            <p style="color:#FF5A1F;font-weight:800;font-size:15px;margin:6px 0 0">${next.amount.toLocaleString()} XPF</p>
+                            <p style="font-weight:800;font-size:17px;color:var(--text)">${next.instructor_name||'Moniteur'}</p>
+                            <p style="color:var(--text-muted);font-size:13px;margin:5px 0">📅 ${next.date} · ${next.time} · ${next.duration}h</p>
+                            <p style="color:#FF5A1F;font-weight:900;font-size:16px;margin:8px 0 0">${next.amount.toLocaleString()} XPF</p>
                         </div>
                         <div style="text-align:right">
                             <div style="background:#FF5A1F;color:#fff;border-radius:10px;padding:4px 10px;font-size:11px;font-weight:700;margin-bottom:8px">${daysLeft<=0?"Aujourd\'hui":daysLeft===1?'Demain':'J-'+daysLeft}</div>
@@ -545,8 +713,8 @@ function StudentDashboard() {
             })()}
 
             <!-- Moniteurs dispo -->
-            <p class="db-section-title">Moniteurs disponibles <span style="background:#F0F0F0;color:#6B7280;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600">${instructors.length}</span></p>
-            <div style="display:flex;flex-direction:column;gap:10px">
+            <p class="db-section-title">Moniteurs disponibles <span style="background:#F0F0F0;color:#6B7280;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">${instructors.length}</span></p>
+            <div class="stagger" style="display:flex;flex-direction:column;gap:12px">
                 ${instructors.slice(0,5).map((i,idx)=>{
                     const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
                     const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
@@ -575,8 +743,8 @@ function StudentDashboard() {
 
         ${tab==='bookings' ? `
             <p class="db-section-title">Mes réservations</p>
-            ${myBookings.length===0?`<div style="text-align:center;padding:60px 20px;color:var(--text-muted)"><p style="font-size:50px;margin-bottom:12px">📋</p><p style="font-weight:700;font-size:17px;color:var(--text)">Aucune réservation</p><p style="font-size:14px;margin-top:4px">Réservez un créneau avec un moniteur !</p></div>`:''}
-            <div style="display:flex;flex-direction:column;gap:12px">
+            ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:var(--text-muted)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:var(--text)">Aucune réservation</p><p style="font-size:14px;margin-top:6px">Réservez un créneau avec un moniteur !</p></div>`:''}
+            <div class="stagger" style="display:flex;flex-direction:column;gap:14px">
             ${myBookings.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
                 const isPast = new Date(b.date) < new Date();
                 const canCancel = b.status!=='cancelled' && b.status!=='completed' && !isPast;
@@ -986,72 +1154,72 @@ function InstructorDashboard() {
     return `<div class="min-h-screen" style="background:var(--bg)">
 
         <!-- HEADER SOMBRE -->
-        <div class="db-hero px-5 pt-12 pb-6">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+        <div class="db-hero px-5 pt-14 pb-8">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
                 <div>
-                    <p style="color:rgba(255,255,255,0.45);font-size:13px;font-weight:600">TABLEAU DE BORD</p>
-                    <h1 style="color:#fff;font-size:24px;font-weight:900;margin:3px 0">${firstName} 👋</h1>
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                        <button onclick="toggleOnline()" style="display:flex;align-items:center;gap:6px;background:${profile.is_online?'rgba(34,197,94,0.15)':'rgba(255,255,255,0.06)'};border:1px solid ${profile.is_online?'rgba(34,197,94,0.4)':'rgba(255,255,255,0.15)'};border-radius:20px;padding:5px 12px;cursor:pointer;color:${profile.is_online?'#4ADE80':'rgba(255,255,255,0.4)'};font-size:12px;font-weight:700">
-                            <span style="width:7px;height:7px;border-radius:50%;background:${profile.is_online?'#22C55E':'#6B7280'}"></span>
+                    <p style="color:rgba(255,255,255,0.4);font-size:12px;font-weight:700;letter-spacing:1.5px">TABLEAU DE BORD</p>
+                    <h1 style="color:#fff;font-size:26px;font-weight:900;margin:4px 0 2px">${firstName} 👋</h1>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                        <button onclick="toggleOnline()" style="display:flex;align-items:center;gap:6px;background:${profile.is_online?'rgba(34,197,94,0.15)':'rgba(255,255,255,0.06)'};border:1px solid ${profile.is_online?'rgba(34,197,94,0.4)':'rgba(255,255,255,0.15)'};border-radius:20px;padding:6px 14px;cursor:pointer;color:${profile.is_online?'#4ADE80':'rgba(255,255,255,0.4)'};font-size:12px;font-weight:700;transition:all 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                            <span style="width:8px;height:8px;border-radius:50%;background:${profile.is_online?'#22C55E':'#6B7280'}"></span>
                             ${profile.is_online?'En ligne':'Hors ligne'}
                         </button>
-                        ${pending>0?`<span style="background:rgba(239,68,68,0.2);color:#FCA5A5;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700">${pending} en attente</span>`:''}
+                        ${pending>0?`<span style="background:rgba(239,68,68,0.2);color:#FCA5A5;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700">${pending} en attente</span>`:''}
                     </div>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <button onclick="toggleDark()" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">🌙</button>
-                    <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,90,31,0.5);flex-shrink:0;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:18px">
+                <div style="display:flex;gap:10px;align-items:center">
+                    <button onclick="toggleDark()" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">🌙</button>
+                    <div style="width:48px;height:48px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,90,31,0.5);flex-shrink:0;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:19px;box-shadow:0 4px 16px rgba(255,90,31,0.3)">
                         ${profile.avatar_url?`<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
                     </div>
                 </div>
             </div>
 
             <!-- Grande carte revenus -->
-            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:20px;margin-bottom:12px">
-                <p style="color:rgba(255,255,255,0.4);font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px">REVENUS NETS TOTAUX</p>
-                <p style="color:#fff;font-size:36px;font-weight:900;line-height:1">${totalNet.toLocaleString()} <span style="font-size:16px;color:rgba(255,255,255,0.4)">XPF</span></p>
-                <p style="color:rgba(255,255,255,0.35);font-size:12px;margin-top:6px">${paidBookings.length} cours complétés</p>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:22px;padding:22px;margin-bottom:14px">
+                <p style="color:rgba(255,255,255,0.35);font-size:11px;font-weight:700;letter-spacing:1.5px;margin-bottom:8px">REVENUS NETS TOTAUX</p>
+                <p style="color:#fff;font-size:38px;font-weight:900;line-height:1">${totalNet.toLocaleString()} <span style="font-size:16px;color:rgba(255,255,255,0.35)">XPF</span></p>
+                <p style="color:rgba(255,255,255,0.3);font-size:12px;margin-top:8px">${paidBookings.length} cours complétés</p>
             </div>
 
             <!-- Mini stats -->
-            <div style="display:flex;gap:10px">
+            <div style="display:flex;gap:12px">
                 <div class="db-stat-pill" style="flex:1">
-                    <p style="color:rgba(255,255,255,0.4);font-size:10px;font-weight:700;margin-bottom:4px">CONFIRMÉS</p>
-                    <p style="color:#fff;font-size:22px;font-weight:900">${myBookings.filter(b=>b.status==='confirmed').length}</p>
+                    <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:6px">CONFIRMÉS</p>
+                    <p style="color:#fff;font-size:24px;font-weight:900">${myBookings.filter(b=>b.status==='confirmed').length}</p>
                 </div>
                 <div class="db-stat-pill" style="flex:1">
-                    <p style="color:rgba(255,255,255,0.4);font-size:10px;font-weight:700;margin-bottom:4px">CRÉNEAUX</p>
-                    <p style="color:#fff;font-size:22px;font-weight:900">${mySlots.length}</p>
+                    <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:6px">CRÉNEAUX</p>
+                    <p style="color:#fff;font-size:24px;font-weight:900">${mySlots.length}</p>
                 </div>
                 <div class="db-stat-pill" style="flex:1">
-                    <p style="color:rgba(255,255,255,0.4);font-size:10px;font-weight:700;margin-bottom:4px">NOTE</p>
-                    <p style="color:#FF5A1F;font-size:22px;font-weight:900">${profile.rating?profile.rating.toFixed(1):'—'}</p>
+                    <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:6px">NOTE</p>
+                    <p style="color:#FF5A1F;font-size:24px;font-weight:900">${profile.rating?profile.rating.toFixed(1):'—'}</p>
                 </div>
             </div>
         </div>
 
         <!-- CONTENU -->
-        <div style="padding:20px 16px 100px">
+        <div style="padding:24px 20px 120px">
 
         ${tab==='home' ? `
             <!-- Actions rapides -->
             <p class="db-section-title">Actions rapides</p>
-            <div style="display:flex;gap:10px;margin-bottom:24px">
-                <button onclick="showAddSlot()" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;background:#fff;border-radius:18px;border:1px solid #F0F0F0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+            <div class="stagger" style="display:flex;gap:12px;margin-bottom:28px">
+                <button class="db-action-btn" onclick="showAddSlot()">
                     <div class="db-action-icon" style="background:#FFF7ED">➕</div>
                     <span style="font-size:12px;font-weight:700;color:var(--text)">Créneau</span>
                 </button>
-                <button onclick="switchTab('bookings')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;background:#fff;border-radius:18px;border:1px solid #F0F0F0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05);position:relative">
+                <button class="db-action-btn" onclick="switchTab('bookings')" style="position:relative">
                     <div class="db-action-icon" style="background:#ECFDF5">📋</div>
                     <span style="font-size:12px;font-weight:700;color:var(--text)">Réservations</span>
-                    ${pending>0?`<span style="position:absolute;top:10px;right:10px;background:#EF4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center">${pending}</span>`:''}
+                    ${pending>0?`<span style="position:absolute;top:10px;right:10px;background:#EF4444;color:#fff;border-radius:50%;width:20px;height:20px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(239,68,68,0.4)">${pending}</span>`:''}
                 </button>
-                <button onclick="watchId?stopTracking():startTracking()" id="gps-action-btn" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;background:#fff;border-radius:18px;border:1px solid #F0F0F0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                <button class="db-action-btn" onclick="watchId?stopTracking():startTracking()" id="gps-action-btn">
                     <div class="db-action-icon" style="background:#EFF6FF" id="gps-icon">📍</div>
                     <span style="font-size:12px;font-weight:700;color:var(--text)" id="gps-btn-label">GPS</span>
                 </button>
-                <button onclick="switchTab('earnings')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;background:#fff;border-radius:18px;border:1px solid #F0F0F0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                <button class="db-action-btn" onclick="switchTab('earnings')">
                     <div class="db-action-icon" style="background:#F0FDF4">💰</div>
                     <span style="font-size:12px;font-weight:700;color:var(--text)">Revenus</span>
                 </button>
@@ -1126,8 +1294,8 @@ function InstructorDashboard() {
 
         ${tab==='bookings' ? `
             <p class="db-section-title">Toutes les réservations</p>
-            ${myBookings.length===0?`<div style="text-align:center;padding:60px 20px;color:var(--text-muted)"><p style="font-size:50px;margin-bottom:12px">📋</p><p style="font-weight:700;font-size:17px;color:var(--text)">Aucune réservation</p></div>`:''}
-            <div style="display:flex;flex-direction:column;gap:10px">
+            ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:var(--text-muted)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:var(--text)">Aucune réservation</p></div>`:''}
+            <div class="stagger" style="display:flex;flex-direction:column;gap:14px">
             ${[...myBookings].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
                 const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':b.status==='pending'?'#D97706':'#6B7280';
                 const statusBg   = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='completed'?'#ECFDF5':b.status==='pending'?'#FFFBEB':'#F3F4F6';
