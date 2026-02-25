@@ -911,9 +911,12 @@ function StudentDashboard() {
             </div>
 
             <!-- Déconnexion -->
-            <button onclick="logout()" style="width:100%;padding:14px;border-radius:16px;border:1.5px solid #FEE2E2;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:15px;cursor:pointer">
+            <button onclick="logout()" style="width:100%;padding:14px;border-radius:16px;border:1.5px solid #FEE2E2;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.15s" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'">
                 🚪 Se déconnecter
             </button>
+
+            <!-- Admin access (discret) -->
+            <p onclick="(function(){let c=window._adminTaps=(window._adminTaps||0)+1;if(c>=5){window._adminTaps=0;currentView='admin';render();}setTimeout(()=>{if(window._adminTaps<5)window._adminTaps=0;},3000)})()" style="text-align:center;font-size:11px;color:#E5E7EB;margin-top:20px;cursor:default;user-select:none">DriveConnect NC v2.1</p>
         ` : ''}
 
         </div>
@@ -1067,14 +1070,28 @@ function InstructorRejected() {
 }
 
 function setupDocUpload() {
-    const docFiles = {};
+    // Persister les fichiers entre re-renders
+    if (!window._docFiles) window._docFiles = {};
+    const docFiles = window._docFiles;
+
     [1,2,3].forEach(i => {
         const input = document.getElementById('doc-input-'+i);
         if (!input) return;
+
+        // Restaurer l'état visuel si un fichier est déjà sélectionné
+        if (docFiles[i]) {
+            const nameEl = document.getElementById('doc-name-'+i);
+            const zoneEl = document.getElementById('doc-zone-'+i);
+            const statusEl = document.getElementById('doc-status-'+i);
+            if (nameEl) { nameEl.textContent = '✅ ' + docFiles[i].name; nameEl.style.display = 'block'; }
+            if (zoneEl) { zoneEl.style.borderColor = '#00C853'; zoneEl.style.background = 'rgba(0,200,83,0.05)'; }
+            if (statusEl) statusEl.innerHTML = '<span style="color:#00C853;font-size:20px">✅</span>';
+        }
+
         input.onchange = function() {
             const file = this.files[0];
             if (!file) return;
-            if (file.size > 10 * 1024 * 1024) { notif('❌ Fichier trop volumineux', 'Maximum 10 Mo', 'red'); return; }
+            if (file.size > 10 * 1024 * 1024) { notif('❌ Fichier trop volumineux', 'Maximum 10 Mo', 'red'); this.value = ''; return; }
             docFiles[i] = file;
             window._docFiles = docFiles;
             const nameEl = document.getElementById('doc-name-'+i);
@@ -1084,9 +1101,14 @@ function setupDocUpload() {
             if (zoneEl) { zoneEl.style.borderColor = '#00C853'; zoneEl.style.background = 'rgba(0,200,83,0.05)'; }
             if (statusEl) statusEl.innerHTML = '<span style="color:#00C853;font-size:20px">✅</span>';
             const btn = document.getElementById('send-docs-btn');
-            if (btn && docFiles[1] && docFiles[2]) { btn.disabled = false; btn.style.background = '#FF5A1F'; btn.style.color = 'white'; btn.style.cursor = 'pointer'; }
+            if (btn && docFiles[1] && docFiles[2]) { btn.disabled = false; btn.style.background = 'linear-gradient(135deg,#FF5A1F,#FF7340)'; btn.style.color = 'white'; btn.style.cursor = 'pointer'; btn.style.opacity = '1'; }
         };
     });
+
+    // Activer le bouton si les docs sont déjà là
+    const btn = document.getElementById('send-docs-btn');
+    if (btn && docFiles[1] && docFiles[2]) { btn.disabled = false; btn.style.background = 'linear-gradient(135deg,#FF5A1F,#FF7340)'; btn.style.color = 'white'; btn.style.cursor = 'pointer'; btn.style.opacity = '1'; }
+
     if (currentView === 'instructor-rejected') loadRejectionReason();
 }
 
@@ -1438,10 +1460,10 @@ function InstructorDashboard() {
             <div style="background:#fff;border-radius:20px;padding:20px;border:1px solid #F0F0F0;margin-bottom:14px">
                 <h3 style="font-weight:800;font-size:16px;margin-bottom:4px;color:var(--text)">🎁 Parrainage</h3>
                 <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Parrainez un moniteur → <strong>1% de commission en moins</strong> pendant 10 cours.</p>
-                <div id="referral-code-display" style="background:#FFF7ED;border:2px dashed #FF5A1F;border-radius:14px;padding:14px;text-align:center;font-family:monospace;font-size:22px;font-weight:900;color:#FF5A1F;letter-spacing:6px;margin-bottom:12px">...</div>
+                <div id="referral-code-display" style="background:#FFF7ED;border:2px dashed #FF5A1F;border-radius:14px;padding:14px;text-align:center;font-family:monospace;font-size:22px;font-weight:900;color:#FF5A1F;letter-spacing:6px;margin-bottom:12px">${profile.referral_code||'Chargement...'}</div>
                 <div style="display:flex;gap:8px;margin-bottom:12px">
-                    <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:#F3F4F6;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:var(--text)">📋 Copier</button>
-                    <button onclick="shareReferralLink()" style="flex:1;padding:12px;background:#FF5A1F;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:#fff">🔗 Partager</button>
+                    <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:#F3F4F6;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:var(--text);transition:all 0.15s" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">📋 Copier</button>
+                    <button onclick="shareReferralLink()" style="flex:1;padding:12px;background:linear-gradient(135deg,#FF5A1F,#FF7340);border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:#fff;transition:all 0.15s" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">🔗 Partager</button>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                     <div style="background:#F9FAFB;border-radius:12px;padding:14px;text-align:center">
@@ -1456,7 +1478,10 @@ function InstructorDashboard() {
                 <div id="referral-list" class="mt-4"></div>
             </div>
             <!-- Déconnexion -->
-            <button onclick="logout()" style="width:100%;padding:14px;border-radius:16px;border:1.5px solid #FEE2E2;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:15px;cursor:pointer">🚪 Se déconnecter</button>
+            <button onclick="logout()" style="width:100%;padding:14px;border-radius:16px;border:1.5px solid #FEE2E2;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.15s" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'">🚪 Se déconnecter</button>
+
+            <!-- Admin access (discret) -->
+            <p onclick="(function(){let c=window._adminTaps=(window._adminTaps||0)+1;if(c>=5){window._adminTaps=0;currentView='admin';render();}setTimeout(()=>{if(window._adminTaps<5)window._adminTaps=0;},3000)})()" style="text-align:center;font-size:11px;color:#E5E7EB;margin-top:20px;cursor:default;user-select:none">DriveConnect NC v2.1</p>
         ` : ''}
 
         </div>
@@ -2645,7 +2670,7 @@ window.showPhoneVerification = function(mode, prefillPhone) {
 
 // ========== NAVIGATION ==========
 window.showView=async (v)=>{currentView=v;render();};
-window.switchTab=(t)=>{currentTab=t;render();};
+window.switchTab=(t)=>{currentTab=t;render();if(t==='settings')setTimeout(()=>loadReferralData(),200);};
 
 window.logout=async ()=>{
     if(watchId)navigator.geolocation.clearWatch(watchId);
@@ -3405,7 +3430,7 @@ function render() {
         case 'student-login':       app.innerHTML=LoginPage('student');    setupLoginForm('student');    break;
         case 'instructor-login':    app.innerHTML=LoginPage('instructor'); setupLoginForm('instructor'); break;
         case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>initMap(),100); break;
-        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>initMap(),100); break;
+        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();if(currentTab==='settings')loadReferralData();},150); break;
         case 'instructor-upload-docs': app.innerHTML=InstructorUploadDocs(); setTimeout(()=>setupDocUpload(),100); break;
         case 'instructor-pending':  app.innerHTML=InstructorPending(); break;
         case 'instructor-rejected': app.innerHTML=InstructorRejected(); setTimeout(()=>setupDocUpload(),100); break;
@@ -3544,13 +3569,16 @@ async function boot() {
     // Lire les paramètres URL pour routing direct
     const urlParams = new URLSearchParams(window.location.search);
     const roleParam = urlParams.get('role');
+    const adminKey = urlParams.get('admin');
 
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
         const { data: profile } = await sb.from('users').select('*').eq('id', session.user.id).single();
         if (profile) {
             currentUser = { ...profile, ...session.user };
-            if (profile.is_admin) {
+
+            // Accès admin : soit is_admin en base, soit clé URL secrète
+            if (profile.is_admin || adminKey === 'dc2024') {
                 currentView = 'admin';
             } else if (profile.user_type === 'instructor') {
                 const { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', session.user.id).single();
@@ -3575,14 +3603,19 @@ async function boot() {
     }
     subscribeToPush();
     checkReferralInUrl();
-    loadReferralData();
 
     await loadData();
     render();
 
+    // Charger les données de parrainage APRÈS render (les éléments DOM doivent exister)
+    setTimeout(() => loadReferralData(), 300);
+
     // Refresh données sans re-render complet si sur carte
     setInterval(async () => {
         if (!document.hidden && currentView !== 'admin') {
+            // Ne JAMAIS re-render les pages d'upload docs (détruit les inputs file)
+            if (currentView === 'instructor-upload-docs' || currentView === 'instructor-rejected' || currentView === 'instructor-pending') return;
+
             await loadData();
             if (currentUser) {
                 // Si sur le dashboard étudiant avec carte visible, juste mettre à jour les markers
