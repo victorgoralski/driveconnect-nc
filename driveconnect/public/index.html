@@ -190,7 +190,7 @@ let currentTab = 'home';
 let map = null, userMarker = null, iMarkers = [], watchId = null;
 
 // Cache local pour éviter trop de requêtes
-let DB = { instructors: [], slots: [], bookings: [] };
+let DB = { instructors: [], slots: [], bookings: [], progressNotes: [] };
 
 // ========== HELPERS ==========
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
@@ -237,6 +237,16 @@ async function loadData() {
         const field = currentUser.user_type === 'student' ? 'student_id' : 'instructor_id';
         const { data } = await sb.from('bookings').select('*').eq(field, currentUser.id).order('created_at', { ascending: false });
         DB.bookings = data || [];
+
+        // Charger les fiches de suivi
+        if (currentUser.user_type === 'student') {
+            const { data: notes } = await sb.from('progress_notes').select('*').eq('student_id', currentUser.id).order('created_at', { ascending: false });
+            DB.progressNotes = notes || [];
+        } else {
+            // Moniteur : charger les notes qu'il a écrites
+            const { data: notes } = await sb.from('progress_notes').select('*').eq('instructor_id', currentUser.id).order('created_at', { ascending: false });
+            DB.progressNotes = notes || [];
+        }
     }
 }
 
@@ -629,6 +639,62 @@ function StudentDashboard() {
             </div>
         ` : ''}
 
+        ${tab==='suivi' ? `
+            <p class="db-section-title">📖 Ma fiche de suivi</p>
+            ${(DB.progressNotes||[]).length === 0 ? `
+                <div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
+                    <p style="font-size:50px;margin-bottom:12px">📖</p>
+                    <p style="font-weight:700;font-size:17px;color:var(--text)">Aucune note pour le moment</p>
+                    <p style="font-size:14px;margin-top:4px">Votre moniteur remplira votre fiche après chaque cours</p>
+                </div>
+            ` : `
+                <div style="background:#fff;border-radius:20px;padding:18px;border:1px solid #F0F0F0;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                        <span style="font-size:20px">📊</span>
+                        <div>
+                            <p style="font-weight:800;font-size:15px;color:var(--text)">${(DB.progressNotes||[]).length} note${(DB.progressNotes||[]).length>1?'s':''} de suivi</p>
+                            <p style="font-size:12px;color:var(--text-muted)">${[...new Set((DB.progressNotes||[]).map(n=>n.instructor_name))].length} moniteur(s) différent(s)</p>
+                        </div>
+                    </div>
+                </div>
+                ${(()=>{
+                    const lastLevel = (DB.progressNotes||[]).find(n=>n.level);
+                    return lastLevel ? '<div style="background:linear-gradient(135deg,#0D0D0D,#1A1A1A);border-radius:20px;padding:18px;margin-bottom:14px;text-align:center;border:1px solid #252525">' +
+                        '<p style="color:#9CA3AF;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:8px">VOTRE NIVEAU ACTUEL</p>' +
+                        '<p style="font-size:24px;font-weight:900;color:#fff">' + (lastLevel.level==='Débutant'?'🟡':lastLevel.level==='En progression'?'🟠':lastLevel.level==='Bon niveau'?'🟢':'🔵') + ' ' + lastLevel.level + '</p>' +
+                        '<p style="color:#4B5563;font-size:12px;margin-top:4px">Évalué par ' + lastLevel.instructor_name + ' le ' + lastLevel.lesson_date + '</p>' +
+                    '</div>' : '';
+                })()}
+                <div style="display:flex;flex-direction:column;gap:12px">
+                ${(DB.progressNotes||[]).map(note => `
+                    <div style="background:#fff;border-radius:20px;padding:18px;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <div style="width:40px;height:40px;border-radius:12px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:16px;flex-shrink:0">
+                                    ${(note.instructor_name||'?').charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p style="font-weight:800;font-size:14px;color:var(--text)">${note.instructor_name||'Moniteur'}</p>
+                                    <p style="font-size:11px;color:var(--text-muted)">📅 Cours du ${note.lesson_date||note.created_at?.split('T')[0]||''}</p>
+                                </div>
+                            </div>
+                            ${note.level ? `<span style="padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${note.level==='Débutant'?'#FFFBEB;color:#D97706':note.level==='En progression'?'#FFF7ED;color:#EA580C':note.level==='Bon niveau'?'#ECFDF5;color:#059669':'#EFF6FF;color:#2563EB'}">${note.level==='Débutant'?'🟡':note.level==='En progression'?'🟠':note.level==='Bon niveau'?'🟢':'🔵'} ${note.level}</span>` : ''}
+                        </div>
+                        ${note.skills && note.skills.length > 0 ? `
+                            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+                                ${note.skills.map(s => `<span style="padding:3px 10px;border-radius:12px;background:#FFF7ED;color:#EA580C;font-size:11px;font-weight:700">${s}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        <div style="background:#F9FAFB;border-radius:14px;padding:14px;border-left:3px solid #FF5A1F">
+                            <p style="font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap">${(note.note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+                        </div>
+                        <p style="font-size:10px;color:#D1D5DB;margin-top:8px;text-align:right">Rédigé le ${new Date(note.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+                    </div>
+                `).join('')}
+                </div>
+            `}
+        ` : ''}
+
         ${tab==='profile' ? `
             <p class="db-section-title">Mon profil</p>
 
@@ -693,6 +759,10 @@ function StudentDashboard() {
             <button class="db-tab ${tab==='bookings'?'active':''}" onclick="switchTab('bookings')">
                 <span class="tab-icon">📋</span>
                 <span class="tab-label">Mes cours</span>
+            </button>
+            <button class="db-tab ${tab==='suivi'?'active':''}" onclick="switchTab('suivi')">
+                <span class="tab-icon">📖</span>
+                <span class="tab-label">Suivi</span>
             </button>
             <button class="db-tab ${tab==='map'?'active':''}" onclick="switchTab('map')">
                 <span class="tab-icon">🗺️</span>
@@ -1084,7 +1154,15 @@ function InstructorDashboard() {
                                 <button onclick="openValidateModal('${b.id}','${(b.student_name||'').replace(/'/g,'')}')" style="background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🔑 Valider</button>
                                 <button onclick="openChat('${b.id}','${b.student_id}','${b.student_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">💬 Chat</button>
                             `:''}
-                            ${b.status==='completed'?`<span style="font-size:12px;color:#059669;font-weight:700">✅ Validé</span>`:''}
+                            ${b.status==='completed'?`
+                                ${b.completed_at && (new Date()-new Date(b.completed_at))<86400000 && !(DB.progressNotes||[]).find(n=>n.booking_id===b.id) ?
+                                    `<button onclick="openProgressNoteModal('${b.id}','${(b.student_name||'').replace(/'/g,'')}','${b.student_id}','${b.date}')" style="background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">📝 Fiche</button>` :
+                                    (DB.progressNotes||[]).find(n=>n.booking_id===b.id) ?
+                                    `<span style="font-size:11px;color:#059669;font-weight:700">📝 Fiche rédigée</span>` :
+                                    `<span style="font-size:11px;color:#9CA3AF">⏱ Délai expiré</span>`
+                                }
+                                <button onclick="viewStudentProgress('${b.student_id}','${(b.student_name||'').replace(/'/g,'')}')" style="background:#F3F4F6;color:#374151;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">👁️ Suivi</button>
+                            `:''}
                         </div>
                     </div>
                 </div>`;
@@ -1803,7 +1881,7 @@ window.submitValidationCode = async function(bookingId) {
     // Notifier l'élève
     sendPushToUser(booking.student_id, '✅ Cours validé !', `Votre cours du ${booking.date} a été validé par le moniteur`);
 
-    // Succès visuel
+    // Succès visuel avec bouton fiche de suivi
     const modal = document.querySelector('.validate-modal');
     if (modal) {
         const inner = modal.querySelector('[style*="background:#0D0D0D"]');
@@ -1811,13 +1889,165 @@ window.submitValidationCode = async function(bookingId) {
             <div style="text-align:center;padding:24px">
                 <div style="width:80px;height:80px;background:#ECFDF5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px">✅</div>
                 <h3 style="color:#fff;font-weight:900;font-size:22px;margin-bottom:8px">Cours validé !</h3>
-                <p style="color:#6B7280;font-size:14px">Le cours avec <strong style="color:#fff">${booking.student_name}</strong> du ${booking.date} à ${booking.time} a été validé avec succès.</p>
+                <p style="color:#6B7280;font-size:14px;margin-bottom:20px">Le cours avec <strong style="color:#fff">${booking.student_name}</strong> du ${booking.date} à ${booking.time} a été validé.</p>
+                <button onclick="document.querySelectorAll('.validate-modal').forEach(m=>m.remove());openProgressNoteModal('${bookingId}','${(booking.student_name||'').replace(/'/g,'')}','${booking.student_id}','${booking.date}')" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:10px">
+                    📝 Remplir la fiche de suivi
+                </button>
+                <p style="color:#4B5563;font-size:12px">Vous avez <strong style="color:#FBBF24">24h</strong> pour remplir la fiche de suivi</p>
             </div>`;
     }
 
     await loadData();
     notif('✅ Cours validé !', `${booking.student_name} — ${booking.date}`, 'green');
-    setTimeout(() => { document.querySelectorAll('.validate-modal').forEach(m => m.remove()); render(); }, 2500);
+};
+
+// ========== FICHE DE SUIVI ==========
+window.openProgressNoteModal = function(bookingId, studentName, studentId, lessonDate) {
+    document.querySelectorAll('.progress-modal').forEach(m => m.remove());
+    const m = document.createElement('div');
+    m.className = 'progress-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    m.innerHTML = `
+    <div style="background:#0D0D0D;border-radius:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:28px">
+        <div style="text-align:center;margin-bottom:20px">
+            <div style="width:56px;height:56px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px">📝</div>
+            <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:4px">Fiche de suivi</h3>
+            <p style="color:#6B7280;font-size:13px">Cours du <strong style="color:#fff">${lessonDate}</strong> avec <strong style="color:#FF5A1F">${studentName}</strong></p>
+        </div>
+
+        <div style="margin-bottom:16px">
+            <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:8px">COMPÉTENCES TRAVAILLÉES</label>
+            <div id="skills-tags" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+                ${['Démarrage','Créneau','Demi-tour','Priorités','Rond-point','Autoroute','Stationnement','Rétroviseurs','Vitesse','Direction','Freinage','Signalisation'].map(skill =>
+                    `<button type="button" onclick="this.classList.toggle('selected');this.style.background=this.classList.contains('selected')?'#FF5A1F':'#1A1A1A';this.style.color=this.classList.contains('selected')?'#fff':'#6B7280';this.style.borderColor=this.classList.contains('selected')?'#FF5A1F':'#333'" style="padding:6px 14px;border-radius:20px;border:1.5px solid #333;background:#1A1A1A;color:#6B7280;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">${skill}</button>`
+                ).join('')}
+            </div>
+        </div>
+
+        <div style="margin-bottom:16px">
+            <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:8px">NIVEAU GLOBAL</label>
+            <div id="level-select" style="display:flex;gap:8px">
+                ${[{l:'Débutant',e:'🟡',c:'#FBBF24'},{l:'En progression',e:'🟠',c:'#F97316'},{l:'Bon niveau',e:'🟢',c:'#22C55E'},{l:'Prêt pour examen',e:'🔵',c:'#3B82F6'}].map(lv =>
+                    `<button type="button" data-level="${lv.l}" onclick="document.querySelectorAll('#level-select button').forEach(b=>{b.style.background='#1A1A1A';b.style.borderColor='#333';b.style.color='#6B7280'});this.style.background='${lv.c}22';this.style.borderColor='${lv.c}';this.style.color='${lv.c}'" style="flex:1;padding:10px 6px;border-radius:12px;border:1.5px solid #333;background:#1A1A1A;color:#6B7280;font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s">${lv.e}<br>${lv.l}</button>`
+                ).join('')}
+            </div>
+        </div>
+
+        <div style="margin-bottom:16px">
+            <label style="display:block;color:#9CA3AF;font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:8px">OBSERVATIONS</label>
+            <textarea id="progress-note-text" placeholder="Décrivez la progression, les points forts et les axes d'amélioration..." style="width:100%;min-height:120px;padding:14px;border:2px solid #333;border-radius:14px;background:#1A1A1A;color:#fff;font-size:14px;font-family:inherit;resize:vertical;outline:none;line-height:1.5" onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='#333'"></textarea>
+        </div>
+
+        <button onclick="submitProgressNote('${bookingId}','${studentId}','${(studentName||'').replace(/'/g,'')}','${lessonDate}')" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:16px;cursor:pointer">
+            Enregistrer la note
+        </button>
+        <button onclick="this.closest('.progress-modal').remove()" style="width:100%;padding:14px;background:none;border:none;color:#6B7280;font-weight:700;font-size:14px;cursor:pointer;margin-top:6px">
+            Annuler
+        </button>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+    setTimeout(() => document.getElementById('progress-note-text')?.focus(), 200);
+};
+
+window.submitProgressNote = async function(bookingId, studentId, studentName, lessonDate) {
+    const noteText = document.getElementById('progress-note-text')?.value?.trim();
+    if (!noteText) { notif('⚠️ Écrivez une observation', '', 'orange'); return; }
+
+    // Récupérer les compétences sélectionnées
+    const skills = Array.from(document.querySelectorAll('#skills-tags button.selected')).map(b => b.textContent.trim());
+
+    // Récupérer le niveau
+    const levelBtn = document.querySelector('#level-select button[style*="border-color"]');
+    const level = levelBtn?.getAttribute('data-level') || null;
+
+    // Vérifier que le booking est bien completed et dans les 24h
+    const { data: booking, error: bErr } = await sb.from('bookings').select('status, completed_at, instructor_id, student_id').eq('id', bookingId).single();
+    if (bErr || !booking) { notif('❌ Erreur', 'Réservation introuvable', 'red'); return; }
+    if (booking.status !== 'completed') { notif('❌ Ce cours n\'a pas été validé', '', 'red'); return; }
+    if (booking.instructor_id !== currentUser.id) { notif('❌ Vous n\'êtes pas le moniteur de ce cours', '', 'red'); return; }
+    if (booking.completed_at && (new Date() - new Date(booking.completed_at)) > 86400000) {
+        notif('❌ Délai de 24h dépassé', 'Vous ne pouvez plus modifier la fiche', 'red'); return;
+    }
+
+    // Vérifier qu'il n'y a pas déjà une note pour ce booking
+    const { data: existing } = await sb.from('progress_notes').select('id').eq('booking_id', bookingId).single();
+    if (existing) { notif('⚠️ Note déjà enregistrée', '', 'orange'); return; }
+
+    // Insérer la note
+    const { error } = await sb.from('progress_notes').insert({
+        booking_id: bookingId,
+        student_id: studentId,
+        instructor_id: currentUser.id,
+        instructor_name: currentUser.name,
+        lesson_date: lessonDate,
+        note: noteText,
+        skills: skills,
+        level: level
+    });
+
+    if (error) { notif('❌ Erreur', error.message, 'red'); return; }
+
+    document.querySelectorAll('.progress-modal').forEach(m => m.remove());
+    sendPushToUser(studentId, '📝 Fiche de suivi mise à jour', `Votre moniteur a rempli votre fiche de suivi pour le cours du ${lessonDate}`);
+    await loadData();
+    notif('✅ Fiche de suivi enregistrée !', studentName, 'green');
+    render();
+};
+
+window.viewStudentProgress = async function(studentId, studentName) {
+    document.querySelectorAll('.progress-view-modal').forEach(m => m.remove());
+
+    // Charger toutes les notes de cet élève
+    const { data: notes, error } = await sb.from('progress_notes').select('*').eq('student_id', studentId).order('created_at', { ascending: false });
+    if (error) { notif('❌ Erreur', error.message, 'red'); return; }
+
+    const m = document.createElement('div');
+    m.className = 'progress-view-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    m.innerHTML = `
+    <div style="background:#0D0D0D;border-radius:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:28px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <div>
+                <h3 style="color:#fff;font-weight:900;font-size:20px">📖 Fiche de suivi</h3>
+                <p style="color:#FF5A1F;font-size:14px;font-weight:700">${studentName}</p>
+            </div>
+            <button onclick="this.closest('.progress-view-modal').remove()" style="color:#6B7280;background:#1A1A1A;border:none;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer">✕</button>
+        </div>
+
+        ${(!notes || notes.length === 0) ? `
+            <div style="text-align:center;padding:40px 20px">
+                <p style="font-size:40px;margin-bottom:12px">📖</p>
+                <p style="color:#6B7280;font-size:14px">Aucune note de suivi pour cet élève</p>
+            </div>
+        ` : `
+            ${notes[0]?.level ? `
+                <div style="background:#1A1A1A;border-radius:16px;padding:14px;margin-bottom:16px;text-align:center">
+                    <p style="color:#9CA3AF;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px">DERNIER NIVEAU ÉVALUÉ</p>
+                    <p style="color:#fff;font-size:18px;font-weight:900">${notes[0].level === 'Débutant' ? '🟡' : notes[0].level === 'En progression' ? '🟠' : notes[0].level === 'Bon niveau' ? '🟢' : '🔵'} ${notes[0].level}</p>
+                </div>
+            ` : ''}
+            <div style="display:flex;flex-direction:column;gap:14px">
+            ${notes.map(note => `
+                <div style="background:#1A1A1A;border-radius:18px;padding:16px;border-left:3px solid ${note.instructor_id === currentUser?.id ? '#FF5A1F' : '#333'}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                        <p style="color:#fff;font-weight:800;font-size:14px">${note.instructor_name || 'Moniteur'}</p>
+                        <p style="color:#4B5563;font-size:11px">📅 ${note.lesson_date || ''}</p>
+                    </div>
+                    ${note.skills && note.skills.length > 0 ? `
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+                            ${note.skills.map(s => `<span style="padding:3px 10px;border-radius:12px;background:rgba(255,90,31,0.12);color:#FF5A1F;font-size:11px;font-weight:700">${s}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    ${note.level ? `<p style="color:#9CA3AF;font-size:12px;margin-bottom:8px">Niveau: <strong style="color:#fff">${note.level}</strong></p>` : ''}
+                    <p style="color:#D1D5DB;font-size:13px;line-height:1.6;white-space:pre-wrap">${(note.note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+                </div>
+            `).join('')}
+            </div>
+        `}
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
 };
 
 // ========== GPS & CARTE ==========
