@@ -15,7 +15,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://www.paypal.com/sdk/js?client-id=BAA-pkXDiQDK70NDleUwYfDK09m2Gpfm_yrFugTNqSiGLoHWmHxtD49w6f9SsLdWKk9AKeHVJWe35qNdek&components=hosted-buttons&disable-funding=venmo&currency=USD"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=BAA-pkXDiQDK70NDleUwYfDK09m2Gpfm_yrFugTNqSiGLoHWmHxtD49w6f9SsLdWKk9AKeHVJWe35qNdek&components=hosted-buttons&disable-funding=venmo&currency=EUR"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap');
@@ -454,18 +454,134 @@ async function signup(email, password, name, userType) {
     if (!validateInput(name, email, password)) return;
     name = sanitize(name);
     email = email.trim().toLowerCase();
+
+    // Étape 1 : Créer le compte (envoi email de confirmation automatique par Supabase)
     const { data, error } = await sb.auth.signUp({
         email, password,
         options: { data: { name, user_type: userType } }
     });
     if (error) { notif('❌ ' + error.message, '', 'red'); return; }
 
+    // Étape 2 : Afficher le modal de vérification OTP
+    await showEmailVerificationModal(email, password, name, userType, data);
+}
+
+function showEmailVerificationModal(email, password, name, userType, signupData) {
+    return new Promise((resolve) => {
+        document.querySelectorAll('.otp-verify-modal').forEach(m => m.remove());
+        const modal = document.createElement('div');
+        modal.className = 'otp-verify-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeUp 0.3s ease-out';
+        modal.innerHTML = `
+        <div style="background:#0D0D0D;border-radius:28px;padding:32px;max-width:400px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.5);animation:scaleIn 0.3s ease-out">
+            <div style="text-align:center;margin-bottom:24px">
+                <div style="width:64px;height:64px;background:rgba(255,90,31,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;border:1px solid rgba(255,90,31,0.3)">📧</div>
+                <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:6px">Vérifiez votre email</h3>
+                <p style="color:#6B7280;font-size:14px;line-height:1.5">Un code de vérification a été envoyé à</p>
+                <p style="color:#FF5A1F;font-weight:700;font-size:15px;margin-top:4px">${email}</p>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px" id="otp-inputs">
+                ${[0,1,2,3,4,5].map(i => `<input type="text" maxlength="1" class="otp-digit" data-idx="${i}" 
+                    style="width:48px;height:56px;text-align:center;font-size:22px;font-weight:900;border-radius:14px;border:2px solid #333;background:#1A1A1A;color:#fff;outline:none;caret-color:#FF5A1F;transition:border-color 0.15s"
+                    inputmode="numeric" autocomplete="one-time-code">`).join('')}
+            </div>
+            <p id="otp-error" style="color:#EF4444;font-size:13px;text-align:center;margin-bottom:16px;min-height:20px"></p>
+            <button id="otp-verify-btn" onclick="window._verifyOtp()" disabled style="width:100%;padding:16px;background:#333;color:#666;border:none;border-radius:16px;font-weight:900;font-size:16px;cursor:not-allowed;transition:all 0.2s;margin-bottom:12px">
+                Vérifier le code
+            </button>
+            <button onclick="window._resendOtp()" id="otp-resend-btn" style="width:100%;padding:12px;background:transparent;color:#6B7280;border:1px solid #333;border-radius:14px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.15s">
+                Renvoyer le code
+            </button>
+            <p style="color:#4B5563;font-size:12px;text-align:center;margin-top:12px;line-height:1.5">Vérifiez aussi vos spams si vous ne trouvez pas l'email</p>
+        </div>`;
+        document.body.appendChild(modal);
+
+        // Setup OTP inputs behavior
+        const inputs = modal.querySelectorAll('.otp-digit');
+        inputs.forEach((inp, idx) => {
+            inp.addEventListener('input', (e) => {
+                inp.value = inp.value.replace(/[^0-9]/g, '');
+                if (inp.value && idx < 5) inputs[idx+1].focus();
+                inp.style.borderColor = inp.value ? '#FF5A1F' : '#333';
+                checkOtpComplete();
+            });
+            inp.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !inp.value && idx > 0) { inputs[idx-1].focus(); inputs[idx-1].value = ''; inputs[idx-1].style.borderColor = '#333'; }
+                if (e.key === 'Enter') { const code = getOtpCode(); if (code.length === 6) window._verifyOtp(); }
+            });
+            inp.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const text = (e.clipboardData.getData('text') || '').replace(/\D/g, '').substring(0, 6);
+                text.split('').forEach((ch, i) => { if (inputs[i]) { inputs[i].value = ch; inputs[i].style.borderColor = '#FF5A1F'; } });
+                if (text.length > 0) inputs[Math.min(text.length, 5)].focus();
+                checkOtpComplete();
+            });
+        });
+        setTimeout(() => inputs[0].focus(), 200);
+
+        function getOtpCode() { return Array.from(inputs).map(x => x.value).join(''); }
+        function checkOtpComplete() {
+            const code = getOtpCode();
+            const btn = document.getElementById('otp-verify-btn');
+            if (btn) {
+                if (code.length === 6) { btn.disabled = false; btn.style.background = 'linear-gradient(135deg,#FF5A1F,#FF7340)'; btn.style.color = '#fff'; btn.style.cursor = 'pointer'; }
+                else { btn.disabled = true; btn.style.background = '#333'; btn.style.color = '#666'; btn.style.cursor = 'not-allowed'; }
+            }
+        }
+
+        window._verifyOtp = async () => {
+            const code = getOtpCode();
+            const errEl = document.getElementById('otp-error');
+            const btn = document.getElementById('otp-verify-btn');
+            if (code.length !== 6) return;
+            if (btn) { btn.textContent = 'Vérification...'; btn.disabled = true; btn.style.opacity = '0.6'; }
+
+            try {
+                const { error: verifyErr } = await sb.auth.verifyOtp({ email, token: code, type: 'signup' });
+                if (verifyErr) {
+                    if (errEl) errEl.textContent = '❌ Code incorrect ou expiré';
+                    inputs.forEach(inp => { inp.style.borderColor = '#EF4444'; inp.value = ''; });
+                    inputs[0].focus();
+                    if (btn) { btn.textContent = 'Vérifier le code'; btn.disabled = true; btn.style.opacity = '1'; btn.style.background = '#333'; btn.style.color = '#666'; }
+                    return;
+                }
+
+                // Vérification réussie → finaliser l'inscription
+                modal.remove();
+                await finalizeSignup(email, name, userType, signupData);
+                resolve();
+            } catch(e) {
+                if (errEl) errEl.textContent = '❌ Erreur de vérification';
+                if (btn) { btn.textContent = 'Vérifier le code'; btn.disabled = true; btn.style.opacity = '1'; }
+            }
+        };
+
+        window._resendOtp = async () => {
+            const resendBtn = document.getElementById('otp-resend-btn');
+            if (resendBtn) { resendBtn.textContent = '⏳ Envoi...'; resendBtn.disabled = true; }
+            await sb.auth.resend({ type: 'signup', email });
+            notif('📧 Email renvoyé', 'Vérifiez votre boîte mail', 'green');
+            if (resendBtn) { resendBtn.textContent = '✅ Email renvoyé'; setTimeout(() => { resendBtn.textContent = 'Renvoyer le code'; resendBtn.disabled = false; }, 3000); }
+        };
+    });
+}
+
+async function finalizeSignup(email, name, userType, signupData) {
+    // Récupérer la session après vérification
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+        notif('❌ Session expirée', 'Veuillez vous reconnecter', 'red');
+        return;
+    }
+
+    const userId = session.user.id;
+
     // Attendre que le trigger crée le profil
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
 
     // Mettre à jour le profil avec le nom si pas encore fait
     await sb.from('users').upsert({
-        id: data.user.id,
+        id: userId,
         email, name,
         user_type: userType
     }, { onConflict: 'id' });
@@ -473,8 +589,8 @@ async function signup(email, password, name, userType) {
     // Si moniteur, créer le profil instructeur
     if (userType === 'instructor') {
         await sb.from('instructors').upsert({
-            id: data.user.id,
-            user_id: data.user.id,
+            id: userId,
+            user_id: userId,
             name, email,
             rating: 0, total_reviews: 0, experience: 0,
             location: 'Nouméa', hourly_rate: 4500,
@@ -485,8 +601,8 @@ async function signup(email, password, name, userType) {
         }, { onConflict: 'id' });
     }
 
-    const { data: profile } = await sb.from('users').select('*').eq('id', data.user.id).single();
-    currentUser = { ...profile, ...data.user };
+    const { data: profile } = await sb.from('users').select('*').eq('id', userId).single();
+    currentUser = { ...profile, ...session.user };
 
     if (userType === 'instructor') {
         currentView = 'instructor-upload-docs';
@@ -495,7 +611,7 @@ async function signup(email, password, name, userType) {
     }
     await loadData();
     render();
-    notif('✅ Compte créé !', userType === 'instructor' ? 'Envoyez vos documents pour valider votre profil' : 'Bienvenue sur DriveConnect NC', 'green');
+    notif('✅ Compte vérifié !', userType === 'instructor' ? 'Envoyez vos documents pour valider votre profil' : 'Bienvenue sur DriveConnect NC', 'green');
 }
 
 // ========== HOME ====================
@@ -1002,6 +1118,18 @@ function InstructorUploadDocs() {
                         <div id="doc-status-3" class="flex-shrink-0 mt-1"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
                     </div>
                 </div>
+                <div id="doc-zone-4" class="rounded-2xl p-5 border-2 border-dashed transition-all cursor-pointer" style="border-color:#333;background:#111" onclick="document.getElementById('doc-input-4').click()">
+                    <input type="file" id="doc-input-4" accept="image/*,.pdf" style="display:none">
+                    <div class="flex items-start gap-4">
+                        <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(59,130,246,0.12)"><span class="text-xl">🏦</span></div>
+                        <div class="flex-1">
+                            <p class="font-bold text-white text-sm mb-1">RIB / Coordonnées bancaires</p>
+                            <p style="color:#666;font-size:12px;line-height:1.5">Pour recevoir vos paiements par virement bancaire</p>
+                            <p id="doc-name-4" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:6px;display:none"></p>
+                        </div>
+                        <div id="doc-status-4" class="flex-shrink-0 mt-1"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                    </div>
+                </div>
             </div>
             <div class="rounded-2xl p-4 mb-6" style="background:rgba(255,90,31,0.08);border:1px solid rgba(255,90,31,0.2)">
                 <p style="color:#FF8C42;font-size:12px;line-height:1.6">
@@ -1062,6 +1190,10 @@ function InstructorRejected() {
                     <input type="file" id="doc-input-3" accept="image/*,.pdf" style="display:none">
                     <div class="flex items-center gap-3"><span class="text-lg">🛡️</span><div class="flex-1"><p class="font-bold text-white text-sm">Assurance pro <span style="color:#666">(optionnel)</span></p><p id="doc-name-3" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:4px;display:none"></p></div><div id="doc-status-3"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div></div>
                 </div>
+                <div id="doc-zone-4" class="rounded-2xl p-4 border-2 border-dashed cursor-pointer" style="border-color:#333;background:#111" onclick="document.getElementById('doc-input-4').click()">
+                    <input type="file" id="doc-input-4" accept="image/*,.pdf" style="display:none">
+                    <div class="flex items-center gap-3"><span class="text-lg">🏦</span><div class="flex-1"><p class="font-bold text-white text-sm">RIB / Coordonnées bancaires</p><p id="doc-name-4" style="color:#FF5A1F;font-size:12px;font-weight:700;margin-top:4px;display:none"></p></div><div id="doc-status-4"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div></div>
+                </div>
             </div>
             <button id="send-docs-btn" onclick="uploadInstructorDocs()" disabled class="w-full py-4 rounded-2xl font-extrabold text-lg mb-3" style="background:#333;color:#666;cursor:not-allowed">Renvoyer mes documents</button>
             <button onclick="logout()" class="w-full py-3 rounded-2xl text-sm font-medium" style="background:transparent;color:#666;border:1px solid #333">Se déconnecter</button>
@@ -1074,7 +1206,7 @@ function setupDocUpload() {
     if (!window._docFiles) window._docFiles = {};
     const docFiles = window._docFiles;
 
-    [1,2,3].forEach(i => {
+    [1,2,3,4].forEach(i => {
         const input = document.getElementById('doc-input-'+i);
         if (!input) return;
 
@@ -1100,14 +1232,15 @@ function setupDocUpload() {
             if (nameEl) { nameEl.textContent = '✅ ' + file.name; nameEl.style.display = 'block'; }
             if (zoneEl) { zoneEl.style.borderColor = '#00C853'; zoneEl.style.background = 'rgba(0,200,83,0.05)'; }
             if (statusEl) statusEl.innerHTML = '<span style="color:#00C853;font-size:20px">✅</span>';
+            // Activer le bouton si docs obligatoires (1, 2, 4) sont là
             const btn = document.getElementById('send-docs-btn');
-            if (btn && docFiles[1] && docFiles[2]) { btn.disabled = false; btn.style.background = 'linear-gradient(135deg,#FF5A1F,#FF7340)'; btn.style.color = 'white'; btn.style.cursor = 'pointer'; btn.style.opacity = '1'; }
+            if (btn && docFiles[1] && docFiles[2] && docFiles[4]) { btn.disabled = false; btn.style.background = 'linear-gradient(135deg,#FF5A1F,#FF7340)'; btn.style.color = 'white'; btn.style.cursor = 'pointer'; btn.style.opacity = '1'; }
         };
     });
 
-    // Activer le bouton si les docs sont déjà là
+    // Activer le bouton si les docs obligatoires sont déjà là
     const btn = document.getElementById('send-docs-btn');
-    if (btn && docFiles[1] && docFiles[2]) { btn.disabled = false; btn.style.background = 'linear-gradient(135deg,#FF5A1F,#FF7340)'; btn.style.color = 'white'; btn.style.cursor = 'pointer'; btn.style.opacity = '1'; }
+    if (btn && docFiles[1] && docFiles[2] && docFiles[4]) { btn.disabled = false; btn.style.background = 'linear-gradient(135deg,#FF5A1F,#FF7340)'; btn.style.color = 'white'; btn.style.cursor = 'pointer'; btn.style.opacity = '1'; }
 
     if (currentView === 'instructor-rejected') loadRejectionReason();
 }
@@ -1121,11 +1254,12 @@ async function loadRejectionReason() {
 
 async function uploadInstructorDocs() {
     const docFiles = window._docFiles || {};
-    if (!docFiles[1] || !docFiles[2]) { notif('❌ Documents manquants', 'Autorisation et pièce d\'identité obligatoires', 'red'); return; }
+    if (!docFiles[1] || !docFiles[2] || !docFiles[4]) { notif('❌ Documents manquants', 'Autorisation, pièce d\'identité et RIB obligatoires', 'red'); return; }
     const btn = document.getElementById('send-docs-btn');
     if (btn) { btn.textContent = '⏳ Envoi en cours...'; btn.disabled = true; }
     const userId = currentUser.id;
     const docUrls = [];
+    const docTypes = { '1':'autorisation', '2':'identite', '3':'assurance', '4':'rib' };
     try {
         for (const [idx, file] of Object.entries(docFiles)) {
             const ext = file.name.split('.').pop();
@@ -1134,7 +1268,7 @@ async function uploadInstructorDocs() {
             const { error: uploadErr } = await sb.storage.from('instructor-docs').upload(storagePath, file, { upsert: true, contentType: file.type });
             if (uploadErr) { notif('❌ Erreur envoi document '+idx, uploadErr.message, 'red'); if (btn) { btn.textContent = 'Réessayer'; btn.disabled = false; } return; }
             const { data: urlData } = sb.storage.from('instructor-docs').getPublicUrl(storagePath);
-            docUrls.push({ doc_type: idx==='1'?'autorisation':idx==='2'?'identite':'assurance', url: urlData.publicUrl, filename: file.name });
+            docUrls.push({ doc_type: docTypes[idx] || 'autre', url: urlData.publicUrl, filename: file.name });
         }
         await sb.from('instructors').update({ approval_status: 'pending_review', documents_urls: docUrls, rejection_reason: null }).eq('id', userId);
         notif('✅ Documents envoyés !', 'Votre demande est en cours d\'examen', 'green');
@@ -1650,8 +1784,9 @@ window.bookSlot = function(slotId, instructorId) {
 };
 
 function showPaymentModal(slot, instructor, prices) {
-    const XPF_TO_USD = 115;
-    const amountUSD  = (slot.price / XPF_TO_USD).toFixed(2);
+    // Taux de change fixe officiel XPF/EUR (parité fixe - ne change jamais)
+    const XPF_TO_EUR = 119.3317;
+    const amountEUR  = (slot.price / XPF_TO_EUR).toFixed(2);
     const instrName  = instructor.name;  // null voulu par le dev
     const PAYPAL_CLIENT_ID = 'EH6_wDSUHjZ155FCNOGogvRtTF11vlyr-I42_7VsyiHE9dDdc8slqZZ43aMXXYk1onXf77XgmWnThZqp';
 
@@ -1680,7 +1815,7 @@ function showPaymentModal(slot, instructor, prices) {
             <div style="display:flex;align-items:baseline;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
                 <span style="color:#FF5A1F;font-size:38px;font-weight:900;line-height:1">${slot.price.toLocaleString()}</span>
                 <span style="color:rgba(255,255,255,0.35);font-size:16px">XPF</span>
-                <span style="color:rgba(255,255,255,0.2);font-size:12px">≈ ${amountUSD} USD</span>
+                <span style="color:rgba(255,255,255,0.2);font-size:12px">≈ ${amountEUR} €</span>
             </div>
         </div>
 
@@ -2253,27 +2388,36 @@ function _buildInstructorIcon(i) {
     const now = new Date();
     const hasPenalty = i.penalty_until && new Date(i.penalty_until) > now;
     const color = hasPenalty ? '#ef4444' : i.is_online ? '#22c55e' : '#9ca3af';
-    const ring = i.is_online ? 'box-shadow:0 0 0 3px rgba(34,197,94,0.3),0 4px 14px rgba(0,0,0,0.25)' : 'box-shadow:0 4px 12px rgba(0,0,0,0.2)';
-    const pulse = i.is_online ? '<div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(34,197,94,0.4);animation:pulse-ring 2s ease-out infinite"></div>' : '';
+    const borderColor = i.is_online ? '#22c55e' : '#fff';
+    const shadow = i.is_online 
+        ? 'box-shadow:0 0 0 4px rgba(34,197,94,0.25),0 4px 20px rgba(0,0,0,0.3)' 
+        : 'box-shadow:0 4px 16px rgba(0,0,0,0.25)';
+    const pulse = i.is_online ? `<div style="position:absolute;inset:-6px;border-radius:50%;border:2.5px solid rgba(34,197,94,0.4);animation:pulse-ring 2s ease-out infinite"></div>
+        <div style="position:absolute;inset:-6px;border-radius:50%;border:2.5px solid rgba(34,197,94,0.2);animation:pulse-ring 2s ease-out infinite 0.5s"></div>` : '';
     const avatarHtml = i.avatar_url
-        ? `<img src="${i.avatar_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid white;${ring};display:block;">`
-        : `<div style="background:${color};width:44px;height:44px;border-radius:50%;border:3px solid white;${ring};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:white;">${(i.name||'?').charAt(0).toUpperCase()}</div>`;
+        ? `<img src="${i.avatar_url}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:3px solid ${borderColor};${shadow};display:block">`
+        : `<div style="background:${color};width:46px;height:46px;border-radius:50%;border:3px solid ${borderColor};${shadow};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:white;letter-spacing:-0.5px">${(i.name||'?').charAt(0).toUpperCase()}</div>`;
+    const statusDot = `<div style="position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid #fff;z-index:2"></div>`;
     return L.divIcon({
-        html: `<div style="position:relative">${pulse}${avatarHtml}</div>`,
-        className: '', iconSize: [44, 44], iconAnchor: [22, 22]
+        html: `<div style="position:relative;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15))">${pulse}${avatarHtml}${statusDot}</div>`,
+        className: '', iconSize: [46, 46], iconAnchor: [23, 23]
     });
 }
 
 function _buildInstructorPopup(i) {
     const slots = DB.slots.filter(s => s.instructor_id === i.id).length;
-    return `<div style="text-align:center;padding:12px 10px;min-width:190px;font-family:'DM Sans',sans-serif">
-        <p style="font-weight:900;font-size:15px;color:#0D0D0D;margin-bottom:4px">${i.name}</p>
-        ${i.rating?`<p style="color:#F59E0B;font-weight:700;font-size:13px;margin:2px 0">★ ${i.rating.toFixed(1)}</p>`:''}
-        <p style="color:#6B7280;font-size:12px;margin-bottom:6px">📍 ${i.location||'Nouméa'}</p>
-        <p style="font-weight:900;color:#FF5A1F;font-size:18px;margin:6px 0">${i.hourly_rate||0} XPF/h</p>
-        <p style="font-size:11px;color:#6B7280;margin-bottom:10px">📆 ${slots} créneau${slots>1?'x':''}</p>
-        <span style="background:${i.is_online?'#DCFCE7':'#F3F4F6'};color:${i.is_online?'#16A34A':'#6B7280'};padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;margin-bottom:12px">${i.is_online?'🟢 En ligne':'⚫ Hors ligne'}</span>
-        <button onclick="showSlots('${i.id}')" style="background:#FF5A1F;color:white;border:none;padding:10px;border-radius:10px;font-weight:700;cursor:pointer;width:100%;font-size:13px;font-family:inherit">Voir les créneaux</button>
+    const stars = i.rating ? Math.round(i.rating) : 0;
+    return `<div style="text-align:center;padding:14px 12px;min-width:200px;font-family:'DM Sans',sans-serif">
+        <div style="width:56px;height:56px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:2px solid ${i.is_online?'#22c55e':'#E5E7EB'};box-shadow:0 4px 12px rgba(0,0,0,0.1)">
+            ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff">${(i.name||'?').charAt(0).toUpperCase()}</div>`}
+        </div>
+        <p style="font-weight:900;font-size:16px;color:#0D0D0D;margin-bottom:3px">${i.name}</p>
+        ${i.rating ? `<p style="color:#F59E0B;font-size:14px;margin:2px 0">${'★'.repeat(stars)}${'☆'.repeat(5-stars)} <span style="color:#9CA3AF;font-size:12px">${i.rating.toFixed(1)}</span></p>` : ''}
+        <p style="color:#9CA3AF;font-size:12px;margin:4px 0 8px">📍 ${i.location||'Nouméa'} · ${i.experience||0} ans</p>
+        <p style="font-weight:900;color:#FF5A1F;font-size:20px;margin:6px 0">${(i.hourly_rate||0).toLocaleString()} <span style="font-size:12px;color:#9CA3AF">XPF/h</span></p>
+        <p style="font-size:12px;color:#6B7280;margin-bottom:10px">📆 ${slots} créneau${slots>1?'x':''} dispo</p>
+        <span style="background:${i.is_online?'#DCFCE7':'#F3F4F6'};color:${i.is_online?'#16A34A':'#6B7280'};padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block;margin-bottom:12px">${i.is_online?'🟢 En ligne':'⚫ Hors ligne'}</span><br>
+        <button onclick="showSlots('${i.id}')" style="background:linear-gradient(135deg,#FF5A1F,#FF7340);color:white;border:none;padding:11px;border-radius:12px;font-weight:700;cursor:pointer;width:100%;font-size:13px;font-family:inherit;box-shadow:0 4px 16px rgba(255,90,31,0.25);transition:all 0.15s">Voir les créneaux</button>
     </div>`;
 }
 
@@ -2343,24 +2487,29 @@ function initMap() {
 
     map = L.map('map', {
         zoomControl: false,
-        attributionControl: false
-    }).setView([NOUMEA.lat, NOUMEA.lng], 13);
+        attributionControl: false,
+        zoomAnimation: true,
+        markerZoomAnimation: true
+    }).setView([NOUMEA.lat, NOUMEA.lng], 14);
 
-    // Tuiles CartoDB Positron - plus propre que OSM standard
+    // Tuiles CartoDB Voyager - design propre et moderne
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd', maxZoom: 19
+        subdomains: 'abcd', maxZoom: 20, maxNativeZoom: 18
     }).addTo(map);
 
-    // Contrôle zoom en bas à droite
+    // Contrôle zoom discret
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Ajouter style CSS pour l'animation pulse
+    // Styles CSS pour la carte
     if (!document.getElementById('map-pulse-style')) {
         const st = document.createElement('style');
         st.id = 'map-pulse-style';
         st.textContent = `
-            @keyframes pulse-ring { 0% { transform:scale(1); opacity:0.6; } 100% { transform:scale(1.8); opacity:0; } }
-            .leaflet-marker-icon { transition: transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94); }
+            @keyframes pulse-ring { 0% { transform:scale(1); opacity:0.6; } 100% { transform:scale(2); opacity:0; } }
+            .leaflet-marker-icon { transition: transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94) !important; }
+            .leaflet-popup-content-wrapper { border-radius:18px !important; box-shadow:0 8px 32px rgba(0,0,0,0.15) !important; border:none !important; }
+            .leaflet-popup-tip { box-shadow:0 4px 12px rgba(0,0,0,0.1) !important; }
+            .leaflet-popup-close-button { font-size:20px !important; padding:6px 10px !important; color:#999 !important; }
         `;
         document.head.appendChild(st);
     }
@@ -2371,13 +2520,18 @@ function initMap() {
     const isInstructor = currentUser && currentUser.user_type === 'instructor';
 
     if (isInstructor) {
-        // Moniteur : afficher sa propre position distinctement si GPS déjà actif
         if (userMarker && userMarker.getLatLng) {
             userMarker.addTo(map);
         }
     } else {
-        // Élève : centrer sur Nouméa sans demander de géoloc
-        map.setView([NOUMEA.lat, NOUMEA.lng], 13);
+        // Élève : tenter de géolocaliser pour centrer la carte
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => { if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 14, { animate: true }); },
+                () => {},
+                { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 }
+            );
+        }
     }
 
     // Souscrire aux deux canaux
@@ -2450,8 +2604,8 @@ window.startTracking = () => {
             const idx = DB.instructors.findIndex(i => i.id === currentUser.id);
             if (idx >= 0) { DB.instructors[idx].lat = lat; DB.instructors[idx].lng = lng; DB.instructors[idx].is_online = true; }
 
-            // ── Mise à jour BDD (throttlée toutes les 4s pour économiser les requêtes) ──
-            if (now - lastDbUpdate > 4000) {
+            // ── Mise à jour BDD (throttlée toutes les 2s pour réactivité maximale) ──
+            if (now - lastDbUpdate > 2000) {
                 lastDbUpdate = now;
                 sb.from('instructors').update({ lat, lng, is_online: true }).eq('id', currentUser.id);
             }
@@ -2469,7 +2623,7 @@ window.startTracking = () => {
         {
             enableHighAccuracy: true,
             maximumAge: 0,        // Toujours position fraîche
-            timeout: 8000         // 8s max avant erreur
+            timeout: 5000         // 5s max pour réponse plus rapide
         }
     );
 };
@@ -2768,10 +2922,18 @@ async function loadAdminData() {
         sb.from('bookings').select('*').order('created_at', { ascending: false }),
         sb.from('slots').select('*').order('date', { ascending: false })
     ]);
+
+    // Log errors for debugging
+    if (u.error) console.warn('Admin: users query error (RLS?):', u.error.message);
+    if (i.error) console.warn('Admin: instructors query error:', i.error.message);
+    if (b.error) console.warn('Admin: bookings query error:', b.error.message);
+
     adminData.users        = u.data || [];
     adminData.instructors  = i.data || [];
     adminData.bookings     = b.data || [];
     adminData.slots        = s.data || [];
+    adminData._rlsWarning  = (u.data || []).length <= 1;
+
     document.getElementById('app').innerHTML = AdminDashboard();
     // Carte admin si onglet map
     if (adminTab === 'map') setTimeout(() => initMap(), 100);
@@ -3083,10 +3245,21 @@ function getAdminTabContent(tab, stats) {
         const students = adminData.users.filter(u => u.user_type === 'student');
         return `
         <div>
+            ${adminData._rlsWarning ? `
+            <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:14px;padding:16px;margin-bottom:16px">
+                <p style="color:#FBBF24;font-weight:800;font-size:14px;margin-bottom:6px">⚠️ Accès limité par les politiques RLS</p>
+                <p style="color:#9CA3AF;font-size:12px;line-height:1.6">Vous ne voyez peut-être pas tous les utilisateurs. Exécutez cette commande SQL dans Supabase pour donner l'accès admin :</p>
+                <div style="background:#111;border-radius:10px;padding:12px;margin-top:10px;font-family:monospace;font-size:11px;color:#A5B4FC;word-break:break-all;line-height:1.5">
+                    CREATE POLICY "Admin full access" ON users FOR ALL TO authenticated USING (auth.uid() IN (SELECT id FROM users WHERE is_admin = true));
+                </div>
+            </div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                 <p style="font-weight:800;font-size:16px">${students.length} élève${students.length>1?'s':''} inscrits</p>
-                <input id="search-students" oninput="adminFilter('students')" placeholder="🔍 Rechercher..." 
-                    style="background:#1A1A1A;border:1px solid #2A2A2A;border-radius:10px;padding:8px 14px;color:#fff;font-size:13px;outline:none">
+                <div style="display:flex;gap:8px;align-items:center">
+                    <button onclick="loadAdminData()" style="padding:8px 14px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);color:#60A5FA;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">🔄 Actualiser</button>
+                    <input id="search-students" oninput="adminFilter('students')" placeholder="🔍 Rechercher..." 
+                        style="background:#1A1A1A;border:1px solid #2A2A2A;border-radius:10px;padding:8px 14px;color:#fff;font-size:13px;outline:none">
+                </div>
             </div>
             <div id="students-list" style="display:flex;flex-direction:column;gap:8px">
             ${students.map(u => {
@@ -3108,7 +3281,7 @@ function getAdminTabContent(tab, stats) {
                         <p style="font-size:10px;color:#4B5563">${u.created_at?.split('T')[0]||'?'}</p>
                     </div>
                     <button onclick="adminDeleteUser('${u.id}')" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#EF4444;border-radius:8px;font-size:12px;cursor:pointer;flex-shrink:0">🗑️</button>
-                </div>`}).join('') || '<p style="color:#4B5563;text-align:center;padding:40px">Aucun élève</p>'}
+                </div>`}).join('') || '<p style="color:#4B5563;text-align:center;padding:40px">Aucun élève trouvé</p>'}
             </div>
         </div>`;
     }
@@ -3321,12 +3494,13 @@ window.switchAdminTab = (t) => {
 
 window.adminFilter = (type) => {
     const q = (document.getElementById(`search-${type}`)?.value || '').toLowerCase();
-    const items = type === 'students'
-        ? adminData.users.filter(u => u.user_type === 'student')
-        : adminData.instructors;
-    const filtered = items.filter(u => (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q));
-    // Simple re-render
-    loadAdminData();
+    const listEl = document.getElementById(`${type}-list`);
+    if (!listEl) return;
+    // Filtrer visuellement les éléments déjà affichés
+    Array.from(listEl.children).forEach(child => {
+        const text = child.textContent.toLowerCase();
+        child.style.display = text.includes(q) ? '' : 'none';
+    });
 };
 
 window.adminVerifyInstructor = async (id, v) => {
@@ -3415,7 +3589,11 @@ window.adminCleanSlots = async () => {
 
 window.adminResetAllGPS = async () => {
     if (!confirm('Mettre TOUS les moniteurs hors ligne ?')) return;
-    await sb.from('instructors').update({ is_online: false });
+    // Mettre à jour chaque moniteur individuellement pour contourner les limites RLS
+    const promises = adminData.instructors.map(i => 
+        sb.from('instructors').update({ is_online: false }).eq('id', i.id)
+    );
+    await Promise.all(promises);
     notif('📴 Tous les moniteurs mis hors ligne', '', 'orange');
     await loadAdminData();
 };
@@ -3632,11 +3810,10 @@ async function boot() {
 
 window.submitRating = async function(bookingId, instructorId) {
     const rating = window._selectedRating || 0;
-    if (!rating) { notif('\u274c Choisissez une note', '', 'red'); return; }
-    const comment = document.getElementById('review-text')?.value || '';
+    if (!rating) { notif('❌ Choisissez une note', '', 'red'); return; }
 
     const { data: instructor } = await sb.from('instructors').select('rating,total_reviews').eq('id', instructorId).single();
-    if (!instructor) { notif('\u274c Erreur', '', 'red'); return; }
+    if (!instructor) { notif('❌ Erreur', '', 'red'); return; }
 
     const newTotal = (instructor.total_reviews || 0) + 1;
     const newRating = (((instructor.rating || 0) * (instructor.total_reviews || 0)) + rating) / newTotal;
@@ -3646,10 +3823,11 @@ window.submitRating = async function(bookingId, instructorId) {
         total_reviews: newTotal
     }).eq('id', instructorId);
 
-    await sb.from('bookings').update({ rated: true, rating_given: rating, rating_comment: comment }).eq('id', bookingId);
+    await sb.from('bookings').update({ rated: true, rating_given: rating }).eq('id', bookingId);
 
-    document.querySelector('.fixed[style]')?.remove() || document.querySelectorAll('.fixed').forEach(el => { if(el.querySelector('#review-text')) el.remove(); });
-    notif('\u2b50 Merci pour votre avis !', `Vous avez donn\u00e9 ${rating}/5 \u00e9toiles`, 'green');
+    const modal = document.getElementById('rating-modal');
+    if (modal) modal.remove();
+    notif('⭐ Merci pour votre avis !', `Vous avez donné ${rating}/5 étoiles`, 'green');
     await loadData();
     render();
 }
@@ -3687,23 +3865,24 @@ applyDark();
 window.showRating = function(bookingId, instructorId, instructorName) {
     window._selectedRating = 0;
     const stars = [1,2,3,4,5].map(i =>
-        '<span style="font-size:2.2rem;cursor:pointer;transition:transform 0.1s" data-val="' + i + '" ' +
+        '<span style="font-size:2.8rem;cursor:pointer;transition:transform 0.15s;display:inline-block" data-val="' + i + '" ' +
         'onclick="window.selectStar(' + i + ')" ' +
-        'onmouseover="window.hoverStar(' + i + ')" ' +
-        'onmouseout="window.resetStars()">☆</span>'
+        'onmouseover="window.hoverStar(' + i + ');this.style.transform=\'scale(1.2)\'" ' +
+        'onmouseout="window.resetStars();this.style.transform=\'scale(1)\'">☆</span>'
     ).join('');
     const modal = document.createElement('div');
     modal.id = 'rating-modal';
     modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4';
+    modal.style.animation = 'fadeUp 0.3s ease-out';
     modal.innerHTML =
-        '<div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">' +
-        '<h3 class="text-xl font-bold mb-2 text-center">⭐ Noter ' + instructorName + '</h3>' +
-        '<p class="text-gray-400 text-sm text-center mb-6">Comment s&#39;est pass&#233; votre cours ?</p>' +
-        '<div class="flex justify-center gap-3 mb-6" id="star-container">' + stars + '</div>' +
-        '<textarea id="review-text" class="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 outline-none focus:border-orange-400" rows="3" placeholder="Commentaire optionnel..."></textarea>' +
-        '<div class="flex gap-3">' +
-        '<button onclick="document.getElementById(\'rating-modal\').remove()" class="flex-1 border border-gray-200 py-3 rounded-xl font-semibold text-gray-500">Annuler</button>' +
-        '<button onclick="window.submitRating(\''+bookingId+'\',\''+instructorId+'\')" class="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold">Envoyer ⭐</button>' +
+        '<div style="background:#fff;border-radius:28px;padding:32px;max-width:360px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.25);text-align:center;animation:scaleIn 0.3s ease-out">' +
+        '<div style="width:64px;height:64px;background:#FFF7ED;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px">⭐</div>' +
+        '<h3 style="font-size:20px;font-weight:900;margin-bottom:6px;color:#111">Noter ' + instructorName + '</h3>' +
+        '<p style="color:#999;font-size:14px;margin-bottom:24px">Comment s&#39;est pass&#233; votre cours ?</p>' +
+        '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:28px" id="star-container">' + stars + '</div>' +
+        '<div style="display:flex;gap:10px">' +
+        '<button onclick="document.getElementById(\'rating-modal\').remove()" style="flex:1;padding:14px;border:1.5px solid #E5E7EB;background:#fff;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;color:#6B7280;transition:all 0.15s">Annuler</button>' +
+        '<button onclick="window.submitRating(\''+bookingId+'\',\''+instructorId+'\')" style="flex:1;padding:14px;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;border:none;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.15s">Envoyer</button>' +
         '</div></div>';
     document.body.appendChild(modal);
 }
