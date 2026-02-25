@@ -570,8 +570,8 @@ function StudentDashboard() {
             ${myBookings.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
                 const isPast = new Date(b.date) < new Date();
                 const canCancel = b.status!=='cancelled' && b.status!=='completed' && !isPast;
-                const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':'#D97706';
-                const statusBg = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':'#FFFBEB';
+                const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':'#D97706';
+                const statusBg = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='completed'?'#ECFDF5':'#FFFBEB';
                 const statusLabel = b.status==='confirmed'?'Confirmé':b.status==='cancelled'?'Annulé':b.status==='completed'?'✅ Terminé':'En attente';
                 return `<div class="db-booking-card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
@@ -585,13 +585,16 @@ function StudentDashboard() {
                         <p style="font-weight:900;font-size:17px;color:#FF5A1F">${b.amount.toLocaleString()} XPF</p>
                         <div style="display:flex;gap:8px;align-items:center">
                             ${b.status==='confirmed'&&!isPast?`<button onclick="cancelStudent('${b.id}')" style="color:#DC2626;background:none;border:none;font-size:12px;font-weight:700;cursor:pointer">Annuler</button>`:''}
-                            ${isPast&&b.status==='confirmed'&&!b.rated?`<button onclick="showRating('${b.id}','${b.instructor_id}','${b.instructor_name}')" style="background:#FFF7ED;color:#EA580C;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">⭐ Noter</button>`:''}
+                            ${isPast&&b.status==='completed'&&!b.rated?`<button onclick="showRating('${b.id}','${b.instructor_id}','${b.instructor_name}')" style="background:#FFF7ED;color:#EA580C;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">⭐ Noter</button>`:''}
                             ${b.status==='confirmed'?`<button onclick="openChat('${b.id}','${b.instructor_id}','${b.instructor_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">💬 Chat</button>`:''}
                         </div>
                     </div>
                     ${b.completion_code&&b.status==='confirmed'?`<div style="margin-top:10px;padding:8px 12px;background:#FFF7ED;border-radius:10px;display:flex;align-items:center;gap:8px">
                         <span style="font-family:monospace;font-weight:900;font-size:15px;color:#FF5A1F;letter-spacing:3px">${b.completion_code}</span>
-                        <span style="font-size:11px;color:#9CA3AF">Code de validation</span>
+                        <span style="font-size:11px;color:#9CA3AF">🔑 Donnez ce code au moniteur</span>
+                    </div>`:''}
+                    ${b.status==='completed'?`<div style="margin-top:10px;padding:8px 12px;background:#ECFDF5;border-radius:10px;text-align:center">
+                        <span style="font-size:12px;color:#059669;font-weight:700">✅ Cours validé par le moniteur</span>
                     </div>`:''}
                 </div>`;
             }).join('')}
@@ -904,7 +907,7 @@ function InstructorDashboard() {
     const myBookings = DB.bookings;
     const profile = DB.instructors.find(x=>x.id===currentUser.id) || {};
     const mySlots = DB.slots.filter(s=>s.instructor_id===currentUser.id);
-    const paidBookings = myBookings.filter(b=>b.status==='confirmed'&&b.payment_status==='paid');
+    const paidBookings = myBookings.filter(b=>(b.status==='confirmed'||b.status==='completed')&&b.payment_status==='paid');
     const totalNet = paidBookings.reduce((s,b)=>s+(b.net||0),0);
     const pending = myBookings.filter(b=>b.status==='pending').length;
     const tab = currentTab || 'home';
@@ -1041,7 +1044,8 @@ function InstructorDashboard() {
                             ${booking?`<p style="font-size:12px;color:#2563EB;font-weight:600;margin-top:2px">👨‍🎓 ${booking.student_name}</p>`:''}
                         </div>
                     </div>
-                    <div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        ${booking&&booking.status==='confirmed'?`<button onclick="openValidateModal('${booking.id}','${(booking.student_name||'').replace(/'/g,'')}')" style="background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">🔑 Valider</button>`:''}
                         ${booking?`<button onclick="cancelInstructor('${booking.id}')" style="color:#DC2626;background:none;border:none;font-size:12px;font-weight:700;cursor:pointer">Annuler</button>`:
                         `<button onclick="deleteSlot('${s.id}')" style="color:#DC2626;background:none;border:none;font-size:13px;cursor:pointer">🗑</button>`}
                     </div>
@@ -1055,9 +1059,9 @@ function InstructorDashboard() {
             ${myBookings.length===0?`<div style="text-align:center;padding:60px 20px;color:var(--text-muted)"><p style="font-size:50px;margin-bottom:12px">📋</p><p style="font-weight:700;font-size:17px;color:var(--text)">Aucune réservation</p></div>`:''}
             <div style="display:flex;flex-direction:column;gap:10px">
             ${[...myBookings].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
-                const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='pending'?'#D97706':'#6B7280';
-                const statusBg   = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='pending'?'#FFFBEB':'#F3F4F6';
-                const statusLabel= b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':b.status==='pending'?'⏳ En attente':'Terminé';
+                const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':b.status==='pending'?'#D97706':'#6B7280';
+                const statusBg   = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='completed'?'#ECFDF5':b.status==='pending'?'#FFFBEB':'#F3F4F6';
+                const statusLabel= b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':b.status==='completed'?'✅ Validé':b.status==='pending'?'⏳ En attente':'Inconnu';
                 return `<div class="db-booking-card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
                         <div>
@@ -1076,7 +1080,11 @@ function InstructorDashboard() {
                                 <button onclick="confirmB('${b.id}')" style="background:#ECFDF5;color:#059669;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">✅ Accepter</button>
                                 <button onclick="rejectB('${b.id}')" style="background:#FEF2F2;color:#DC2626;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">❌</button>
                             `:''}
-                            ${b.status==='confirmed'?`<button onclick="openChat('${b.id}','${b.student_id}','${b.student_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">💬 Chat</button>`:''}
+                            ${b.status==='confirmed'?`
+                                <button onclick="openValidateModal('${b.id}','${(b.student_name||'').replace(/'/g,'')}')" style="background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🔑 Valider</button>
+                                <button onclick="openChat('${b.id}','${b.student_id}','${b.student_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">💬 Chat</button>
+                            `:''}
+                            ${b.status==='completed'?`<span style="font-size:12px;color:#059669;font-weight:700">✅ Validé</span>`:''}
                         </div>
                     </div>
                 </div>`;
@@ -1463,6 +1471,9 @@ function showPaymentModal(slot, instructor, prices) {
         const { error } = await sb.from('slots').update({ available: false }).eq('id', slot.id);
         if (error) { notif('❌ Erreur', error.message, 'red'); return; }
 
+        // Générer un code unique de 6 caractères
+        const completionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
         const { data: booking, error: bError } = await sb.from('bookings').insert({
             slot_id: slot.id,
             student_id: currentUser.id,
@@ -1472,7 +1483,8 @@ function showPaymentModal(slot, instructor, prices) {
             date: slot.date, time: slot.time, duration: slot.duration,
             amount: slot.price, commission: prices.commission, net: prices.net,
             status: 'confirmed', payment_status: paymentStatus,
-            paypal_order_id: orderId
+            paypal_order_id: orderId,
+            completion_code: completionCode
         }).select().single();
 
         if (bError) { notif('❌ Erreur réservation', bError.message, 'red'); return; }
@@ -1482,13 +1494,18 @@ function showPaymentModal(slot, instructor, prices) {
         DB.slots   = DB.slots.filter(s => s.id !== slot.id);
         DB.bookings.push(booking);
 
-        // Succès dans le modal
+        // Succès dans le modal avec le code de validation
         const body = modal.querySelector('[style*="padding:24px"]');
         if (body) body.innerHTML = `
             <div style="text-align:center;padding:40px 20px">
                 <div style="width:72px;height:72px;background:#ECFDF5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px">✅</div>
                 <p style="font-weight:900;font-size:22px;color:#0D0D0D;margin-bottom:8px">Paiement réussi !</p>
                 <p style="color:#6B7280;font-size:15px">Réservation confirmée avec <strong>${instrName}</strong><br>le ${slot.date} à ${slot.time}</p>
+                <div style="margin-top:20px;padding:16px;background:#FFF7ED;border-radius:16px;border:2px solid #FED7AA">
+                    <p style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:1px;margin-bottom:8px">🔑 VOTRE CODE DE VALIDATION</p>
+                    <p style="font-family:monospace;font-weight:900;font-size:32px;color:#FF5A1F;letter-spacing:6px">${completionCode}</p>
+                    <p style="font-size:12px;color:#9CA3AF;margin-top:8px">Donnez ce code au moniteur à la fin du cours</p>
+                </div>
             </div>`;
 
         notif('✅ Réservation confirmée !', `Cours avec ${instrName} le ${slot.date}`, 'green');
@@ -1500,7 +1517,7 @@ function showPaymentModal(slot, instructor, prices) {
                 body: JSON.stringify({ type: 'confirmation', studentEmail: currentUser.email, studentName: currentUser.name, instructorName: instrName, date: slot.date, time: slot.time, amount: slot.price })
             });
         } catch(e) {}
-        setTimeout(() => { modal.remove(); document.body.style.overflow = ''; render(); }, 3000);
+        setTimeout(() => { modal.remove(); document.body.style.overflow = ''; render(); }, 5000);
     }
 
     // ── Charger le SDK PayPal dynamiquement ──────────────────────────────────
@@ -1668,6 +1685,139 @@ window.deleteSlot = async (id) => {
     await sb.from('slots').delete().eq('id', id);
     DB.slots = DB.slots.filter(s=>s.id!==id);
     notif('Créneau supprimé','','orange'); render();
+};
+
+// ========== VALIDATION CODE MONITEUR ==========
+window.openValidateModal = function(bookingId, studentName) {
+    document.querySelectorAll('.validate-modal').forEach(m => m.remove());
+    const m = document.createElement('div');
+    m.className = 'validate-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    m.innerHTML = `
+    <div style="background:#0D0D0D;border-radius:28px;width:100%;max-width:400px;padding:32px;text-align:center">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px">🔑</div>
+        <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:6px">Valider le cours</h3>
+        <p style="color:#6B7280;font-size:13px;margin-bottom:24px">Entrez le code à 6 caractères donné par <strong style="color:#fff">${studentName || 'votre élève'}</strong></p>
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px" id="code-inputs">
+            <input type="text" maxlength="1" class="vc-input" style="width:48px;height:56px;text-align:center;font-family:monospace;font-weight:900;font-size:24px;border:2px solid #333;border-radius:14px;background:#1A1A1A;color:#FF5A1F;outline:none" autofocus>
+            <input type="text" maxlength="1" class="vc-input" style="width:48px;height:56px;text-align:center;font-family:monospace;font-weight:900;font-size:24px;border:2px solid #333;border-radius:14px;background:#1A1A1A;color:#FF5A1F;outline:none">
+            <input type="text" maxlength="1" class="vc-input" style="width:48px;height:56px;text-align:center;font-family:monospace;font-weight:900;font-size:24px;border:2px solid #333;border-radius:14px;background:#1A1A1A;color:#FF5A1F;outline:none">
+            <input type="text" maxlength="1" class="vc-input" style="width:48px;height:56px;text-align:center;font-family:monospace;font-weight:900;font-size:24px;border:2px solid #333;border-radius:14px;background:#1A1A1A;color:#FF5A1F;outline:none">
+            <input type="text" maxlength="1" class="vc-input" style="width:48px;height:56px;text-align:center;font-family:monospace;font-weight:900;font-size:24px;border:2px solid #333;border-radius:14px;background:#1A1A1A;color:#FF5A1F;outline:none">
+            <input type="text" maxlength="1" class="vc-input" style="width:48px;height:56px;text-align:center;font-family:monospace;font-weight:900;font-size:24px;border:2px solid #333;border-radius:14px;background:#1A1A1A;color:#FF5A1F;outline:none">
+        </div>
+        <p id="validate-error" style="color:#EF4444;font-size:13px;font-weight:700;min-height:24px;margin-bottom:16px"></p>
+        <button id="validate-submit-btn" onclick="submitValidationCode('${bookingId}')" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:16px;cursor:pointer;opacity:0.4;pointer-events:none" disabled>
+            Valider le cours
+        </button>
+        <button onclick="this.closest('.validate-modal').remove()" style="width:100%;padding:14px;background:none;border:none;color:#6B7280;font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">
+            Annuler
+        </button>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+
+    // Auto-focus et navigation entre inputs
+    const inputs = m.querySelectorAll('.vc-input');
+    inputs[0].focus();
+    inputs.forEach((inp, i) => {
+        inp.addEventListener('input', (e) => {
+            inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (inp.value && i < 5) inputs[i + 1].focus();
+            // Activer le bouton si 6 chars remplis
+            const code = Array.from(inputs).map(x => x.value).join('');
+            const btn = document.getElementById('validate-submit-btn');
+            if (btn) {
+                btn.disabled = code.length < 6;
+                btn.style.opacity = code.length < 6 ? '0.4' : '1';
+                btn.style.pointerEvents = code.length < 6 ? 'none' : 'auto';
+            }
+            document.getElementById('validate-error').textContent = '';
+        });
+        inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !inp.value && i > 0) {
+                inputs[i - 1].focus();
+                inputs[i - 1].value = '';
+            }
+            if (e.key === 'Enter') {
+                const code = Array.from(inputs).map(x => x.value).join('');
+                if (code.length === 6) submitValidationCode(bookingId);
+            }
+        });
+        // Support paste
+        inp.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const pasted = (e.clipboardData.getData('text') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 6);
+            pasted.split('').forEach((ch, j) => { if (inputs[j]) inputs[j].value = ch; });
+            if (pasted.length > 0) inputs[Math.min(pasted.length, 5)].focus();
+            const btn = document.getElementById('validate-submit-btn');
+            if (btn) {
+                btn.disabled = pasted.length < 6;
+                btn.style.opacity = pasted.length < 6 ? '0.4' : '1';
+                btn.style.pointerEvents = pasted.length < 6 ? 'none' : 'auto';
+            }
+        });
+    });
+};
+
+window.submitValidationCode = async function(bookingId) {
+    const inputs = document.querySelectorAll('.vc-input');
+    const code = Array.from(inputs).map(x => x.value).join('').toUpperCase();
+    const errEl = document.getElementById('validate-error');
+    const btn = document.getElementById('validate-submit-btn');
+
+    if (code.length !== 6) {
+        if (errEl) errEl.textContent = 'Entrez les 6 caractères';
+        return;
+    }
+
+    if (btn) { btn.textContent = 'Vérification...'; btn.disabled = true; btn.style.opacity = '0.6'; }
+
+    // Récupérer le vrai code depuis Supabase
+    const { data: booking, error } = await sb.from('bookings').select('completion_code, student_id, student_name, date, time').eq('id', bookingId).single();
+    if (error || !booking) {
+        if (errEl) errEl.textContent = 'Erreur de vérification';
+        if (btn) { btn.textContent = 'Valider le cours'; btn.disabled = false; btn.style.opacity = '1'; }
+        return;
+    }
+
+    if (code !== (booking.completion_code || '').toUpperCase()) {
+        // Code incorrect - shake animation
+        if (errEl) errEl.textContent = '❌ Code incorrect, réessayez';
+        inputs.forEach(inp => {
+            inp.style.borderColor = '#EF4444';
+            inp.value = '';
+            setTimeout(() => inp.style.borderColor = '#333', 1500);
+        });
+        inputs[0].focus();
+        if (btn) { btn.textContent = 'Valider le cours'; btn.disabled = true; btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none'; }
+        return;
+    }
+
+    // ✅ Code correct → marquer comme terminé
+    await sb.from('bookings').update({
+        status: 'completed',
+        completed_at: new Date().toISOString()
+    }).eq('id', bookingId);
+
+    // Notifier l'élève
+    sendPushToUser(booking.student_id, '✅ Cours validé !', `Votre cours du ${booking.date} a été validé par le moniteur`);
+
+    // Succès visuel
+    const modal = document.querySelector('.validate-modal');
+    if (modal) {
+        const inner = modal.querySelector('[style*="background:#0D0D0D"]');
+        if (inner) inner.innerHTML = `
+            <div style="text-align:center;padding:24px">
+                <div style="width:80px;height:80px;background:#ECFDF5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px">✅</div>
+                <h3 style="color:#fff;font-weight:900;font-size:22px;margin-bottom:8px">Cours validé !</h3>
+                <p style="color:#6B7280;font-size:14px">Le cours avec <strong style="color:#fff">${booking.student_name}</strong> du ${booking.date} à ${booking.time} a été validé avec succès.</p>
+            </div>`;
+    }
+
+    await loadData();
+    notif('✅ Cours validé !', `${booking.student_name} — ${booking.date}`, 'green');
+    setTimeout(() => { document.querySelectorAll('.validate-modal').forEach(m => m.remove()); render(); }, 2500);
 };
 
 // ========== GPS & CARTE ==========
