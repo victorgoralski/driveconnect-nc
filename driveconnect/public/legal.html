@@ -375,6 +375,7 @@
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showPage('privacy')">🔒 Confidentialité</button>
             <button class="nav-tab" onclick="showPage('terms')">📋 CGU</button>
+            <button class="nav-tab" onclick="showPage('mentions')">📄 Mentions légales</button>
         </div>
     </div>
 </nav>
@@ -586,7 +587,7 @@
             <ul class="styled-list">
                 <li>DriveConnect NC n'est pas employeur des moniteurs inscrits sur la plateforme</li>
                 <li>DriveConnect NC ne garantit pas la disponibilité continue des moniteurs</li>
-                <li>DriveConnect NC prélève une commission de 2% sur chaque transaction réalisée</li>
+                <li>DriveConnect NC prélève une commission de 15% sur chaque transaction réalisée</li>
                 <li>DriveConnect NC peut suspendre tout compte en cas de violation des CGU</li>
                 <li>DriveConnect NC n'est pas responsable du contenu pédagogique des cours dispensés</li>
             </ul>
@@ -613,7 +614,42 @@
         </div>
 
         <div class="section">
-            <div class="section-number">04 — Politique d'annulation</div>
+            <div class="section-number">04 — Inscription et vérification</div>
+            <h2>Inscription et vérification des comptes</h2>
+            <p><strong>Élèves :</strong> inscription avec email vérifié, nom et mot de passe. L'adresse email doit être confirmée via un lien envoyé automatiquement.</p>
+            <p><strong>Moniteurs :</strong> inscription avec vérification email + envoi obligatoire des documents suivants :</p>
+            <ul class="styled-list">
+                <li>Autorisation d'enseigner la conduite (ECSR, BEPECASER ou autorisation préfectorale)</li>
+                <li>Pièce d'identité valide</li>
+                <li>RIB / Coordonnées bancaires (pour le versement des revenus)</li>
+                <li>Assurance professionnelle (optionnelle mais recommandée)</li>
+            </ul>
+            <p>Les documents sont vérifiés manuellement par l'administration avant validation du compte moniteur.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-number">05 — Réservations et validation</div>
+            <h2>Statuts des réservations et code de validation</h2>
+            <p>Chaque réservation suit un cycle de vie défini par les statuts suivants :</p>
+            <ul class="styled-list">
+                <li><strong>En attente :</strong> réservation créée, en attente de confirmation du paiement</li>
+                <li><strong>Confirmée :</strong> paiement validé, cours programmé</li>
+                <li><strong>Terminée :</strong> cours réalisé et validé par le code de validation</li>
+                <li><strong>Annulée :</strong> cours annulé par l'élève ou le moniteur</li>
+                <li><strong>Litige :</strong> contestation en cours, traitée par l'administration de DriveConnect NC</li>
+            </ul>
+            <div class="alert alert-orange">
+                <span class="alert-icon">🔑</span>
+                <div class="alert-content">
+                    <strong>Code de validation</strong>
+                    <p>Un code unique à 6 caractères est généré à chaque réservation. L'élève communique ce code au moniteur <strong>à la fin du cours</strong> pour valider la séance. Le code ne doit jamais être donné avant la réalisation effective du cours.</p>
+                </div>
+            </div>
+            <p><strong>Protection contre les doubles réservations :</strong> Un créneau payé est immédiatement verrouillé et ne peut être réservé par un autre élève. En cas d'annulation, le créneau est <strong>définitivement supprimé</strong> et le moniteur doit en créer un nouveau manuellement.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-number">06 — Politique d'annulation</div>
             <h2>Annulations et remboursements</h2>
             <p>DriveConnect NC applique une politique d'annulation progressive pour protéger à la fois les élèves et les moniteurs :</p>
             <div class="cancel-table">
@@ -634,15 +670,16 @@
                 </div>
             </div>
             <p style="margin-top:1.5rem"><strong>Annulation par le moniteur :</strong> Si un moniteur annule un cours confirmé moins de 24h avant l'heure prévue, l'élève est remboursé intégralement et le moniteur se voit appliquer une réduction de visibilité de 10% pendant 7 jours sur la plateforme.</p>
+            <p style="margin-top:0.75rem"><strong>Suppression du créneau :</strong> Dans tous les cas d'annulation (par l'élève ou le moniteur), le créneau horaire est <strong>définitivement supprimé</strong>. Le moniteur devra créer manuellement un nouveau créneau s'il souhaite reproposer cette plage horaire.</p>
         </div>
 
         <div class="section">
-            <div class="section-number">05 — Paiements</div>
+            <div class="section-number">07 — Paiements</div>
             <h2>Modalités de paiement</h2>
             <p>Tous les paiements sur DriveConnect NC sont traités via <strong>PayPal</strong>, partenaire de confiance pour le traitement sécurisé des transactions.</p>
             <ul class="styled-list">
-                <li>Les prix sont affichés en Francs Pacifique (XPF) et convertis au taux du jour pour PayPal</li>
-                <li>DriveConnect NC prélève une commission de 2% sur chaque transaction</li>
+                <li>Les prix sont affichés en Francs Pacifique (XPF) et convertis en EUR au taux fixe officiel (1 EUR = 119,3317 XPF) pour le traitement PayPal</li>
+                <li>DriveConnect NC prélève une commission de 15% sur chaque transaction</li>
                 <li>Le montant net est versé au moniteur après déduction de la commission</li>
                 <li>Les remboursements sont traités dans un délai de 5 à 10 jours ouvrés</li>
                 <li>Aucune donnée bancaire n'est stockée sur les serveurs de DriveConnect NC</li>
@@ -657,7 +694,7 @@
         </div>
 
         <div class="section">
-            <div class="section-number">06 — Suspension de compte</div>
+            <div class="section-number">08 — Suspension de compte</div>
             <h2>Suspension et résiliation de compte</h2>
             <p>DriveConnect NC se réserve le droit de suspendre ou supprimer tout compte dans les cas suivants :</p>
             <ul class="styled-list">
@@ -679,9 +716,72 @@
         </div>
 
         <div class="section">
-            <div class="section-number">07 — Droit applicable</div>
+            <div class="section-number">09 — Droit applicable</div>
             <h2>Droit applicable et juridiction</h2>
             <p>Les présentes CGU sont soumises au droit français applicable en Nouvelle-Calédonie. En cas de litige, les parties s'engagent à rechercher une solution amiable avant tout recours judiciaire. À défaut d'accord, les tribunaux de Nouméa seront seuls compétents.</p>
+        </div>
+
+    </div>
+
+    <!-- ==================== MENTIONS LÉGALES ==================== -->
+    <div id="page-mentions" class="page">
+
+        <div class="section">
+            <div class="section-number">01 — Éditeur du site</div>
+            <h2>Éditeur</h2>
+            <p><strong>Nom :</strong> DriveConnect NC</p>
+            <p><strong>Forme juridique :</strong> Entreprise individuelle</p>
+            <p><strong>Siège social :</strong> Nouméa, Nouvelle-Calédonie</p>
+            <p><strong>Email :</strong> contact@driveconnect.nc</p>
+            <p><strong>Directeur de la publication :</strong> Le gérant de DriveConnect NC</p>
+        </div>
+
+        <div class="section">
+            <div class="section-number">02 — Hébergement</div>
+            <h2>Hébergement et services tiers</h2>
+            <ul class="styled-list">
+                <li><strong>Site web :</strong> hébergé par Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA</li>
+                <li><strong>Base de données :</strong> hébergée par Supabase Inc.</li>
+                <li><strong>Paiements :</strong> traités par PayPal (Europe) S.à r.l. et Cie, S.C.A., 22-24 Boulevard Royal, L-2449 Luxembourg</li>
+                <li><strong>Emails transactionnels :</strong> envoyés via Resend Inc.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <div class="section-number">03 — Propriété intellectuelle</div>
+            <h2>Propriété intellectuelle</h2>
+            <p>L'ensemble du contenu du site DriveConnect NC (textes, graphismes, logos, icônes, logiciels) est la propriété exclusive de DriveConnect NC ou de ses partenaires. Toute reproduction, représentation ou diffusion, en tout ou partie, du contenu de ce site est interdite sans autorisation écrite préalable.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-number">04 — Activité</div>
+            <h2>Nature de l'activité</h2>
+            <p>DriveConnect NC est une plateforme de mise en relation entre élèves et moniteurs de conduite indépendants. DriveConnect NC <strong>n'est pas</strong> un établissement d'enseignement de la conduite (auto-école) et n'emploie pas directement les moniteurs.</p>
+            <p>La commission prélevée est de <strong>15%</strong> sur chaque transaction confirmée. Le moniteur perçoit 85% du montant payé par l'élève.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-number">05 — Données personnelles</div>
+            <h2>Protection des données</h2>
+            <p>Conformément à la réglementation applicable en matière de protection des données personnelles, vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Pour plus de détails, consultez notre <a onclick="showPage('privacy')" style="color:var(--orange);font-weight:600;cursor:pointer;text-decoration:underline">Politique de confidentialité</a>.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-number">06 — Cookies</div>
+            <h2>Cookies</h2>
+            <p>Le site utilise uniquement des cookies techniques nécessaires au fonctionnement du service (session d'authentification, préférences d'affichage). Aucun cookie publicitaire ou de suivi marketing n'est utilisé.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-number">07 — Médiation et litiges</div>
+            <h2>Médiation et juridiction</h2>
+            <p>En cas de litige, le consommateur peut recourir gratuitement au service de médiation. Les litiges relatifs à l'utilisation de la plateforme sont soumis à la compétence exclusive des tribunaux de Nouméa, Nouvelle-Calédonie.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-number">08 — Crédits</div>
+            <h2>Crédits</h2>
+            <p>Cartographie : OpenStreetMap & CartoDB Voyager. Paiements : PayPal. Icônes : système emoji natif. Police : DM Sans (Google Fonts). Framework CSS : Tailwind CSS.</p>
         </div>
 
     </div>
@@ -697,7 +797,7 @@
 
 <footer>
     <p>© 2026 <strong>DriveConnect NC</strong> — Tous droits réservés — Nouméa, Nouvelle-Calédonie</p>
-    <p style="margin-top:0.5rem">Ces documents ont été mis à jour le 19 février 2026</p>
+    <p style="margin-top:0.5rem">Ces documents ont été mis à jour le 26 février 2026</p>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
@@ -720,7 +820,7 @@ function showPage(page) {
 // Gérer l'ancre au chargement
 window.addEventListener('DOMContentLoaded', function() {
     const hash = window.location.hash.replace('#', '');
-    if (hash === 'terms' || hash === 'privacy') {
+    if (hash === 'terms' || hash === 'privacy' || hash === 'mentions') {
         showPage(hash);
     }
     // Ajouter bouton retour si vient de l'app
