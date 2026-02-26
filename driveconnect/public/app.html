@@ -3054,24 +3054,28 @@ let adminData = { users: [], instructors: [], bookings: [], slots: [] };
 let adminTab = 'overview';
 
 async function loadAdminData() {
-    // Essayer d'abord les fonctions RPC (bypass RLS, nécessite le SQL admin)
-    let usersData = null, usersErr = null;
-    let instructorsData = null, bookingsData = null, slotsData = null;
+    // Afficher un loading
+    const app = document.getElementById('app');
+    const existingContent = app?.innerHTML || '';
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'admin-loading';
+    loadingOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;height:3px;background:linear-gradient(90deg,#FF5A1F,#FF7340,#FF5A1F);background-size:200%;animation:shimmer 1s infinite linear';
+    document.body.appendChild(loadingOverlay);
 
-    // Tenter RPC admin_get_all_users (bypass RLS)
+    try {
+    // Essayer RPC admin (bypass RLS) — timeout rapide si pas dispo
+    let usersData = null;
+    let bookingsData = null;
+
     const rpcResult = await sb.rpc('admin_get_all_users');
     if (!rpcResult.error && rpcResult.data) {
         usersData = rpcResult.data;
-        console.log('[ADMIN] RPC admin_get_all_users OK:', usersData.length, 'users');
+        console.log('[ADMIN] RPC OK:', usersData.length, 'users');
     } else {
-        // Fallback : requête directe (limité par RLS)
         const u = await sb.from('users').select('*').order('created_at', { ascending: false });
         usersData = u.data || [];
-        usersErr = u.error;
-        console.warn('[ADMIN] RPC not available, using direct query:', usersData.length, 'users', usersErr?.message || '');
     }
 
-    // Tenter RPC pour bookings aussi
     const rpcBookings = await sb.rpc('admin_get_all_bookings');
     if (!rpcBookings.error && rpcBookings.data) {
         bookingsData = rpcBookings.data;
@@ -3091,9 +3095,14 @@ async function loadAdminData() {
     adminData.slots        = s.data || [];
     adminData._rlsWarning  = usersData.length <= 1;
 
-    document.getElementById('app').innerHTML = AdminDashboard();
+    if (app) app.innerHTML = AdminDashboard();
     if (adminTab === 'map') setTimeout(() => initMap(), 100);
+    } finally {
+        const lo = document.getElementById('admin-loading');
+        if (lo) lo.remove();
+    }
 }
+window.loadAdminData = loadAdminData;
 
 function AdminDashboard() {
     const now = new Date();
@@ -3145,7 +3154,7 @@ function AdminDashboard() {
                         <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;animation:pulse-ring 2s infinite"></div>
                         <span style="font-size:12px;font-weight:700;color:#22C55E">${onlineInst} moniteur${onlineInst>1?'s':''} en ligne</span>
                     </div>
-                    <button onclick="loadAdminData()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">🔄 Actualiser</button>
+                    <button onclick="this.textContent='⏳ Chargement...';this.disabled=true;loadAdminData()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">🔄 Actualiser</button>
                     <button onclick="logout()" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">Déconnexion</button>
                 </div>
             </div>
@@ -3433,7 +3442,7 @@ GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                 <p style="font-weight:800;font-size:16px">${students.length} élève${students.length>1?'s':''} inscrits</p>
                 <div style="display:flex;gap:8px;align-items:center">
-                    <button onclick="loadAdminData()" style="padding:8px 14px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);color:#60A5FA;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">🔄 Actualiser</button>
+                    <button onclick="this.textContent='⏳...';this.disabled=true;loadAdminData()" style="padding:8px 14px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);color:#60A5FA;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">🔄 Actualiser</button>
                     <input id="search-students" oninput="adminFilter('students')" placeholder="🔍 Rechercher..." 
                         style="background:#1A1A1A;border:1px solid #2A2A2A;border-radius:10px;padding:8px 14px;color:#fff;font-size:13px;outline:none">
                 </div>
