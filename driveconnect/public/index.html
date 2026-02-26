@@ -455,119 +455,207 @@ async function signup(email, password, name, userType) {
     name = sanitize(name);
     email = email.trim().toLowerCase();
 
-    // Étape 1 : Créer le compte (envoi email de confirmation automatique par Supabase)
+    const btn = document.getElementById('submit-text');
+    if (btn) btn.textContent = '⏳ Création du compte...';
+
+    // Créer le compte
     const { data, error } = await sb.auth.signUp({
         email, password,
-        options: { data: { name, user_type: userType } }
+        options: { 
+            data: { name, user_type: userType },
+            emailRedirectTo: window.location.origin + '/app.html'
+        }
     });
-    if (error) { notif('❌ ' + error.message, '', 'red'); return; }
+    if (error) { 
+        notif('❌ ' + error.message, '', 'red'); 
+        if (btn) btn.textContent = "S'inscrire";
+        return; 
+    }
 
-    // Étape 2 : Afficher le modal de vérification OTP
-    await showEmailVerificationModal(email, password, name, userType, data);
+    // Vérifier si une session a été créée immédiatement
+    // (= confirmation email désactivée dans Supabase → on procède directement)
+    if (data.session) {
+        await finalizeSignup(email, name, userType);
+        return;
+    }
+
+    // Pas de session = confirmation email activée dans Supabase
+    // Supabase envoie un LIEN de confirmation (pas un code OTP)
+    // On affiche un écran d'attente qui vérifie périodiquement
+    showEmailConfirmationScreen(email, password, name, userType);
 }
 
-function showEmailVerificationModal(email, password, name, userType, signupData) {
-    return new Promise((resolve) => {
-        document.querySelectorAll('.otp-verify-modal').forEach(m => m.remove());
-        const modal = document.createElement('div');
-        modal.className = 'otp-verify-modal';
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeUp 0.3s ease-out';
-        modal.innerHTML = `
-        <div style="background:#0D0D0D;border-radius:28px;padding:32px;max-width:400px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.5);animation:scaleIn 0.3s ease-out">
-            <div style="text-align:center;margin-bottom:24px">
-                <div style="width:64px;height:64px;background:rgba(255,90,31,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;border:1px solid rgba(255,90,31,0.3)">📧</div>
-                <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:6px">Vérifiez votre email</h3>
-                <p style="color:#6B7280;font-size:14px;line-height:1.5">Un code de vérification a été envoyé à</p>
-                <p style="color:#FF5A1F;font-weight:700;font-size:15px;margin-top:4px">${email}</p>
+function showEmailConfirmationScreen(email, password, name, userType) {
+    document.querySelectorAll('.otp-verify-modal').forEach(m => m.remove());
+    const modal = document.createElement('div');
+    modal.className = 'otp-verify-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeUp 0.3s ease-out';
+    modal.innerHTML = `
+    <div style="background:#0D0D0D;border-radius:28px;padding:32px;max-width:420px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.5);animation:scaleIn 0.3s ease-out">
+        <div style="text-align:center;margin-bottom:20px">
+            <div style="width:64px;height:64px;background:rgba(255,90,31,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;border:1px solid rgba(255,90,31,0.3)">📧</div>
+            <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:6px">Confirmez votre email</h3>
+            <p style="color:#6B7280;font-size:14px;line-height:1.6">Un email de confirmation a été envoyé à</p>
+            <p style="color:#FF5A1F;font-weight:700;font-size:15px;margin-top:4px">${email}</p>
+        </div>
+        
+        <!-- Instructions -->
+        <div style="background:#1A1A1A;border-radius:16px;padding:16px;margin-bottom:16px">
+            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
+                <span style="background:rgba(255,90,31,0.15);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#FF5A1F;flex-shrink:0">1</span>
+                <p style="color:#D1D5DB;font-size:13px;line-height:1.5">Ouvrez votre boîte mail <strong style="color:#fff">${email}</strong></p>
             </div>
-            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px" id="otp-inputs">
-                ${[0,1,2,3,4,5].map(i => `<input type="text" maxlength="1" class="otp-digit" data-idx="${i}" 
-                    style="width:48px;height:56px;text-align:center;font-size:22px;font-weight:900;border-radius:14px;border:2px solid #333;background:#1A1A1A;color:#fff;outline:none;caret-color:#FF5A1F;transition:border-color 0.15s"
-                    inputmode="numeric" autocomplete="one-time-code">`).join('')}
+            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
+                <span style="background:rgba(255,90,31,0.15);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#FF5A1F;flex-shrink:0">2</span>
+                <p style="color:#D1D5DB;font-size:13px;line-height:1.5">Cliquez sur le <strong style="color:#fff">lien de confirmation</strong> dans l'email</p>
             </div>
-            <p id="otp-error" style="color:#EF4444;font-size:13px;text-align:center;margin-bottom:16px;min-height:20px"></p>
-            <button id="otp-verify-btn" onclick="window._verifyOtp()" disabled style="width:100%;padding:16px;background:#333;color:#666;border:none;border-radius:16px;font-weight:900;font-size:16px;cursor:not-allowed;transition:all 0.2s;margin-bottom:12px">
-                Vérifier le code
+            <div style="display:flex;align-items:flex-start;gap:12px">
+                <span style="background:rgba(255,90,31,0.15);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#FF5A1F;flex-shrink:0">3</span>
+                <p style="color:#D1D5DB;font-size:13px;line-height:1.5">Revenez ici et cliquez sur <strong style="color:#fff">"J'ai confirmé"</strong></p>
+            </div>
+        </div>
+
+        <p id="email-check-status" style="color:#6B7280;font-size:13px;text-align:center;margin-bottom:14px;min-height:20px">
+            <span style="animation:pulse 1.5s ease-in-out infinite">⏳ En attente de confirmation...</span>
+        </p>
+        
+        <!-- Bouton principal : J'ai confirmé mon email -->
+        <button id="email-confirmed-btn" onclick="window._checkEmailConfirmed()" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:16px;cursor:pointer;transition:all 0.2s;margin-bottom:10px">
+            ✅ J'ai confirmé mon email
+        </button>
+
+        <!-- Renvoyer -->
+        <button onclick="window._resendConfirmation()" id="resend-confirm-btn" style="width:100%;padding:12px;background:transparent;color:#6B7280;border:1px solid #333;border-radius:14px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.15s;margin-bottom:10px">
+            📧 Renvoyer l'email
+        </button>
+
+        <!-- Fallback : continuer sans vérification -->
+        <div id="skip-verify-zone" style="display:none;margin-top:8px">
+            <div style="height:1px;background:#222;margin:12px 0"></div>
+            <p style="color:#4B5563;font-size:12px;text-align:center;margin-bottom:10px;line-height:1.5">Vous ne recevez pas l'email ? Le service email de Supabase est limité sur le plan gratuit.</p>
+            <button onclick="window._skipVerification()" style="width:100%;padding:14px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#FBBF24;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.15s">
+                ⚠️ Continuer sans vérification email
             </button>
-            <button onclick="window._resendOtp()" id="otp-resend-btn" style="width:100%;padding:12px;background:transparent;color:#6B7280;border:1px solid #333;border-radius:14px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.15s">
-                Renvoyer le code
-            </button>
-            <p style="color:#4B5563;font-size:12px;text-align:center;margin-top:12px;line-height:1.5">Vérifiez aussi vos spams si vous ne trouvez pas l'email</p>
-        </div>`;
-        document.body.appendChild(modal);
+        </div>
 
-        // Setup OTP inputs behavior
-        const inputs = modal.querySelectorAll('.otp-digit');
-        inputs.forEach((inp, idx) => {
-            inp.addEventListener('input', (e) => {
-                inp.value = inp.value.replace(/[^0-9]/g, '');
-                if (inp.value && idx < 5) inputs[idx+1].focus();
-                inp.style.borderColor = inp.value ? '#FF5A1F' : '#333';
-                checkOtpComplete();
-            });
-            inp.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && !inp.value && idx > 0) { inputs[idx-1].focus(); inputs[idx-1].value = ''; inputs[idx-1].style.borderColor = '#333'; }
-                if (e.key === 'Enter') { const code = getOtpCode(); if (code.length === 6) window._verifyOtp(); }
-            });
-            inp.addEventListener('paste', (e) => {
-                e.preventDefault();
-                const text = (e.clipboardData.getData('text') || '').replace(/\D/g, '').substring(0, 6);
-                text.split('').forEach((ch, i) => { if (inputs[i]) { inputs[i].value = ch; inputs[i].style.borderColor = '#FF5A1F'; } });
-                if (text.length > 0) inputs[Math.min(text.length, 5)].focus();
-                checkOtpComplete();
-            });
-        });
-        setTimeout(() => inputs[0].focus(), 200);
+        <p style="color:#3B3B3B;font-size:11px;text-align:center;margin-top:14px;line-height:1.5">Pensez à vérifier vos spams</p>
+    </div>`;
+    document.body.appendChild(modal);
 
-        function getOtpCode() { return Array.from(inputs).map(x => x.value).join(''); }
-        function checkOtpComplete() {
-            const code = getOtpCode();
-            const btn = document.getElementById('otp-verify-btn');
-            if (btn) {
-                if (code.length === 6) { btn.disabled = false; btn.style.background = 'linear-gradient(135deg,#FF5A1F,#FF7340)'; btn.style.color = '#fff'; btn.style.cursor = 'pointer'; }
-                else { btn.disabled = true; btn.style.background = '#333'; btn.style.color = '#666'; btn.style.cursor = 'not-allowed'; }
-            }
-        }
+    // Afficher le fallback "skip" après 15 secondes
+    setTimeout(() => {
+        const skipZone = document.getElementById('skip-verify-zone');
+        if (skipZone) { skipZone.style.display = 'block'; skipZone.style.animation = 'fadeUp 0.3s ease-out'; }
+    }, 15000);
 
-        window._verifyOtp = async () => {
-            const code = getOtpCode();
-            const errEl = document.getElementById('otp-error');
-            const btn = document.getElementById('otp-verify-btn');
-            if (code.length !== 6) return;
-            if (btn) { btn.textContent = 'Vérification...'; btn.disabled = true; btn.style.opacity = '0.6'; }
-
-            try {
-                const { error: verifyErr } = await sb.auth.verifyOtp({ email, token: code, type: 'signup' });
-                if (verifyErr) {
-                    if (errEl) errEl.textContent = '❌ Code incorrect ou expiré';
-                    inputs.forEach(inp => { inp.style.borderColor = '#EF4444'; inp.value = ''; });
-                    inputs[0].focus();
-                    if (btn) { btn.textContent = 'Vérifier le code'; btn.disabled = true; btn.style.opacity = '1'; btn.style.background = '#333'; btn.style.color = '#666'; }
-                    return;
-                }
-
-                // Vérification réussie → finaliser l'inscription
+    // Vérification automatique toutes les 3s (si l'user a cliqué le lien dans un autre onglet)
+    let checkInterval = setInterval(async () => {
+        try {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session) {
+                clearInterval(checkInterval);
                 modal.remove();
-                await finalizeSignup(email, name, userType, signupData);
-                resolve();
-            } catch(e) {
-                if (errEl) errEl.textContent = '❌ Erreur de vérification';
-                if (btn) { btn.textContent = 'Vérifier le code'; btn.disabled = true; btn.style.opacity = '1'; }
+                await finalizeSignup(email, name, userType);
             }
-        };
+        } catch(e) {}
+    }, 3000);
 
-        window._resendOtp = async () => {
-            const resendBtn = document.getElementById('otp-resend-btn');
-            if (resendBtn) { resendBtn.textContent = '⏳ Envoi...'; resendBtn.disabled = true; }
+    // Bouton "J'ai confirmé" : tente de se connecter
+    window._checkEmailConfirmed = async () => {
+        const btn = document.getElementById('email-confirmed-btn');
+        const statusEl = document.getElementById('email-check-status');
+        if (btn) { btn.textContent = '⏳ Vérification...'; btn.disabled = true; btn.style.opacity = '0.6'; }
+
+        try {
+            // Tenter de se connecter avec les credentials
+            const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({ email, password });
+            
+            if (loginErr) {
+                if (loginErr.message.includes('Email not confirmed') || loginErr.message.includes('not confirmed')) {
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#EF4444">❌ Email pas encore confirmé. Vérifiez votre boîte mail.</span>';
+                } else {
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#EF4444">❌ ' + loginErr.message + '</span>';
+                }
+                if (btn) { btn.textContent = '✅ J\'ai confirmé mon email'; btn.disabled = false; btn.style.opacity = '1'; }
+                return;
+            }
+
+            // Connexion réussie = email confirmé
+            clearInterval(checkInterval);
+            modal.remove();
+            await finalizeSignup(email, name, userType);
+        } catch(e) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#EF4444">❌ Erreur de vérification</span>';
+            if (btn) { btn.textContent = '✅ J\'ai confirmé mon email'; btn.disabled = false; btn.style.opacity = '1'; }
+        }
+    };
+
+    // Renvoyer l'email
+    window._resendConfirmation = async () => {
+        const resendBtn = document.getElementById('resend-confirm-btn');
+        if (resendBtn) { resendBtn.textContent = '⏳ Envoi...'; resendBtn.disabled = true; }
+        try {
             await sb.auth.resend({ type: 'signup', email });
             notif('📧 Email renvoyé', 'Vérifiez votre boîte mail', 'green');
-            if (resendBtn) { resendBtn.textContent = '✅ Email renvoyé'; setTimeout(() => { resendBtn.textContent = 'Renvoyer le code'; resendBtn.disabled = false; }, 3000); }
-        };
-    });
+        } catch(e) {
+            notif('⚠️ Impossible de renvoyer', 'Le service email Supabase est limité', 'orange');
+        }
+        if (resendBtn) { resendBtn.textContent = '✅ Email renvoyé'; setTimeout(() => { resendBtn.textContent = '📧 Renvoyer l\'email'; resendBtn.disabled = false; }, 3000); }
+    };
+
+    // Skip : désactiver la vérification et continuer
+    window._skipVerification = async () => {
+        clearInterval(checkInterval);
+        const statusEl = document.getElementById('email-check-status');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#FBBF24">⏳ Connexion en cours...</span>';
+
+        try {
+            // Tenter de se connecter directement (marchera si email confirmation est OFF ou déjà confirmé)
+            const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({ email, password });
+            
+            if (loginErr) {
+                // Si email non confirmé, on ne peut pas se connecter
+                // Proposer de désactiver la confirmation dans Supabase
+                modal.querySelector('div > div').innerHTML = `
+                    <div style="text-align:center">
+                        <div style="width:64px;height:64px;background:rgba(251,191,36,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;border:1px solid rgba(251,191,36,0.3)">⚙️</div>
+                        <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:8px">Configuration requise</h3>
+                        <p style="color:#9CA3AF;font-size:14px;line-height:1.6;margin-bottom:20px">Le service email de Supabase ne fonctionne pas sur votre projet. Deux solutions :</p>
+                        
+                        <div style="background:#1A1A1A;border-radius:16px;padding:16px;text-align:left;margin-bottom:14px">
+                            <p style="color:#FBBF24;font-weight:800;font-size:14px;margin-bottom:8px">Option 1 : Désactiver la confirmation email</p>
+                            <p style="color:#6B7280;font-size:12px;line-height:1.6;margin-bottom:8px">Dans Supabase Dashboard :</p>
+                            <p style="color:#A5B4FC;font-size:12px;font-family:monospace;background:#111;padding:10px;border-radius:8px;line-height:1.6">
+                                Authentication → Providers → Email<br>→ Décocher "Confirm email"<br>→ Save
+                            </p>
+                        </div>
+
+                        <div style="background:#1A1A1A;border-radius:16px;padding:16px;text-align:left;margin-bottom:20px">
+                            <p style="color:#34D399;font-weight:800;font-size:14px;margin-bottom:8px">Option 2 : Configurer un SMTP (recommandé)</p>
+                            <p style="color:#6B7280;font-size:12px;line-height:1.6">
+                                Créez un compte gratuit sur <strong style="color:#fff">resend.com</strong> (100 emails/jour gratuits)<br>
+                                Puis dans Supabase : Settings → Auth → SMTP Settings → coller vos identifiants Resend
+                            </p>
+                        </div>
+
+                        <button onclick="document.querySelectorAll('.otp-verify-modal').forEach(m=>m.remove())" style="width:100%;padding:14px;background:rgba(255,255,255,0.08);border:1px solid #333;color:#fff;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer">
+                            Fermer et réessayer plus tard
+                        </button>
+                    </div>`;
+                return;
+            }
+
+            // Connexion réussie
+            modal.remove();
+            await finalizeSignup(email, name, userType);
+        } catch(e) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#EF4444">❌ Erreur de connexion</span>';
+        }
+    };
 }
 
-async function finalizeSignup(email, name, userType, signupData) {
-    // Récupérer la session après vérification
+async function finalizeSignup(email, name, userType) {
+    // Récupérer la session
     const { data: { session } } = await sb.auth.getSession();
     if (!session) {
         notif('❌ Session expirée', 'Veuillez vous reconnecter', 'red');
@@ -579,7 +667,7 @@ async function finalizeSignup(email, name, userType, signupData) {
     // Attendre que le trigger crée le profil
     await new Promise(r => setTimeout(r, 800));
 
-    // Mettre à jour le profil avec le nom si pas encore fait
+    // Mettre à jour le profil
     await sb.from('users').upsert({
         id: userId,
         email, name,
@@ -611,7 +699,7 @@ async function finalizeSignup(email, name, userType, signupData) {
     }
     await loadData();
     render();
-    notif('✅ Compte vérifié !', userType === 'instructor' ? 'Envoyez vos documents pour valider votre profil' : 'Bienvenue sur DriveConnect NC', 'green');
+    notif('✅ Compte créé !', userType === 'instructor' ? 'Envoyez vos documents pour valider votre profil' : 'Bienvenue sur DriveConnect NC', 'green');
 }
 
 // ========== HOME ====================
