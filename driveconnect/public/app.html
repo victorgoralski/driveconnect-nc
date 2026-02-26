@@ -324,7 +324,7 @@ async function checkDoubleBooking(instructorId, date, time) {
 
 
 
-const COMMISSION = 0.02;
+const COMMISSION = 0.15;
 const NOUMEA = { lat: -22.2758, lng: 166.4580 };
 
 let currentUser = null;
@@ -421,27 +421,93 @@ async function loadData() {
 // ========== AUTH ==========
 async function login(email, password, userType) {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) { notif('❌ Email ou mot de passe incorrect', '', 'red'); return; }
+    if (error) { 
+        if (error.message.includes('Email not confirmed') || error.message.includes('not confirmed')) {
+            notif('❌ Email non confirmé', 'Vérifiez votre boîte mail et cliquez le lien de confirmation', 'red');
+        } else {
+            notif('❌ Email ou mot de passe incorrect', '', 'red'); 
+        }
+        return; 
+    }
 
-    const { data: profile } = await sb.from('users').select('*').eq('id', data.user.id).single();
-    if (!profile || profile.user_type !== userType) {
-        notif('❌ Ce compte n\'est pas un ' + (userType==='student'?'élève':'moniteur'), '', 'red');
+    const userId = data.user.id;
+    const meta = data.user.user_metadata || {};
+    // Source de vérité : user_metadata sauvegardé lors du signUp
+    const savedType = meta.user_type || null;
+
+    // Tenter de récupérer le profil
+    let { data: profile, error: profileErr } = await sb.from('users').select('*').eq('id', userId).maybeSingle();
+    console.log('[LOGIN] Profile fetch:', profile ? 'found, type=' + profile.user_type : 'NOT FOUND', 'error:', profileErr?.message || 'none');
+    
+    // Si pas de profil → le créer
+    if (!profile) {
+        console.log('[LOGIN] Creating missing profile for', userId, 'type:', savedType || userType);
+        const { data: newProfile, error: createErr } = await sb.from('users').upsert({
+            id: userId,
+            email: data.user.email,
+            name: meta.name || email.split('@')[0],
+            user_type: savedType || userType
+        }, { onConflict: 'id' }).select().single();
+        
+        if (createErr) console.error('[LOGIN] Profile create error:', createErr.message);
+        profile = newProfile;
+        
+        // Si toujours pas de profil, attendre et réessayer (trigger Supabase peut être lent)
+        if (!profile) {
+            await new Promise(r => setTimeout(r, 1500));
+            const retry = await sb.from('users').select('*').eq('id', userId).maybeSingle();
+            profile = retry.data;
+            if (profile && !profile.user_type) {
+                await sb.from('users').update({ user_type: savedType || userType }).eq('id', userId);
+                profile.user_type = savedType || userType;
+            }
+        }
+    }
+
+    // Si profil existe mais user_type est null → le mettre à jour
+    if (profile && !profile.user_type) {
+        console.log('[LOGIN] Fixing null user_type to:', savedType || userType);
+        await sb.from('users').update({ user_type: savedType || userType }).eq('id', userId);
+        profile.user_type = savedType || userType;
+    }
+
+    // Déterminer le vrai type de l'utilisateur
+    const actualType = profile?.user_type || savedType || userType;
+
+    // Vérifier que le type correspond à ce qu'il essaie de faire
+    if (actualType && actualType !== userType) {
+        notif('❌ Ce compte est un compte ' + (actualType==='student'?'élève':'moniteur') + '. Connectez-vous sur la bonne page.', '', 'red');
         await sb.auth.signOut();
         return;
     }
-    currentUser = { ...profile, ...data.user };
 
-    if (userType === 'instructor') {
-        const { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', data.user.id).single();
-        const status = instProfile?.approval_status || 'pending_documents';
-        if (status === 'approved') {
-            currentView = 'instructor-dashboard';
-        } else if (status === 'pending_documents') {
+    // Si on n'a toujours pas de profil, en créer un minimal en mémoire
+    if (!profile) {
+        profile = { id: userId, email: data.user.email, name: meta.name || email.split('@')[0], user_type: userType };
+    }
+
+    currentUser = { ...profile, ...data.user, user_type: actualType };
+
+    if (actualType === 'instructor') {
+        let { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', userId).maybeSingle();
+        if (!instProfile) {
+            const { error: instErr } = await sb.from('instructors').upsert({
+                id: userId, user_id: userId,
+                name: profile.name, email: profile.email,
+                rating: 0, total_reviews: 0, experience: 0,
+                location: 'Nouméa', hourly_rate: 4500,
+                verified: false, is_online: false,
+                lat: NOUMEA.lat, lng: NOUMEA.lng,
+                visibility_penalty: 0, approval_status: 'pending_documents'
+            }, { onConflict: 'id' });
+            if (instErr) console.error('[LOGIN] Instructor create error:', instErr.message);
             currentView = 'instructor-upload-docs';
-        } else if (status === 'rejected') {
-            currentView = 'instructor-rejected';
         } else {
-            currentView = 'instructor-pending';
+            const status = instProfile.approval_status || 'pending_documents';
+            if (status === 'approved') currentView = 'instructor-dashboard';
+            else if (status === 'pending_documents') currentView = 'instructor-upload-docs';
+            else if (status === 'rejected') currentView = 'instructor-rejected';
+            else currentView = 'instructor-pending';
         }
     } else {
         currentView = 'student-dashboard';
@@ -463,7 +529,7 @@ async function signup(email, password, name, userType) {
         email, password,
         options: { 
             data: { name, user_type: userType },
-            emailRedirectTo: window.location.origin + '/app.html'
+            emailRedirectTo: window.location.origin + '/app.html?role=' + userType
         }
     });
     if (error) { 
@@ -472,16 +538,13 @@ async function signup(email, password, name, userType) {
         return; 
     }
 
-    // Vérifier si une session a été créée immédiatement
-    // (= confirmation email désactivée dans Supabase → on procède directement)
+    // Vérifier si une session a été créée immédiatement (= confirmation email désactivée)
     if (data.session) {
         await finalizeSignup(email, name, userType);
         return;
     }
 
-    // Pas de session = confirmation email activée dans Supabase
-    // Supabase envoie un LIEN de confirmation (pas un code OTP)
-    // On affiche un écran d'attente qui vérifie périodiquement
+    // Confirmation email activée → afficher l'écran d'attente
     showEmailConfirmationScreen(email, password, name, userType);
 }
 
@@ -499,7 +562,6 @@ function showEmailConfirmationScreen(email, password, name, userType) {
             <p style="color:#FF5A1F;font-weight:700;font-size:15px;margin-top:4px">${email}</p>
         </div>
         
-        <!-- Instructions -->
         <div style="background:#1A1A1A;border-radius:16px;padding:16px;margin-bottom:16px">
             <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
                 <span style="background:rgba(255,90,31,0.15);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#FF5A1F;flex-shrink:0">1</span>
@@ -507,7 +569,7 @@ function showEmailConfirmationScreen(email, password, name, userType) {
             </div>
             <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
                 <span style="background:rgba(255,90,31,0.15);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#FF5A1F;flex-shrink:0">2</span>
-                <p style="color:#D1D5DB;font-size:13px;line-height:1.5">Cliquez sur le <strong style="color:#fff">lien de confirmation</strong> dans l'email</p>
+                <p style="color:#D1D5DB;font-size:13px;line-height:1.5">Cliquez sur le <strong style="color:#fff">lien de confirmation</strong> dans l'email de DriveConnect NC</p>
             </div>
             <div style="display:flex;align-items:flex-start;gap:12px">
                 <span style="background:rgba(255,90,31,0.15);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#FF5A1F;flex-shrink:0">3</span>
@@ -519,36 +581,19 @@ function showEmailConfirmationScreen(email, password, name, userType) {
             <span style="animation:pulse 1.5s ease-in-out infinite">⏳ En attente de confirmation...</span>
         </p>
         
-        <!-- Bouton principal : J'ai confirmé mon email -->
         <button id="email-confirmed-btn" onclick="window._checkEmailConfirmed()" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:16px;cursor:pointer;transition:all 0.2s;margin-bottom:10px">
             ✅ J'ai confirmé mon email
         </button>
 
-        <!-- Renvoyer -->
-        <button onclick="window._resendConfirmation()" id="resend-confirm-btn" style="width:100%;padding:12px;background:transparent;color:#6B7280;border:1px solid #333;border-radius:14px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.15s;margin-bottom:10px">
+        <button onclick="window._resendConfirmation()" id="resend-confirm-btn" style="width:100%;padding:12px;background:transparent;color:#6B7280;border:1px solid #333;border-radius:14px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.15s">
             📧 Renvoyer l'email
         </button>
 
-        <!-- Fallback : continuer sans vérification -->
-        <div id="skip-verify-zone" style="display:none;margin-top:8px">
-            <div style="height:1px;background:#222;margin:12px 0"></div>
-            <p style="color:#4B5563;font-size:12px;text-align:center;margin-bottom:10px;line-height:1.5">Vous ne recevez pas l'email ? Le service email de Supabase est limité sur le plan gratuit.</p>
-            <button onclick="window._skipVerification()" style="width:100%;padding:14px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#FBBF24;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.15s">
-                ⚠️ Continuer sans vérification email
-            </button>
-        </div>
-
-        <p style="color:#3B3B3B;font-size:11px;text-align:center;margin-top:14px;line-height:1.5">Pensez à vérifier vos spams</p>
+        <p style="color:#3B3B3B;font-size:11px;text-align:center;margin-top:14px;line-height:1.5">Pensez à vérifier vos spams · L'email peut prendre quelques minutes</p>
     </div>`;
     document.body.appendChild(modal);
 
-    // Afficher le fallback "skip" après 15 secondes
-    setTimeout(() => {
-        const skipZone = document.getElementById('skip-verify-zone');
-        if (skipZone) { skipZone.style.display = 'block'; skipZone.style.animation = 'fadeUp 0.3s ease-out'; }
-    }, 15000);
-
-    // Vérification automatique toutes les 3s (si l'user a cliqué le lien dans un autre onglet)
+    // Vérification automatique toutes les 3s
     let checkInterval = setInterval(async () => {
         try {
             const { data: { session } } = await sb.auth.getSession();
@@ -567,12 +612,11 @@ function showEmailConfirmationScreen(email, password, name, userType) {
         if (btn) { btn.textContent = '⏳ Vérification...'; btn.disabled = true; btn.style.opacity = '0.6'; }
 
         try {
-            // Tenter de se connecter avec les credentials
             const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({ email, password });
             
             if (loginErr) {
-                if (loginErr.message.includes('Email not confirmed') || loginErr.message.includes('not confirmed')) {
-                    if (statusEl) statusEl.innerHTML = '<span style="color:#EF4444">❌ Email pas encore confirmé. Vérifiez votre boîte mail.</span>';
+                if (loginErr.message.includes('not confirmed')) {
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#EF4444">❌ Email pas encore confirmé. Cliquez le lien dans votre boîte mail.</span>';
                 } else {
                     if (statusEl) statusEl.innerHTML = '<span style="color:#EF4444">❌ ' + loginErr.message + '</span>';
                 }
@@ -598,59 +642,9 @@ function showEmailConfirmationScreen(email, password, name, userType) {
             await sb.auth.resend({ type: 'signup', email });
             notif('📧 Email renvoyé', 'Vérifiez votre boîte mail', 'green');
         } catch(e) {
-            notif('⚠️ Impossible de renvoyer', 'Le service email Supabase est limité', 'orange');
+            notif('⚠️ Erreur', 'Impossible de renvoyer', 'orange');
         }
         if (resendBtn) { resendBtn.textContent = '✅ Email renvoyé'; setTimeout(() => { resendBtn.textContent = '📧 Renvoyer l\'email'; resendBtn.disabled = false; }, 3000); }
-    };
-
-    // Skip : désactiver la vérification et continuer
-    window._skipVerification = async () => {
-        clearInterval(checkInterval);
-        const statusEl = document.getElementById('email-check-status');
-        if (statusEl) statusEl.innerHTML = '<span style="color:#FBBF24">⏳ Connexion en cours...</span>';
-
-        try {
-            // Tenter de se connecter directement (marchera si email confirmation est OFF ou déjà confirmé)
-            const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({ email, password });
-            
-            if (loginErr) {
-                // Si email non confirmé, on ne peut pas se connecter
-                // Proposer de désactiver la confirmation dans Supabase
-                modal.querySelector('div > div').innerHTML = `
-                    <div style="text-align:center">
-                        <div style="width:64px;height:64px;background:rgba(251,191,36,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;border:1px solid rgba(251,191,36,0.3)">⚙️</div>
-                        <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:8px">Configuration requise</h3>
-                        <p style="color:#9CA3AF;font-size:14px;line-height:1.6;margin-bottom:20px">Le service email de Supabase ne fonctionne pas sur votre projet. Deux solutions :</p>
-                        
-                        <div style="background:#1A1A1A;border-radius:16px;padding:16px;text-align:left;margin-bottom:14px">
-                            <p style="color:#FBBF24;font-weight:800;font-size:14px;margin-bottom:8px">Option 1 : Désactiver la confirmation email</p>
-                            <p style="color:#6B7280;font-size:12px;line-height:1.6;margin-bottom:8px">Dans Supabase Dashboard :</p>
-                            <p style="color:#A5B4FC;font-size:12px;font-family:monospace;background:#111;padding:10px;border-radius:8px;line-height:1.6">
-                                Authentication → Providers → Email<br>→ Décocher "Confirm email"<br>→ Save
-                            </p>
-                        </div>
-
-                        <div style="background:#1A1A1A;border-radius:16px;padding:16px;text-align:left;margin-bottom:20px">
-                            <p style="color:#34D399;font-weight:800;font-size:14px;margin-bottom:8px">Option 2 : Configurer un SMTP (recommandé)</p>
-                            <p style="color:#6B7280;font-size:12px;line-height:1.6">
-                                Créez un compte gratuit sur <strong style="color:#fff">resend.com</strong> (100 emails/jour gratuits)<br>
-                                Puis dans Supabase : Settings → Auth → SMTP Settings → coller vos identifiants Resend
-                            </p>
-                        </div>
-
-                        <button onclick="document.querySelectorAll('.otp-verify-modal').forEach(m=>m.remove())" style="width:100%;padding:14px;background:rgba(255,255,255,0.08);border:1px solid #333;color:#fff;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer">
-                            Fermer et réessayer plus tard
-                        </button>
-                    </div>`;
-                return;
-            }
-
-            // Connexion réussie
-            modal.remove();
-            await finalizeSignup(email, name, userType);
-        } catch(e) {
-            if (statusEl) statusEl.innerHTML = '<span style="color:#EF4444">❌ Erreur de connexion</span>';
-        }
     };
 }
 
@@ -663,20 +657,46 @@ async function finalizeSignup(email, name, userType) {
     }
 
     const userId = session.user.id;
+    console.log('[SIGNUP] Finalizing for', userId, 'type:', userType);
 
-    // Attendre que le trigger crée le profil
-    await new Promise(r => setTimeout(r, 800));
+    // Attendre que le trigger Supabase crée le profil (si configuré)
+    await new Promise(r => setTimeout(r, 1000));
 
-    // Mettre à jour le profil
-    await sb.from('users').upsert({
+    // Essayer de créer/mettre à jour le profil
+    const { data: upsertResult, error: upsertErr } = await sb.from('users').upsert({
         id: userId,
         email, name,
         user_type: userType
-    }, { onConflict: 'id' });
+    }, { onConflict: 'id' }).select().single();
+    
+    console.log('[SIGNUP] Upsert result:', upsertResult ? 'OK' : 'null', 'error:', upsertErr?.message || 'none');
+
+    // Si l'upsert a échoué (RLS), essayer un update simple
+    if (upsertErr || !upsertResult) {
+        console.log('[SIGNUP] Upsert failed, trying update...');
+        const { error: updateErr } = await sb.from('users').update({ 
+            name, user_type: userType, email 
+        }).eq('id', userId);
+        console.log('[SIGNUP] Update result:', updateErr?.message || 'OK');
+        
+        // Si update échoue aussi, essayer insert
+        if (updateErr) {
+            console.log('[SIGNUP] Update failed, trying insert...');
+            const { error: insertErr } = await sb.from('users').insert({ 
+                id: userId, email, name, user_type: userType 
+            });
+            console.log('[SIGNUP] Insert result:', insertErr?.message || 'OK');
+        }
+    }
+
+    // Vérifier que le profil existe maintenant
+    await new Promise(r => setTimeout(r, 500));
+    let { data: profile } = await sb.from('users').select('*').eq('id', userId).maybeSingle();
+    console.log('[SIGNUP] Final profile check:', profile ? 'found, type=' + profile.user_type : 'NOT FOUND');
 
     // Si moniteur, créer le profil instructeur
     if (userType === 'instructor') {
-        await sb.from('instructors').upsert({
+        const { error: instErr } = await sb.from('instructors').upsert({
             id: userId,
             user_id: userId,
             name, email,
@@ -687,10 +707,17 @@ async function finalizeSignup(email, name, userType) {
             visibility_penalty: 0,
             approval_status: 'pending_documents'
         }, { onConflict: 'id' });
+        if (instErr) console.error('[SIGNUP] Instructor create error:', instErr.message);
     }
 
-    const { data: profile } = await sb.from('users').select('*').eq('id', userId).single();
-    currentUser = { ...profile, ...session.user };
+    // Construire currentUser même si le profil n'existe pas encore en DB
+    if (profile) {
+        currentUser = { ...profile, ...session.user, user_type: userType };
+    } else {
+        // Fallback : utiliser les données en mémoire
+        console.warn('[SIGNUP] Profile not found in DB, using memory fallback');
+        currentUser = { id: userId, email, name, user_type: userType, ...session.user };
+    }
 
     if (userType === 'instructor') {
         currentView = 'instructor-upload-docs';
@@ -731,7 +758,7 @@ function HomePage() {
                         <p class="text-white/40 text-xs mt-1">Nouvelle-Cal.</p>
                     </div>
                     <div class="text-center">
-                        <p class="text-2xl font-bold text-white">2%</p>
+                        <p class="text-2xl font-bold text-white">15%</p>
                         <p class="text-white/40 text-xs mt-1">Commission seul.</p>
                     </div>
                 </div>
@@ -751,6 +778,7 @@ function HomePage() {
             <div class="flex justify-center gap-6 pt-8 fade-in" style="animation-delay:0.3s">
                 <button onclick="showView('privacy')" class="text-white/30 text-sm hover:text-white/60 transition">Confidentialité</button>
                 <button onclick="showView('terms')" class="text-white/30 text-sm hover:text-white/60 transition">CGU</button>
+                <button onclick="showView('mentions')" class="text-white/30 text-sm hover:text-white/60 transition">Mentions légales</button>
             </div>
         </div>
     </div>`;
@@ -787,9 +815,9 @@ function LoginPage(type) {
                         <input type="checkbox" id="legal-accept" style="margin-top:3px;accent-color:#FF5A1F;width:18px;height:18px;flex-shrink:0">
                         <span style="font-size:13px;color:#374151;line-height:1.5">
                             J&#39;ai lu et j&#39;accepte les
-                            <a href="/legal.html#terms" target="_blank" style="color:#FF5A1F;font-weight:700;text-decoration:underline">CGU</a>
+                            <a onclick="showView('terms')" style="color:#FF5A1F;font-weight:700;text-decoration:underline;cursor:pointer">CGU</a>
                             et la
-                            <a href="/legal.html#privacy" target="_blank" style="color:#FF5A1F;font-weight:700;text-decoration:underline">Politique de confidentialit&#233;</a>
+                            <a onclick="showView('privacy')" style="color:#FF5A1F;font-weight:700;text-decoration:underline;cursor:pointer">Politique de confidentialit&#233;</a>
                             de DriveConnect NC
                         </span>
                     </label>
@@ -952,9 +980,9 @@ function StudentDashboard() {
             ${myBookings.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
                 const isPast = new Date(b.date) < new Date();
                 const canCancel = b.status!=='cancelled' && b.status!=='completed' && !isPast;
-                const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':'#D97706';
-                const statusBg = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='completed'?'#ECFDF5':'#FFFBEB';
-                const statusLabel = b.status==='confirmed'?'Confirmé':b.status==='cancelled'?'Annulé':b.status==='completed'?'✅ Terminé':'En attente';
+                const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':b.status==='dispute'?'#9333EA':'#D97706';
+                const statusBg = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='completed'?'#ECFDF5':b.status==='dispute'?'#F3E8FF':'#FFFBEB';
+                const statusLabel = b.status==='confirmed'?'Confirmé':b.status==='cancelled'?'Annulé':b.status==='completed'?'✅ Terminé':b.status==='dispute'?'⚠️ Litige':'En attente';
                 return `<div class="db-booking-card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
                         <div>
@@ -1541,9 +1569,9 @@ function InstructorDashboard() {
             ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:var(--text-muted)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:var(--text)">Aucune réservation</p></div>`:''}
             <div class="stagger" style="display:flex;flex-direction:column;gap:14px">
             ${[...myBookings].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
-                const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':b.status==='pending'?'#D97706':'#6B7280';
-                const statusBg   = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='completed'?'#ECFDF5':b.status==='pending'?'#FFFBEB':'#F3F4F6';
-                const statusLabel= b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':b.status==='completed'?'✅ Validé':b.status==='pending'?'⏳ En attente':'Inconnu';
+                const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':b.status==='pending'?'#D97706':b.status==='dispute'?'#9333EA':'#6B7280';
+                const statusBg   = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='completed'?'#ECFDF5':b.status==='pending'?'#FFFBEB':b.status==='dispute'?'#F3E8FF':'#F3F4F6';
+                const statusLabel= b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':b.status==='completed'?'✅ Validé':b.status==='pending'?'⏳ En attente':b.status==='dispute'?'⚠️ Litige':'Inconnu';
                 return `<div class="db-booking-card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
                         <div>
@@ -1681,7 +1709,7 @@ function InstructorDashboard() {
             <!-- Parrainage -->
             <div style="background:#fff;border-radius:20px;padding:20px;border:1px solid #F0F0F0;margin-bottom:14px">
                 <h3 style="font-weight:800;font-size:16px;margin-bottom:4px;color:var(--text)">🎁 Parrainage</h3>
-                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Parrainez un moniteur → <strong>1% de commission en moins</strong> pendant 10 cours.</p>
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Parrainez un moniteur → <strong>2% de commission en moins</strong> pendant 10 cours.</p>
                 <div id="referral-code-display" style="background:#FFF7ED;border:2px dashed #FF5A1F;border-radius:14px;padding:14px;text-align:center;font-family:monospace;font-size:22px;font-weight:900;color:#FF5A1F;letter-spacing:6px;margin-bottom:12px">${profile.referral_code||'Chargement...'}</div>
                 <div style="display:flex;gap:8px;margin-bottom:12px">
                     <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:#F3F4F6;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:var(--text);transition:all 0.15s" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">📋 Copier</button>
@@ -1800,7 +1828,7 @@ window.showAddSlot = function() {
         const price = parseInt(modal.querySelector('#sl-price').value) || 0;
         const dur = parseFloat(modal.querySelector('#sl-dur').value) || 1;
         const total = Math.round(price * dur);
-        const commission = Math.round(total * 0.02);
+        const commission = Math.round(total * 0.15);
         const net = total - commission;
         if (price > 0) {
             previewDiv.style.display = 'block';
@@ -1961,9 +1989,24 @@ function showPaymentModal(slot, instructor, prices) {
     });
 
     // ── Compléter la réservation ──────────────────────────────────────────────
+    let _bookingInProgress = false;
     async function completeBooking(paymentStatus, orderId) {
-        const { error } = await sb.from('slots').update({ available: false }).eq('id', slot.id);
-        if (error) { notif('❌ Erreur', error.message, 'red'); return; }
+        // Protection double-clic
+        if (_bookingInProgress) return;
+        _bookingInProgress = true;
+
+        // Vérifier que le créneau est toujours disponible (protection double réservation)
+        const { data: freshSlot, error: slotErr } = await sb.from('slots').select('available').eq('id', slot.id).single();
+        if (slotErr || !freshSlot || freshSlot.available === false) {
+            notif('❌ Créneau déjà réservé', 'Ce créneau vient d\'être pris par un autre élève', 'red');
+            _bookingInProgress = false;
+            setTimeout(() => { modal.remove(); document.body.style.overflow = ''; render(); }, 2000);
+            return;
+        }
+
+        // Marquer le slot comme indisponible immédiatement
+        const { error } = await sb.from('slots').update({ available: false }).eq('id', slot.id).eq('available', true);
+        if (error) { notif('❌ Créneau indisponible', 'Ce créneau a été réservé par un autre élève', 'red'); _bookingInProgress = false; return; }
 
         // Générer un code unique de 6 caractères
         const completionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -1981,7 +2024,7 @@ function showPaymentModal(slot, instructor, prices) {
             completion_code: completionCode
         }).select().single();
 
-        if (bError) { notif('❌ Erreur réservation', bError.message, 'red'); return; }
+        if (bError) { notif('❌ Erreur réservation', bError.message, 'red'); _bookingInProgress = false; return; }
 
         sendPushToUser(instructor.id, '🎉 Nouvelle réservation !',
             `${currentUser.name} a réservé le ${slot.date} à ${slot.time}`);
@@ -2122,10 +2165,14 @@ window.cancelStudent = async function(bookingId) {
     if (!b) return;
     const pol = cancellationPolicy(b.date,b.time);
     const refund = Math.round(b.amount*pol.pct/100);
-    if (!confirm(`Annuler ce cours ?\n\n${pol.label}\nRemboursement : ${refund} XPF`)) return;
+    if (!confirm(`Annuler ce cours ?\n\n${pol.label}\nRemboursement : ${refund} XPF\n\n⚠️ Le créneau sera supprimé. Le moniteur devra en créer un nouveau.`)) return;
 
     await sb.from('bookings').update({ status:'cancelled', cancelled_by:'student', refund_amount:refund, cancelled_at:new Date().toISOString() }).eq('id', bookingId);
-    const cancelledBooking = DB.bookings.find(b=>b.id===bookingId);
+    // SUPPRIMER le créneau (pas le remettre disponible)
+    if (b.slot_id) await sb.from('slots').delete().eq('id', b.slot_id);
+    DB.slots = DB.slots.filter(s => s.id !== b.slot_id);
+
+    const cancelledBooking = DB.bookings.find(x=>x.id===bookingId);
     if (cancelledBooking) {
         sendNotification('cancellation', {
             studentEmail: currentUser.email,
@@ -2134,8 +2181,8 @@ window.cancelStudent = async function(bookingId) {
             date: cancelledBooking.date,
             time: cancelledBooking.time
         });
+        sendPushToUser(cancelledBooking.instructor_id, '❌ Cours annulé', `${currentUser.name} a annulé le cours du ${cancelledBooking.date} à ${cancelledBooking.time}. Créneau supprimé.`);
     }
-    if (pol.pct>=50) await sb.from('slots').update({ available:true }).eq('id', b.slot_id);
 
     await loadData();
     notif('Réservation annulée',`Remboursement de ${refund} XPF (${pol.pct}%)`,pol.pct===100?'green':pol.pct===50?'yellow':'red');
@@ -2147,18 +2194,21 @@ window.cancelInstructor = async function(bookingId) {
     if (!b) return;
     const diffH = (new Date(b.date+'T'+b.time)-new Date())/3600000;
     const isLate = diffH<24;
-    if (!confirm(isLate?`⚠️ Annulation < 24h !\n\nPénalité visibilité -10% pendant 7 jours\nConfirmer ?`:`Annuler ce cours ? L'élève sera remboursé.`)) return;
+    if (!confirm(isLate?`⚠️ Annulation < 24h !\n\nPénalité visibilité -10% pendant 7 jours\nLe créneau sera supprimé.\nConfirmer ?`:`Annuler ce cours ? L'élève sera remboursé.\nLe créneau sera supprimé.`)) return;
 
     await sb.from('bookings').update({ status:'cancelled', cancelled_by:'instructor', refund_amount:b.amount, cancelled_at:new Date().toISOString() }).eq('id', bookingId);
-    await sb.from('slots').update({ available:true }).eq('id', b.slot_id);
+    // SUPPRIMER le créneau
+    if (b.slot_id) await sb.from('slots').delete().eq('id', b.slot_id);
+    DB.slots = DB.slots.filter(s => s.id !== b.slot_id);
 
     if (isLate) {
         const end = new Date(); end.setDate(end.getDate()+7);
         await sb.from('instructors').update({ penalty_until:end.toISOString(), visibility_penalty:10 }).eq('id', currentUser.id);
     }
 
+    sendPushToUser(b.student_id, '❌ Cours annulé par le moniteur', `Le cours du ${b.date} à ${b.time} a été annulé. Remboursement en cours.`);
     await loadData();
-    notif(isLate?'⚠️ Pénalité appliquée':'✅ Cours annulé',isLate?'Visibilité -10% pendant 7 jours':'Élève remboursé',isLate?'red':'orange');
+    notif(isLate?'⚠️ Pénalité appliquée':'✅ Cours annulé',isLate?'Visibilité -10% pendant 7 jours':'Élève remboursé · Créneau supprimé',isLate?'red':'orange');
     render();
 };
 
@@ -2170,8 +2220,8 @@ window.confirmB = async (id) => {
 window.rejectB = async (id) => {
     const b = DB.bookings.find(x=>x.id===id);
     await sb.from('bookings').update({ status:'rejected' }).eq('id', id);
-    if (b) await sb.from('slots').update({ available:true }).eq('id', b.slot_id);
-    await loadData(); notif('Cours refusé','','red'); render();
+    if (b && b.slot_id) await sb.from('slots').delete().eq('id', b.slot_id);
+    await loadData(); notif('Cours refusé · Créneau supprimé','','red'); render();
 };
 
 window.deleteSlot = async (id) => {
@@ -3304,6 +3354,7 @@ function getAdminTabContent(tab, stats) {
                 </span>
                 ${showActions ? `
                 <button onclick="adminForceCancel('${b.id}')" style="padding:6px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#EF4444;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">Annuler</button>
+                                <button onclick="adminSetDispute('${b.id}')" style="padding:6px 12px;background:rgba(147,51,234,0.1);border:1px solid rgba(147,51,234,0.2);color:#9333EA;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">⚠️ Litige</button>
                 ` : ''}
             </div>
         </div>`;
@@ -3662,8 +3713,18 @@ window.adminDeleteUser = async (id) => {
 
 window.adminForceCancel = async (id) => {
     if (!confirm('Annuler cette réservation ?')) return;
+    const b = adminData.bookings.find(x => x.id === id);
     await sb.from('bookings').update({ status: 'cancelled' }).eq('id', id);
-    notif('❌ Réservation annulée', '', 'red');
+    // Supprimer le créneau aussi
+    if (b && b.slot_id) await sb.from('slots').delete().eq('id', b.slot_id);
+    notif('❌ Réservation annulée · Créneau supprimé', '', 'red');
+    await loadAdminData();
+};
+
+window.adminSetDispute = async (id) => {
+    if (!confirm('Mettre cette réservation en litige ?')) return;
+    await sb.from('bookings').update({ status: 'dispute' }).eq('id', id);
+    notif('⚠️ Réservation en litige', '', 'orange');
     await loadAdminData();
 };
 
@@ -3687,6 +3748,159 @@ window.adminResetAllGPS = async () => {
 };
 
 
+// ========== PAGES LÉGALES ==========
+function LegalPage(type) {
+    const tabs = [
+        { id:'privacy', label:'🔒 Confidentialité' },
+        { id:'terms', label:'📋 CGU' },
+        { id:'mentions', label:'📄 Mentions légales' }
+    ];
+    const activeTab = type || 'privacy';
+
+    let content = '';
+
+    if (activeTab === 'privacy') {
+        content = `
+        <h2 style="font-size:24px;font-weight:900;margin-bottom:16px;color:#fff">Politique de confidentialité</h2>
+        <p class="lg-date">Dernière mise à jour : 26 février 2026</p>
+
+        <h3>1. Responsable du traitement</h3>
+        <p>DriveConnect NC exploite la plateforme de mise en relation entre élèves et moniteurs de conduite à Nouméa, Nouvelle-Calédonie. Cette politique décrit comment nous collectons, utilisons et protégeons vos données personnelles.</p>
+
+        <h3>2. Données collectées</h3>
+        <p><strong>Données d'inscription :</strong> nom, prénom, adresse email, mot de passe (hashé), type de compte (élève/moniteur).</p>
+        <p><strong>Données moniteur :</strong> autorisation d'enseigner, pièce d'identité, assurance professionnelle, RIB/coordonnées bancaires, numéro de téléphone, localisation GPS (volontaire).</p>
+        <p><strong>Données de réservation :</strong> dates, heures, montants, codes de validation, notes de suivi pédagogique.</p>
+        <p><strong>Données techniques :</strong> adresse IP, type de navigateur, données de géolocalisation GPS (uniquement pour les moniteurs ayant activé le suivi).</p>
+        <p><strong>Données de paiement :</strong> les paiements sont traités par PayPal. DriveConnect NC ne stocke aucun numéro de carte bancaire.</p>
+
+        <h3>3. Finalité du traitement</h3>
+        <p>Vos données sont utilisées pour : la création et gestion de votre compte, la mise en relation élèves/moniteurs, le traitement des paiements et commissions (15%), la géolocalisation des moniteurs disponibles, l'envoi de notifications liées aux réservations, et l'amélioration de nos services.</p>
+
+        <h3>4. Base légale</h3>
+        <p>Le traitement de vos données repose sur : l'exécution du contrat (réservations, paiements), votre consentement (géolocalisation, notifications), nos intérêts légitimes (sécurité, amélioration du service), et nos obligations légales.</p>
+
+        <h3>5. Stockage et sécurité</h3>
+        <p>Vos données sont hébergées sur Supabase (infrastructure cloud sécurisée). Les mots de passe sont hashés avec bcrypt. Les communications sont chiffrées via HTTPS/TLS. Les documents d'identité sont stockés dans un bucket sécurisé accessible uniquement par l'administration.</p>
+
+        <h3>6. Géolocalisation</h3>
+        <p>La géolocalisation GPS est utilisée uniquement pour les moniteurs ayant activé le partage de position. Elle permet aux élèves de voir les moniteurs disponibles sur la carte. Le moniteur peut activer/désactiver le GPS à tout moment. La position n'est pas conservée après déconnexion.</p>
+
+        <h3>7. Durée de conservation</h3>
+        <p>Données de compte : conservées tant que le compte est actif + 3 ans après suppression. Données de réservation : 5 ans (obligation comptable). Documents d'identité moniteur : durée de l'activité + 1 an. Données GPS : non conservées après déconnexion.</p>
+
+        <h3>8. Vos droits</h3>
+        <p>Conformément à la réglementation en vigueur, vous disposez d'un droit d'accès, de rectification, de suppression, de portabilité et d'opposition. Pour exercer ces droits : contact@driveconnect.nc. Délai de réponse : 30 jours maximum.</p>
+
+        <h3>9. Cookies</h3>
+        <p>DriveConnect NC utilise uniquement des cookies techniques essentiels au fonctionnement (session d'authentification, préférences d'affichage). Aucun cookie publicitaire ou de suivi n'est utilisé.</p>
+
+        <h3>10. Protection des mineurs</h3>
+        <p>DriveConnect NC s'adresse aux personnes de 16 ans et plus (âge légal pour la conduite accompagnée en Nouvelle-Calédonie). Les mineurs de 16-17 ans doivent avoir l'autorisation de leur représentant légal.</p>`;
+    }
+
+    if (activeTab === 'terms') {
+        content = `
+        <h2 style="font-size:24px;font-weight:900;margin-bottom:16px;color:#fff">Conditions Générales d'Utilisation</h2>
+        <p class="lg-date">Dernière mise à jour : 26 février 2026</p>
+
+        <h3>1. Objet</h3>
+        <p>DriveConnect NC est une plateforme de mise en relation entre élèves souhaitant prendre des cours de conduite et moniteurs indépendants à Nouméa, Nouvelle-Calédonie. L'utilisation de la plateforme implique l'acceptation pleine et entière des présentes CGU.</p>
+
+        <h3>2. Rôle de DriveConnect NC</h3>
+        <p>DriveConnect NC est un intermédiaire technique. La plateforme ne dispense pas de cours de conduite et n'est pas une auto-école. Elle met en relation des moniteurs indépendants vérifiés avec des élèves. DriveConnect NC prélève une commission de <strong>15%</strong> sur chaque réservation payée.</p>
+
+        <h3>3. Inscription et vérification</h3>
+        <p><strong>Élèves :</strong> inscription avec email vérifié, nom et mot de passe. <strong>Moniteurs :</strong> inscription avec vérification email + envoi obligatoire de : autorisation d'enseigner la conduite (ECSR, BEPECASER ou autorisation préfectorale), pièce d'identité valide, RIB/coordonnées bancaires. L'assurance professionnelle est optionnelle mais recommandée. Les documents sont vérifiés manuellement par l'administration avant validation du compte.</p>
+
+        <h3>4. Réservations et paiements</h3>
+        <p>Les paiements sont effectués en XPF via PayPal (conversion automatique en EUR au taux fixe officiel de 1 EUR = 119,3317 XPF). Un code de validation à 6 caractères est généré à chaque réservation. L'élève communique ce code au moniteur à la fin du cours pour valider la séance.</p>
+        <p>Un créneau payé ne peut pas être réservé par un autre élève. En cas d'annulation, le créneau est définitivement supprimé et le moniteur doit en créer un nouveau.</p>
+
+        <h3>5. Statuts des réservations</h3>
+        <p><strong>En attente :</strong> réservation créée, en attente de confirmation. <strong>Confirmée :</strong> paiement validé, cours programmé. <strong>Terminée :</strong> cours validé par le code de validation. <strong>Annulée :</strong> cours annulé par l'élève ou le moniteur. <strong>Litige :</strong> contestation en cours, gérée par l'administration.</p>
+
+        <h3>6. Commission</h3>
+        <p>DriveConnect NC prélève une commission de <strong>15%</strong> sur le montant de chaque réservation confirmée. Le moniteur reçoit 85% du montant. En cas de parrainage d'un moniteur, la commission est réduite de 2% (soit 13%) pendant les 10 premiers cours du moniteur parrainé.</p>
+
+        <h3>7. Annulations et remboursements</h3>
+        <p><strong>Par l'élève :</strong> remboursement à 100% si annulation plus de 48h avant le cours, 50% entre 24h et 48h, 0% moins de 24h avant. <strong>Par le moniteur :</strong> remboursement intégral à l'élève. Si annulation moins de 24h avant : pénalité de visibilité -10% pendant 7 jours. Dans tous les cas, le créneau est définitivement supprimé.</p>
+
+        <h3>8. Obligations des moniteurs</h3>
+        <p>Le moniteur s'engage à : posséder les qualifications légales valides, disposer d'un véhicule à double commande assuré, respecter les horaires des réservations, ne pas annuler de manière répétitive (pénalités de visibilité), et respecter le code de la route et les règles de sécurité.</p>
+
+        <h3>9. Obligations des élèves</h3>
+        <p>L'élève s'engage à : fournir des informations exactes, se présenter à l'heure aux rendez-vous, respecter le moniteur et le véhicule, et communiquer le code de validation uniquement à la fin du cours effectivement réalisé.</p>
+
+        <h3>10. Suspension et résiliation</h3>
+        <p>DriveConnect NC se réserve le droit de suspendre ou résilier tout compte en cas de : violation des présentes CGU, fraude ou tentative de fraude, comportement inapproprié, faux documents, ou utilisation abusive de la plateforme.</p>
+
+        <h3>11. Limitation de responsabilité</h3>
+        <p>DriveConnect NC n'est pas responsable : de la qualité des cours dispensés par les moniteurs, des dommages survenant pendant un cours de conduite, des retards ou absences des moniteurs ou élèves, ni des problèmes techniques indépendants de sa volonté.</p>
+
+        <h3>12. Droit applicable</h3>
+        <p>Les présentes CGU sont soumises au droit français applicable en Nouvelle-Calédonie. En cas de litige, les parties s'engagent à rechercher une solution amiable. À défaut, les tribunaux de Nouméa seront seuls compétents.</p>`;
+    }
+
+    if (activeTab === 'mentions') {
+        content = `
+        <h2 style="font-size:24px;font-weight:900;margin-bottom:16px;color:#fff">Mentions légales</h2>
+        <p class="lg-date">Dernière mise à jour : 26 février 2026</p>
+
+        <h3>1. Éditeur du site</h3>
+        <p><strong>Nom :</strong> DriveConnect NC<br>
+        <strong>Forme juridique :</strong> Entreprise individuelle<br>
+        <strong>Siège social :</strong> Nouméa, Nouvelle-Calédonie<br>
+        <strong>Email :</strong> contact@driveconnect.nc<br>
+        <strong>Directeur de la publication :</strong> Le gérant de DriveConnect NC</p>
+
+        <h3>2. Hébergement</h3>
+        <p><strong>Site web :</strong> hébergé par Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA.<br>
+        <strong>Base de données :</strong> hébergée par Supabase Inc.<br>
+        <strong>Paiements :</strong> traités par PayPal (Europe) S.à r.l. et Cie, S.C.A., 22-24 Boulevard Royal, L-2449 Luxembourg.</p>
+
+        <h3>3. Propriété intellectuelle</h3>
+        <p>L'ensemble du contenu du site DriveConnect NC (textes, graphismes, logos, icônes, logiciels) est la propriété exclusive de DriveConnect NC ou de ses partenaires. Toute reproduction, représentation ou diffusion, en tout ou partie, du contenu de ce site est interdite sans autorisation écrite préalable.</p>
+
+        <h3>4. Données personnelles</h3>
+        <p>Conformément à la réglementation applicable en matière de protection des données personnelles, vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Pour plus de détails, consultez notre Politique de confidentialité.</p>
+
+        <h3>5. Cookies</h3>
+        <p>Le site utilise uniquement des cookies techniques nécessaires au fonctionnement du service. Aucun cookie publicitaire ou de suivi marketing n'est utilisé.</p>
+
+        <h3>6. Activité</h3>
+        <p>DriveConnect NC est une plateforme de mise en relation entre élèves et moniteurs de conduite indépendants. DriveConnect NC n'est pas un établissement d'enseignement de la conduite (auto-école) et n'emploie pas directement les moniteurs. La commission prélevée est de 15% sur chaque transaction.</p>
+
+        <h3>7. Médiation</h3>
+        <p>En cas de litige, le consommateur peut recourir gratuitement au service de médiation. Les litiges relatifs à l'utilisation de la plateforme sont soumis à la compétence des tribunaux de Nouméa, Nouvelle-Calédonie.</p>
+
+        <h3>8. Crédits</h3>
+        <p>Cartographie : OpenStreetMap & CartoDB. Paiements : PayPal. Icônes : système emoji natif. Police : DM Sans (Google Fonts).</p>`;
+    }
+
+    return `<div class="min-h-screen" style="background:linear-gradient(160deg,#0f0f0f 0%,#1a1a1a 50%,#0f0f0f 100%)">
+        <div style="max-width:700px;margin:0 auto;padding:20px 20px 60px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-top:12px">
+                <button onclick="currentView='home';render()" style="background:rgba(255,255,255,0.08);border:none;width:40px;height:40px;border-radius:50%;color:#fff;font-size:18px;cursor:pointer">←</button>
+                <h1 style="color:#fff;font-weight:900;font-size:22px">Informations légales</h1>
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:28px;overflow-x:auto;padding-bottom:4px">
+                ${tabs.map(t => `<button onclick="currentView='${t.id}';render()" style="padding:10px 16px;border-radius:12px;font-size:13px;font-weight:700;border:none;cursor:pointer;white-space:nowrap;transition:all 0.15s;${activeTab===t.id?'background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff':'background:rgba(255,255,255,0.06);color:#6B7280'}">${t.label}</button>`).join('')}
+            </div>
+            <style>
+                .legal-content h3 { color:#FF5A1F;font-weight:800;font-size:16px;margin:24px 0 8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06); }
+                .legal-content h3:first-of-type { border-top:none;margin-top:16px; }
+                .legal-content p { color:#9CA3AF;font-size:14px;line-height:1.8;margin-bottom:10px; }
+                .legal-content p strong { color:#D1D5DB; }
+                .legal-content .lg-date { color:#4B5563;font-size:12px;font-style:italic;margin-bottom:20px; }
+            </style>
+            <div class="legal-content" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:28px">
+                ${content}
+            </div>
+        </div>
+    </div>`;
+}
+
 function render() {
     if(map){map.remove();map=null;iMarkers=[];}
     if(mapRealtimeChannel){mapRealtimeChannel.unsubscribe();mapRealtimeChannel=null;}
@@ -3703,6 +3917,7 @@ function render() {
         case 'admin':               loadAdminData(); break;
         case 'privacy':             app.innerHTML=LegalPage('privacy'); break;
         case 'terms':               app.innerHTML=LegalPage('terms'); break;
+        case 'mentions':            app.innerHTML=LegalPage('mentions'); break;
     }
 }
 
@@ -3778,9 +3993,9 @@ async function applyReferralCode(newInstructorId, referralCode) {
     const code = referralCode.toUpperCase().trim();
     const { data: referrer } = await sb.from('instructors').select('id, name').eq('referral_code', code).single();
     if (!referrer) { notif('⚠️ Code invalide', 'Ce code de parrainage n\'existe pas', 'yellow'); return; }
-    await sb.from('referrals').insert({ referrer_id: referrer.id, referred_id: newInstructorId, referral_code: code, status: 'active', bonus_courses_remaining: 10, commission_discount: 1 });
+    await sb.from('referrals').insert({ referrer_id: referrer.id, referred_id: newInstructorId, referral_code: code, status: 'active', bonus_courses_remaining: 10, commission_discount: 2 });
     sendPushToUser(referrer.id, '🎉 Nouveau filleul !', `Un nouveau moniteur a rejoint DriveConnect avec votre code !`);
-    notif('✅ Code appliqué !', `Parrain : ${referrer.name}. 1% de commission en moins pendant 10 cours.`, 'green');
+    notif('✅ Code appliqué !', `Parrain : ${referrer.name}. 2% de commission en moins pendant 10 cours.`, 'green');
 }
 
 function checkReferralInUrl() {
@@ -3839,15 +4054,43 @@ async function boot() {
 
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
-        const { data: profile } = await sb.from('users').select('*').eq('id', session.user.id).single();
+        const userId = session.user.id;
+        const meta = session.user.user_metadata || {};
+        let { data: profile, error: profErr } = await sb.from('users').select('*').eq('id', userId).maybeSingle();
+        
+        // Si pas de profil, le créer depuis les métadonnées
+        if (!profile) {
+            console.log('[BOOT] No profile found, creating from metadata...');
+            const savedType = meta.user_type || null;
+            const { data: newProf } = await sb.from('users').upsert({
+                id: userId,
+                email: session.user.email,
+                name: meta.name || session.user.email.split('@')[0],
+                user_type: savedType
+            }, { onConflict: 'id' }).select().single();
+            profile = newProf;
+            // Si toujours pas, attendre et réessayer
+            if (!profile) {
+                await new Promise(r => setTimeout(r, 1000));
+                const retry = await sb.from('users').select('*').eq('id', userId).maybeSingle();
+                profile = retry.data;
+            }
+        }
+        
+        // Si profil existe mais user_type null, corriger
+        if (profile && !profile.user_type && meta.user_type) {
+            await sb.from('users').update({ user_type: meta.user_type }).eq('id', userId);
+            profile.user_type = meta.user_type;
+        }
+
         if (profile) {
-            currentUser = { ...profile, ...session.user };
+            currentUser = { ...profile, ...session.user, user_type: profile.user_type || meta.user_type };
 
             // Accès admin : soit is_admin en base, soit clé URL secrète
             if (profile.is_admin || adminKey === 'dc2024') {
                 currentView = 'admin';
-            } else if (profile.user_type === 'instructor') {
-                const { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', session.user.id).single();
+            } else if (currentUser.user_type === 'instructor') {
+                const { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', userId).maybeSingle();
                 const status = instProfile?.approval_status || 'pending_documents';
                 if (status === 'approved') {
                     currentView = 'instructor-dashboard';
