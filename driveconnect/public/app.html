@@ -772,6 +772,24 @@ function HomePage() {
                         Je suis moniteur
                     </button>
                 </div>
+
+                <!-- Trust badges -->
+                <div class="fade-in" style="animation-delay:0.25s;margin-top:24px;display:flex;flex-direction:column;gap:10px">
+                    <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px">
+                        <span style="font-size:20px">🛡️</span>
+                        <div>
+                            <p style="color:#fff;font-weight:700;font-size:13px">Protection paiement garanti</p>
+                            <p style="color:rgba(255,255,255,0.4);font-size:11px">Paiement sécurisé et protégé jusqu'à validation du cours</p>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px">
+                        <span style="font-size:20px">✅</span>
+                        <div>
+                            <p style="color:#fff;font-weight:700;font-size:13px">Moniteurs vérifiés</p>
+                            <p style="color:rgba(255,255,255,0.4);font-size:11px">Documents et qualifications contrôlés manuellement</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Footer légal -->
@@ -995,6 +1013,7 @@ function StudentDashboard() {
                         <p style="font-weight:900;font-size:17px;color:#FF5A1F">${b.amount.toLocaleString()} XPF</p>
                         <div style="display:flex;gap:8px;align-items:center">
                             ${b.status==='confirmed'&&!isPast?`<button onclick="cancelStudent('${b.id}')" style="color:#DC2626;background:none;border:none;font-size:12px;font-weight:700;cursor:pointer">Annuler</button>`:''}
+                            ${b.status==='confirmed'||b.status==='completed'?`<button onclick="reportIssue('${b.id}','student','${(b.instructor_name||'').replace(/'/g,'')}')" style="color:#9333EA;background:none;border:none;font-size:11px;font-weight:700;cursor:pointer">⚠️ Signaler</button>`:''}
                             ${isPast&&b.status==='completed'&&!b.rated?`<button onclick="showRating('${b.id}','${b.instructor_id}','${b.instructor_name}')" style="background:#FFF7ED;color:#EA580C;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">⭐ Noter</button>`:''}
                             ${b.status==='confirmed'?`<button onclick="openChat('${b.id}','${b.instructor_id}','${b.instructor_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">💬 Chat</button>`:''}
                         </div>
@@ -1601,8 +1620,10 @@ function InstructorDashboard() {
                                     `<span style="font-size:11px;color:#059669;font-weight:700">📝 Fiche rédigée</span>` :
                                     `<span style="font-size:11px;color:#9CA3AF">⏱ Délai expiré</span>`
                                 }
+                                ${!b.instructor_rated?`<button onclick="rateStudent('${b.id}','${(b.student_name||'').replace(/'/g,'')}')" style="background:#FFF7ED;color:#EA580C;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">⭐ Noter</button>`:''}
                                 <button onclick="viewStudentProgress('${b.student_id}','${(b.student_name||'').replace(/'/g,'')}')" style="background:#F3F4F6;color:#374151;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">👁️ Suivi</button>
                             `:''}
+                            ${b.status==='confirmed'||b.status==='completed'?`<button onclick="reportIssue('${b.id}','instructor','${(b.student_name||'').replace(/'/g,'')}')" style="color:#9333EA;background:none;border:none;font-size:11px;font-weight:700;cursor:pointer">⚠️</button>`:''}
                         </div>
                     </div>
                 </div>`;
@@ -1709,7 +1730,7 @@ function InstructorDashboard() {
             <!-- Parrainage -->
             <div style="background:#fff;border-radius:20px;padding:20px;border:1px solid #F0F0F0;margin-bottom:14px">
                 <h3 style="font-weight:800;font-size:16px;margin-bottom:4px;color:var(--text)">🎁 Parrainage</h3>
-                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Parrainez un moniteur → <strong>2% de commission en moins</strong> pendant 10 cours.</p>
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Parrainez un moniteur → <strong>3% de commission en moins</strong> pendant 10 cours.</p>
                 <div id="referral-code-display" style="background:#FFF7ED;border:2px dashed #FF5A1F;border-radius:14px;padding:14px;text-align:center;font-family:monospace;font-size:22px;font-weight:900;color:#FF5A1F;letter-spacing:6px;margin-bottom:12px">${profile.referral_code||'Chargement...'}</div>
                 <div style="display:flex;gap:8px;margin-bottom:12px">
                     <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:#F3F4F6;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:var(--text);transition:all 0.15s" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">📋 Copier</button>
@@ -2550,6 +2571,7 @@ function _buildInstructorPopup(i) {
             ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff">${(i.name||'?').charAt(0).toUpperCase()}</div>`}
         </div>
         <p style="font-weight:900;font-size:16px;color:#0D0D0D;margin-bottom:3px">${i.name}</p>
+        ${i.verified ? '<span style="background:#ECFDF5;color:#059669;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:3px">✅ Moniteur vérifié</span>' : ''}
         ${i.rating ? `<p style="color:#F59E0B;font-size:14px;margin:2px 0">${'★'.repeat(stars)}${'☆'.repeat(5-stars)} <span style="color:#9CA3AF;font-size:12px">${i.rating.toFixed(1)}</span></p>` : ''}
         <p style="color:#9CA3AF;font-size:12px;margin:4px 0 8px">📍 ${i.location||'Nouméa'} · ${i.experience||0} ans</p>
         <p style="font-weight:900;color:#FF5A1F;font-size:20px;margin:6px 0">${(i.hourly_rate||0).toLocaleString()} <span style="font-size:12px;color:#9CA3AF">XPF/h</span></p>
@@ -3908,7 +3930,7 @@ function LegalPage(type) {
         <p><strong>En attente :</strong> réservation créée, en attente de confirmation. <strong>Confirmée :</strong> paiement validé, cours programmé. <strong>Terminée :</strong> cours validé par le code de validation. <strong>Annulée :</strong> cours annulé par l'élève ou le moniteur. <strong>Litige :</strong> contestation en cours, gérée par l'administration.</p>
 
         <h3>6. Commission</h3>
-        <p>DriveConnect NC prélève une commission de <strong>15%</strong> sur le montant de chaque réservation confirmée. Le moniteur reçoit 85% du montant. En cas de parrainage d'un moniteur, la commission est réduite de 2% (soit 13%) pendant les 10 premiers cours du moniteur parrainé.</p>
+        <p>DriveConnect NC prélève une commission de <strong>15%</strong> sur le montant de chaque réservation confirmée. Le moniteur reçoit 85% du montant. En cas de parrainage d'un moniteur, la commission est réduite de 3% (soit 12%) pendant les 10 premiers cours du moniteur parrainé.</p>
 
         <h3>7. Annulations et remboursements</h3>
         <p><strong>Par l'élève :</strong> remboursement à 100% si annulation plus de 48h avant le cours, 50% entre 24h et 48h, 0% moins de 24h avant. <strong>Par le moniteur :</strong> remboursement intégral à l'élève. Si annulation moins de 24h avant : pénalité de visibilité -10% pendant 7 jours. Dans tous les cas, le créneau est définitivement supprimé.</p>
@@ -4080,9 +4102,9 @@ async function applyReferralCode(newInstructorId, referralCode) {
     const code = referralCode.toUpperCase().trim();
     const { data: referrer } = await sb.from('instructors').select('id, name').eq('referral_code', code).single();
     if (!referrer) { notif('⚠️ Code invalide', 'Ce code de parrainage n\'existe pas', 'yellow'); return; }
-    await sb.from('referrals').insert({ referrer_id: referrer.id, referred_id: newInstructorId, referral_code: code, status: 'active', bonus_courses_remaining: 10, commission_discount: 2 });
+    await sb.from('referrals').insert({ referrer_id: referrer.id, referred_id: newInstructorId, referral_code: code, status: 'active', bonus_courses_remaining: 10, commission_discount: 3 });
     sendPushToUser(referrer.id, '🎉 Nouveau filleul !', `Un nouveau moniteur a rejoint DriveConnect avec votre code !`);
-    notif('✅ Code appliqué !', `Parrain : ${referrer.name}. 2% de commission en moins pendant 10 cours.`, 'green');
+    notif('✅ Code appliqué !', `Parrain : ${referrer.name}. 3% de commission en moins pendant 10 cours.`, 'green');
 }
 
 function checkReferralInUrl() {
@@ -4265,6 +4287,121 @@ window.selectStar = function(val) {
 }
 
 
+// ========== SIGNALEMENT / LITIGE ==========
+window.reportIssue = function(bookingId, reporterType, otherName) {
+    document.getElementById('report-modal')?.remove();
+    const isStudent = reporterType === 'student';
+    const options = isStudent ? [
+        { id:'no_show', icon:'🚫', label:'Le moniteur n\'est pas venu', desc:'Le moniteur ne s\'est pas présenté au rendez-vous' },
+        { id:'bad_conduct', icon:'⚠️', label:'Comportement inapproprié', desc:'Mauvaise conduite, manque de professionnalisme' },
+        { id:'safety', icon:'🛑', label:'Problème de sécurité', desc:'Mise en danger, véhicule défectueux' },
+        { id:'other', icon:'💬', label:'Autre problème', desc:'Décrivez votre problème ci-dessous' }
+    ] : [
+        { id:'student_absent', icon:'🚫', label:'L\'élève ne s\'est pas présenté', desc:'Absence sans prévenir' },
+        { id:'bad_behavior', icon:'⚠️', label:'Comportement inapproprié', desc:'Manque de respect, comportement dangereux' },
+        { id:'other', icon:'💬', label:'Autre problème', desc:'Décrivez votre problème ci-dessous' }
+    ];
+
+    const modal = document.createElement('div');
+    modal.id = 'report-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeUp 0.3s ease-out';
+    modal.innerHTML = `<div style="background:#0D0D0D;border-radius:28px;padding:28px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto">
+        <div style="text-align:center;margin-bottom:20px">
+            <div style="width:56px;height:56px;background:rgba(147,51,234,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px;border:1px solid rgba(147,51,234,0.3)">⚠️</div>
+            <h3 style="color:#fff;font-weight:900;font-size:18px;margin-bottom:4px">Signaler un problème</h3>
+            <p style="color:#6B7280;font-size:13px">Concernant ${otherName}</p>
+        </div>
+        <div id="report-options" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+            ${options.map(o => `<button onclick="window._selectReportOption('${o.id}')" data-opt="${o.id}" style="display:flex;align-items:center;gap:12px;background:#1A1A1A;border:2px solid #2A2A2A;border-radius:14px;padding:14px;cursor:pointer;text-align:left;transition:all 0.15s">
+                <span style="font-size:20px;flex-shrink:0">${o.icon}</span>
+                <div><p style="color:#fff;font-weight:700;font-size:14px">${o.label}</p><p style="color:#6B7280;font-size:11px;margin-top:2px">${o.desc}</p></div>
+            </button>`).join('')}
+        </div>
+        <textarea id="report-details" rows="3" placeholder="Détails supplémentaires (optionnel)..." style="width:100%;background:#1A1A1A;border:1px solid #333;border-radius:12px;padding:12px;color:#fff;font-size:14px;resize:none;outline:none;font-family:inherit;margin-bottom:14px"></textarea>
+        <div style="background:rgba(147,51,234,0.08);border:1px solid rgba(147,51,234,0.2);border-radius:12px;padding:12px;margin-bottom:16px">
+            <p style="color:#A78BFA;font-size:12px;line-height:1.6"><strong>Protocole :</strong> Signalement examiné sous 24-48h. Réservation mise en litige. ${isStudent ? 'Si le moniteur ne s\'est pas présenté → remboursement intégral.' : 'Si l\'élève est absent → vous conservez votre rémunération.'} L'autre partie sera notifiée.</p>
+        </div>
+        <div style="display:flex;gap:10px">
+            <button onclick="document.getElementById('report-modal').remove()" style="flex:1;padding:14px;background:#222;color:#999;border:1px solid #333;border-radius:14px;font-weight:600;cursor:pointer">Annuler</button>
+            <button id="report-submit-btn" onclick="window._submitReport('${bookingId}','${reporterType}')" style="flex:1;padding:14px;background:linear-gradient(135deg,#9333EA,#A855F7);color:#fff;border:none;border-radius:14px;font-weight:800;cursor:pointer;opacity:0.4;pointer-events:none" disabled>Envoyer</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    window._reportSelectedOption = null;
+};
+
+window._selectReportOption = function(optId) {
+    window._reportSelectedOption = optId;
+    document.querySelectorAll('#report-options button').forEach(b => {
+        b.style.borderColor = b.dataset.opt === optId ? '#9333EA' : '#2A2A2A';
+        b.style.background = b.dataset.opt === optId ? 'rgba(147,51,234,0.1)' : '#1A1A1A';
+    });
+    const btn = document.getElementById('report-submit-btn');
+    if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; btn.disabled = false; }
+};
+
+window._submitReport = async function(bookingId, reporterType) {
+    const reason = window._reportSelectedOption;
+    const details = document.getElementById('report-details')?.value?.trim() || '';
+    if (!reason) return;
+    const btn = document.getElementById('report-submit-btn');
+    if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+    await sb.from('bookings').update({
+        status: 'dispute', dispute_reason: reason, dispute_details: details,
+        dispute_by: reporterType, dispute_at: new Date().toISOString()
+    }).eq('id', bookingId);
+    document.getElementById('report-modal')?.remove();
+    notif('⚠️ Signalement envoyé', 'L\'administration traitera votre demande sous 24-48h', 'orange');
+    await loadData(); render();
+};
+
+// ========== NOTATION ÉLÈVE PAR MONITEUR ==========
+window.rateStudent = function(bookingId, studentName) {
+    window._selectedStudentRating = 0;
+    document.getElementById('student-rating-modal')?.remove();
+    const stars = [1,2,3,4,5].map(i =>
+        '<span style="font-size:2.8rem;cursor:pointer;transition:transform 0.15s;display:inline-block" data-sval="'+i+'" '+
+        'onclick="window._selectStudentStar('+i+')" '+
+        'onmouseover="window._hoverStudentStar('+i+');this.style.transform=\'scale(1.2)\'" '+
+        'onmouseout="window._resetStudentStars();this.style.transform=\'scale(1)\'">☆</span>'
+    ).join('');
+    const modal = document.createElement('div');
+    modal.id = 'student-rating-modal';
+    modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4';
+    modal.style.animation = 'fadeUp 0.3s ease-out';
+    modal.innerHTML =
+        '<div style="background:#fff;border-radius:28px;padding:32px;max-width:360px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.25);text-align:center;animation:scaleIn 0.3s ease-out">'+
+        '<div style="width:64px;height:64px;background:#EFF6FF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px">👨‍🎓</div>'+
+        '<h3 style="font-size:20px;font-weight:900;margin-bottom:6px;color:#111">Noter '+studentName+'</h3>'+
+        '<p style="color:#999;font-size:14px;margin-bottom:24px">Comment s\'est comporté l\'élève ?</p>'+
+        '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:28px">'+stars+'</div>'+
+        '<div style="display:flex;gap:10px">'+
+        '<button onclick="document.getElementById(\'student-rating-modal\').remove()" style="flex:1;padding:14px;border:1.5px solid #E5E7EB;background:#fff;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;color:#6B7280">Annuler</button>'+
+        '<button onclick="window._submitStudentRating(\''+bookingId+'\')" style="flex:1;padding:14px;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer">Envoyer</button>'+
+        '</div></div>';
+    document.body.appendChild(modal);
+};
+
+window._selectStudentStar = function(v) {
+    window._selectedStudentRating = v;
+    document.querySelectorAll('[data-sval]').forEach((s,i) => { s.textContent = i < v ? '⭐' : '☆'; });
+};
+window._hoverStudentStar = function(v) {
+    document.querySelectorAll('[data-sval]').forEach((s,i) => { s.textContent = i < v ? '⭐' : '☆'; });
+};
+window._resetStudentStars = function() {
+    const sel = window._selectedStudentRating || 0;
+    document.querySelectorAll('[data-sval]').forEach((s,i) => { s.textContent = i < sel ? '⭐' : '☆'; });
+};
+window._submitStudentRating = async function(bookingId) {
+    const rating = window._selectedStudentRating || 0;
+    if (!rating) { notif('❌ Choisissez une note', '', 'red'); return; }
+    await sb.from('bookings').update({ instructor_rated: true, student_rating: rating }).eq('id', bookingId);
+    document.getElementById('student-rating-modal')?.remove();
+    notif('⭐ Note enregistrée !', `${rating}/5 étoiles pour l'élève`, 'green');
+    await loadData(); render();
+};
 
 // ========== MODE SOMBRE ==========
 let isDark = localStorage.getItem('darkMode') === 'true';
@@ -4500,6 +4637,8 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
             event: 'INSERT', schema: 'public', table: 'messages',
             filter: 'booking_id=eq.' + bookingId
         }, payload => {
+            // Ignorer les messages qu'on a envoyé soi-même (évite le double affichage)
+            if (payload.new.sender_id === currentUser.id) return;
             if (!document.querySelector('[data-msg-id="' + payload.new.id + '"]'))
                 _chatAppend(payload.new);
         })
@@ -4524,19 +4663,31 @@ async function _chatSendText(bookingId) {
     const input = document.getElementById('chat-input');
     const text = input?.value?.trim();
     if (!text) return;
+    // Empêcher double envoi rapide
+    if (input._sending) return;
+    input._sending = true;
     input.value = '';
+    const tempId = 'local-' + Date.now() + '-' + Math.random().toString(36).substr(2,5);
     const msg = {
+        id: tempId,
         booking_id: bookingId, sender_id: currentUser.id,
         sender_name: currentUser.name || 'Moi',
         content: sanitize(text), created_at: new Date().toISOString()
     };
     _chatAppend(msg);
+    // Stocker l'ID temporaire pour ignorer le retour postgres_changes
+    if (!window._chatSentLocalIds) window._chatSentLocalIds = new Set();
+    window._chatSentLocalIds.add(text.trim());
+    // Envoyer en broadcast (pour l'autre personne)
     try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: msg }); } catch(e){}
     const { error } = await sb.from('messages').insert({
         booking_id: bookingId, sender_id: currentUser.id,
         sender_name: currentUser.name || 'Moi', content: sanitize(text)
     });
     if (error) notif('❌ Erreur envoi', error.message, 'red');
+    input._sending = false;
+    // Nettoyer après 5s
+    setTimeout(() => window._chatSentLocalIds?.delete(text.trim()), 5000);
 }
 
 function _chatPreviewImg(fileInput) {
