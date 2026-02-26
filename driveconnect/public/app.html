@@ -3054,26 +3054,44 @@ let adminData = { users: [], instructors: [], bookings: [], slots: [] };
 let adminTab = 'overview';
 
 async function loadAdminData() {
-    const [u, i, b, s] = await Promise.all([
-        sb.from('users').select('*').order('created_at', { ascending: false }),
+    // Essayer d'abord les fonctions RPC (bypass RLS, nécessite le SQL admin)
+    let usersData = null, usersErr = null;
+    let instructorsData = null, bookingsData = null, slotsData = null;
+
+    // Tenter RPC admin_get_all_users (bypass RLS)
+    const rpcResult = await sb.rpc('admin_get_all_users');
+    if (!rpcResult.error && rpcResult.data) {
+        usersData = rpcResult.data;
+        console.log('[ADMIN] RPC admin_get_all_users OK:', usersData.length, 'users');
+    } else {
+        // Fallback : requête directe (limité par RLS)
+        const u = await sb.from('users').select('*').order('created_at', { ascending: false });
+        usersData = u.data || [];
+        usersErr = u.error;
+        console.warn('[ADMIN] RPC not available, using direct query:', usersData.length, 'users', usersErr?.message || '');
+    }
+
+    // Tenter RPC pour bookings aussi
+    const rpcBookings = await sb.rpc('admin_get_all_bookings');
+    if (!rpcBookings.error && rpcBookings.data) {
+        bookingsData = rpcBookings.data;
+    } else {
+        const b = await sb.from('bookings').select('*').order('created_at', { ascending: false });
+        bookingsData = b.data || [];
+    }
+
+    const [i, s] = await Promise.all([
         sb.from('instructors').select('*').order('created_at', { ascending: false }),
-        sb.from('bookings').select('*').order('created_at', { ascending: false }),
         sb.from('slots').select('*').order('date', { ascending: false })
     ]);
 
-    // Log errors for debugging
-    if (u.error) console.warn('Admin: users query error (RLS?):', u.error.message);
-    if (i.error) console.warn('Admin: instructors query error:', i.error.message);
-    if (b.error) console.warn('Admin: bookings query error:', b.error.message);
-
-    adminData.users        = u.data || [];
+    adminData.users        = usersData;
     adminData.instructors  = i.data || [];
-    adminData.bookings     = b.data || [];
+    adminData.bookings     = bookingsData;
     adminData.slots        = s.data || [];
-    adminData._rlsWarning  = (u.data || []).length <= 1;
+    adminData._rlsWarning  = usersData.length <= 1;
 
     document.getElementById('app').innerHTML = AdminDashboard();
-    // Carte admin si onglet map
     if (adminTab === 'map') setTimeout(() => initMap(), 100);
 }
 
@@ -3386,11 +3404,31 @@ function getAdminTabContent(tab, stats) {
         <div>
             ${adminData._rlsWarning ? `
             <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:14px;padding:16px;margin-bottom:16px">
-                <p style="color:#FBBF24;font-weight:800;font-size:14px;margin-bottom:6px">⚠️ Accès limité par les politiques RLS</p>
-                <p style="color:#9CA3AF;font-size:12px;line-height:1.6">Vous ne voyez peut-être pas tous les utilisateurs. Exécutez cette commande SQL dans Supabase pour donner l'accès admin :</p>
-                <div style="background:#111;border-radius:10px;padding:12px;margin-top:10px;font-family:monospace;font-size:11px;color:#A5B4FC;word-break:break-all;line-height:1.5">
-                    CREATE POLICY "Admin full access" ON users FOR ALL TO authenticated USING (auth.uid() IN (SELECT id FROM users WHERE is_admin = true));
-                </div>
+                <p style="color:#FBBF24;font-weight:800;font-size:14px;margin-bottom:6px">⚠️ Accès limité — Élèves non visibles</p>
+                <p style="color:#9CA3AF;font-size:12px;line-height:1.6;margin-bottom:10px">Les politiques RLS de Supabase bloquent l'accès aux données des autres utilisateurs. Copiez et exécutez ce SQL dans <strong style="color:#fff">Supabase → SQL Editor</strong> :</p>
+                <div style="background:#111;border-radius:10px;padding:12px;font-family:monospace;font-size:11px;color:#A5B4FC;word-break:break-all;line-height:1.6;white-space:pre-wrap;max-height:200px;overflow-y:auto">-- Fonction admin pour voir tous les users
+CREATE OR REPLACE FUNCTION admin_get_all_users()
+RETURNS SETOF users LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT * FROM users ORDER BY created_at DESC;
+$$;
+
+-- Fonction admin pour voir toutes les réservations
+CREATE OR REPLACE FUNCTION admin_get_all_bookings()
+RETURNS SETOF bookings LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT * FROM bookings ORDER BY created_at DESC;
+$$;
+
+-- Fonction admin pour reset GPS
+CREATE OR REPLACE FUNCTION admin_reset_all_gps()
+RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+  UPDATE instructors SET is_online = false;
+$$;
+
+-- Accorder les droits
+GRANT EXECUTE ON FUNCTION admin_get_all_users TO authenticated;
+GRANT EXECUTE ON FUNCTION admin_get_all_bookings TO authenticated;
+GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
+                <button onclick="navigator.clipboard.writeText(document.querySelector('[style*=pre-wrap]').textContent);this.textContent='✅ Copié !';setTimeout(()=>this.textContent='📋 Copier le SQL',2000)" style="margin-top:10px;padding:8px 14px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);color:#FBBF24;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">📋 Copier le SQL</button>
             </div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                 <p style="font-weight:800;font-size:16px">${students.length} élève${students.length>1?'s':''} inscrits</p>
@@ -3642,8 +3680,31 @@ window.adminFilter = (type) => {
     });
 };
 
+// ── Helper : exécuter une action admin via RPC (bypass RLS) ──
+async function adminExec(table, action, data, filterCol, filterVal) {
+    // Tenter RPC générique admin
+    const rpc = await sb.rpc('admin_exec', { 
+        p_table: table, p_action: action, 
+        p_data: JSON.stringify(data || {}), 
+        p_filter_col: filterCol || 'id', 
+        p_filter_val: filterVal || '' 
+    });
+    if (!rpc.error) return { success: true };
+    // Fallback direct (marche si RLS le permet)
+    console.warn('[ADMIN] RPC admin_exec failed, trying direct:', rpc.error.message);
+    if (action === 'update') {
+        const r = await sb.from(table).update(data).eq(filterCol || 'id', filterVal);
+        return r.error ? { success: false, error: r.error.message } : { success: true };
+    }
+    if (action === 'delete') {
+        const r = await sb.from(table).delete().eq(filterCol || 'id', filterVal);
+        return r.error ? { success: false, error: r.error.message } : { success: true };
+    }
+    return { success: false, error: 'Unknown action' };
+}
+
 window.adminVerifyInstructor = async (id, v) => {
-    await sb.from('instructors').update({ verified: v }).eq('id', id);
+    await adminExec('instructors', 'update', { verified: v }, 'id', id);
     notif(v ? '✅ Moniteur vérifié' : '❌ Vérification retirée', '', v ? 'green' : 'orange');
     await loadAdminData();
 };
@@ -3651,7 +3712,7 @@ window.adminVerifyInstructor = async (id, v) => {
 // ========== APPROBATION MONITEURS ==========
 window.adminApproveInstructor = async (id) => {
     if (!confirm('Valider ce moniteur ? Il pourra accéder au tableau de bord et recevoir des réservations.')) return;
-    await sb.from('instructors').update({ approval_status: 'approved', verified: true, rejection_reason: null }).eq('id', id);
+    await adminExec('instructors', 'update', { approval_status: 'approved', verified: true, rejection_reason: null }, 'id', id);
     sendPushToUser(id, '✅ Profil validé !', 'Votre demande a été acceptée. Bienvenue sur DriveConnect NC ! 🎉');
     notif('✅ Moniteur approuvé', '', 'green');
     await loadAdminData();
@@ -3676,7 +3737,7 @@ window.adminRejectInstructorModal = (id, name) => {
 
 window.adminRejectInstructor = async (id, reason, modal) => {
     if (!reason.trim()) { notif('⚠️ Motif obligatoire', 'Indiquez le motif du refus', 'yellow'); return; }
-    await sb.from('instructors').update({ approval_status: 'rejected', rejection_reason: reason.trim() }).eq('id', id);
+    await adminExec('instructors', 'update', { approval_status: 'rejected', rejection_reason: reason.trim() }, 'id', id);
     sendPushToUser(id, '❌ Demande refusée', 'Votre demande n\'a pas été validée. Consultez l\'app pour plus d\'infos.');
     if (modal) modal.remove();
     notif('❌ Moniteur refusé', '', 'red');
@@ -3684,7 +3745,7 @@ window.adminRejectInstructor = async (id, reason, modal) => {
 };
 
 window.adminRemovePenalty = async (id) => {
-    await sb.from('instructors').update({ penalty_until: null, visibility_penalty: 0 }).eq('id', id);
+    await adminExec('instructors', 'update', { penalty_until: null, visibility_penalty: 0 }, 'id', id);
     notif('✅ Pénalité levée', '', 'green');
     await loadAdminData();
 };
@@ -3693,20 +3754,22 @@ window.adminPenalizeInstructor = async (id) => {
     const days = prompt('Durée de la pénalité (jours) :', '7');
     if (!days) return;
     const until = new Date(Date.now() + parseInt(days) * 86400000).toISOString();
-    await sb.from('instructors').update({ penalty_until: until, visibility_penalty: 100 }).eq('id', id);
+    await adminExec('instructors', 'update', { penalty_until: until, visibility_penalty: 100 }, 'id', id);
     notif(`🚫 Pénalisé ${days} jours`, '', 'red');
     await loadAdminData();
 };
 
 window.adminSetOnline = async (id, online) => {
-    await sb.from('instructors').update({ is_online: online }).eq('id', id);
+    await adminExec('instructors', 'update', { is_online: online }, 'id', id);
     notif(online ? '🟢 Mis en ligne' : '⚫ Mis hors ligne', '', 'green');
     await loadAdminData();
 };
 
 window.adminDeleteUser = async (id) => {
     if (!confirm('⚠️ Supprimer cet utilisateur définitivement ?')) return;
-    await sb.from('users').delete().eq('id', id);
+    // Supprimer de instructors aussi si c'est un moniteur
+    await adminExec('instructors', 'delete', {}, 'id', id);
+    await adminExec('users', 'delete', {}, 'id', id);
     notif('🗑️ Utilisateur supprimé', '', 'red');
     await loadAdminData();
 };
@@ -3714,16 +3777,15 @@ window.adminDeleteUser = async (id) => {
 window.adminForceCancel = async (id) => {
     if (!confirm('Annuler cette réservation ?')) return;
     const b = adminData.bookings.find(x => x.id === id);
-    await sb.from('bookings').update({ status: 'cancelled' }).eq('id', id);
-    // Supprimer le créneau aussi
-    if (b && b.slot_id) await sb.from('slots').delete().eq('id', b.slot_id);
+    await adminExec('bookings', 'update', { status: 'cancelled' }, 'id', id);
+    if (b && b.slot_id) await adminExec('slots', 'delete', {}, 'id', b.slot_id);
     notif('❌ Réservation annulée · Créneau supprimé', '', 'red');
     await loadAdminData();
 };
 
 window.adminSetDispute = async (id) => {
     if (!confirm('Mettre cette réservation en litige ?')) return;
-    await sb.from('bookings').update({ status: 'dispute' }).eq('id', id);
+    await adminExec('bookings', 'update', { status: 'dispute' }, 'id', id);
     notif('⚠️ Réservation en litige', '', 'orange');
     await loadAdminData();
 };
@@ -3738,12 +3800,28 @@ window.adminCleanSlots = async () => {
 
 window.adminResetAllGPS = async () => {
     if (!confirm('Mettre TOUS les moniteurs hors ligne ?')) return;
-    // Mettre à jour chaque moniteur individuellement pour contourner les limites RLS
+    
+    // Essayer RPC d'abord (bypass RLS)
+    const rpc = await sb.rpc('admin_reset_all_gps');
+    if (!rpc.error) {
+        notif('📴 Tous les moniteurs mis hors ligne', '', 'orange');
+        await loadAdminData();
+        return;
+    }
+    
+    // Fallback : mettre à jour chaque moniteur individuellement
+    console.warn('[ADMIN] RPC admin_reset_all_gps failed, using fallback:', rpc.error.message);
     const promises = adminData.instructors.map(i => 
         sb.from('instructors').update({ is_online: false }).eq('id', i.id)
     );
-    await Promise.all(promises);
-    notif('📴 Tous les moniteurs mis hors ligne', '', 'orange');
+    const results = await Promise.all(promises);
+    const errors = results.filter(r => r.error);
+    if (errors.length > 0) {
+        console.warn('[ADMIN] Reset GPS errors:', errors.length, 'failed');
+        notif('⚠️ Certains moniteurs n\'ont pas pu être mis à jour (RLS)', 'Exécutez le SQL admin dans Supabase', 'yellow');
+    } else {
+        notif('📴 Tous les moniteurs mis hors ligne', '', 'orange');
+    }
     await loadAdminData();
 };
 
