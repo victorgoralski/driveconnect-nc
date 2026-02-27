@@ -2605,91 +2605,6 @@ function showSosModal(booking) {
 // Vérifie toutes les minutes
 setInterval(checkNoShowBookings, 60000);
 
-function showNoShowCodeModal(booking) {
-    if (document.getElementById('noshow-modal-' + booking.id)) return;
-    const modal = document.createElement('div');
-    modal.id = 'noshow-modal-' + booking.id;
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99997;display:flex;align-items:flex-end;justify-content:center;padding:16px;animation:fadeUp 0.3s ease-out';
-    modal.innerHTML = `<div style="background:#0D0D0D;border-radius:28px 28px 20px 20px;width:100%;max-width:420px;padding:28px;text-align:center;max-height:90vh;overflow-y:auto">
-        <div style="width:64px;height:64px;background:rgba(251,191,36,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px;border:1px solid rgba(251,191,36,0.3)">⏰</div>
-        <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:8px">Heure de cours terminée</h3>
-        <p style="color:#9CA3AF;font-size:13px;margin-bottom:6px">Le créneau avec <strong style="color:#fff">${booking.student_name||'l\'élève'}</strong> est écoulé.</p>
-        <p style="color:#9CA3AF;font-size:13px;margin-bottom:18px">Si l'élève ne s'est pas présenté, validez votre heure et signalez son absence.</p>
-        <div style="background:#1A1A1A;border-radius:16px;padding:16px;margin-bottom:16px">
-            <p style="color:#9CA3AF;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px">CODE DE VALIDATION</p>
-            <p style="font-family:monospace;font-weight:900;font-size:30px;color:#FF5A1F;letter-spacing:6px">${booking.completion_code}</p>
-            <p style="color:#4B5563;font-size:11px;margin-top:6px">Donnez ce code à l'élève ou entrez-le vous-même si l'élève est absent</p>
-        </div>
-        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove();openValidateModal('${booking.id}','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:15px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:8px">
-            🔑 Valider mon cours
-        </button>
-        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove();reportIssue('${booking.id}','instructor','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(147,51,234,0.1);border:1.5px solid rgba(147,51,234,0.3);color:#A78BFA;border-radius:16px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">
-            ⚠️ Signaler l'absence de l'élève
-        </button>
-        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove()" style="width:100%;padding:11px;background:none;border:none;color:#4B5563;font-weight:600;font-size:13px;cursor:pointer">Fermer</button>
-    </div>`;
-    document.body.appendChild(modal);
-    notif('⏰ Créneau terminé', `Heure écoulée avec ${booking.student_name||'l\'élève'} — code disponible`, 'yellow');
-}
-
-function showSosModal(booking) {
-    if (document.getElementById('sos-modal-' + booking.id)) return;
-    const isInst = currentUser.user_type === 'instructor';
-    const otherName = isInst ? (booking.student_name || 'l\'élève') : (booking.instructor_name || 'le moniteur');
-
-    const modal = document.createElement('div');
-    modal.id = 'sos-modal-' + booking.id;
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:99999;display:flex;align-items:flex-end;justify-content:center;padding:12px;animation:fadeUp 0.3s ease-out';
-    modal.innerHTML = `
-    <div style="background:#0D0D0D;border-radius:28px 28px 20px 20px;width:100%;max-width:440px;padding:26px 24px 28px;max-height:93vh;overflow-y:auto">
-
-        <!-- Bandeau urgence -->
-        <div style="display:flex;align-items:center;gap:12px;background:rgba(239,68,68,0.12);border:1.5px solid rgba(239,68,68,0.35);border-radius:16px;padding:14px 16px;margin-bottom:20px">
-            <span style="font-size:26px;animation:pulse 1.2s infinite">🚨</span>
-            <div>
-                <p style="color:#EF4444;font-weight:900;font-size:15px;margin:0">Cours non validé — 20 min écoulées</p>
-                <p style="color:#9CA3AF;font-size:12px;margin:3px 0 0">Cours avec <strong style="color:#fff">${otherName}</strong></p>
-            </div>
-        </div>
-
-        <p style="color:#9CA3AF;font-size:13px;line-height:1.6;margin-bottom:20px;text-align:center">
-            Si vous êtes en danger ou faites face à une situation urgente,<br>appelez la police. Pour tout litige ou problème lié à l'application, contactez DriveConnect directement.
-        </p>
-
-        <!-- Appel Police 17 -->
-        <a href="tel:17" style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:18px;background:linear-gradient(135deg,#1D4ED8,#2563EB);color:#fff;text-decoration:none;border-radius:18px;font-weight:900;font-size:18px;margin-bottom:10px;box-shadow:0 6px 24px rgba(37,99,235,0.45)">
-            🚔 &nbsp;Police — appeler le 17
-        </a>
-
-        <!-- Appel Admin DriveConnect -->
-        <a href="tel:+68784402" style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF7C3F);color:#fff;text-decoration:none;border-radius:18px;font-weight:800;font-size:16px;margin-bottom:6px;box-shadow:0 6px 24px rgba(255,90,31,0.35)">
-            📞 &nbsp;DriveConnect — +687 84 40 22
-        </a>
-        <p style="color:#4B5563;font-size:11px;text-align:center;margin-bottom:16px">Litige • Problème d'application • Intervention admin</p>
-
-        <!-- Code de validation pour le moniteur -->
-        ${isInst && booking.completion_code ? `
-        <div style="background:#1A1A1A;border-radius:14px;padding:14px;text-align:center;margin-bottom:12px;border:1px solid #2A2A2A">
-            <p style="color:#6B7280;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px">CODE DE VALIDATION</p>
-            <p style="font-family:monospace;font-weight:900;font-size:26px;color:#FF5A1F;letter-spacing:5px">${booking.completion_code}</p>
-        </div>
-        <button onclick="document.getElementById('sos-modal-${booking.id}').remove();openValidateModal('${booking.id}','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(255,90,31,0.12);border:1.5px solid rgba(255,90,31,0.35);color:#FF5A1F;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:8px">
-            🔑 Valider le cours maintenant
-        </button>` : ''}
-
-        <!-- Signalement -->
-        <button onclick="document.getElementById('sos-modal-${booking.id}').remove();reportIssue('${booking.id}','${isInst?'instructor':'student'}','${otherName.replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(147,51,234,0.1);border:1.5px solid rgba(147,51,234,0.3);color:#A78BFA;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer;margin-bottom:8px">
-            ⚠️ Signaler un problème à DriveConnect
-        </button>
-        <button onclick="document.getElementById('sos-modal-${booking.id}').remove()" style="width:100%;padding:11px;background:none;border:none;color:#374151;font-weight:600;font-size:13px;cursor:pointer">Fermer</button>
-    </div>`;
-    document.body.appendChild(modal);
-    notif('🚨 Cours non validé', '20 min écoulées — contactez la police ou DriveConnect si besoin', 'red');
-}
-
-// Vérifie toutes les minutes
-setInterval(checkNoShowBookings, 60000);
-
 window.submitValidationCode = async function(bookingId) {
     const inputs = document.querySelectorAll('.vc-input');
     const code = Array.from(inputs).map(x => x.value).join('').toUpperCase();
@@ -4831,80 +4746,74 @@ window.submitNewPassword = async function() {
 async function boot() {
     document.getElementById('app').innerHTML = '<div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center"><div class="text-center"><div class="text-5xl mb-4">🚗</div><p class="text-xl font-bold text-orange-600">DriveConnect NC</p><p class="text-gray-400 mt-2">Connexion à la base de données...</p><div class="mt-4 w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div></div></div>';
 
-    // Détecter le retour de réinitialisation de mot de passe
     const urlHash = window.location.hash;
-    const urlSearchParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role');
+    const adminKey  = urlParams.get('admin');
 
-    // Supabase envoie type=recovery dans le hash (#access_token=...&type=recovery)
-    // OU on peut avoir ?reset=true dans les params si la redirection est propre
-    const isRecovery = urlHash.includes('type=recovery') || urlSearchParams.get('type') === 'recovery' || urlSearchParams.get('reset') === 'true';
+    // ── 1. RESET MOT DE PASSE ──────────────────────────────────────────────
+    // Supabase envoie #access_token=...&type=recovery dans le hash après clic sur le lien mail
+    const isRecovery = urlHash.includes('type=recovery');
 
     if (isRecovery) {
-        // Si les tokens sont dans le hash, laisser Supabase les traiter d'abord
-        if (urlHash.includes('access_token')) {
-            // Attendre que Supabase établisse la session depuis le hash
+        // Laisser Supabase établir la session depuis les tokens du hash
+        // On écoute PASSWORD_RECOVERY via onAuthStateChange
+        await new Promise(resolve => {
+            const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+                if (event === 'PASSWORD_RECOVERY') {
+                    subscription.unsubscribe();
+                    resolve();
+                }
+                // Timeout sécurité 4s
+            });
+            setTimeout(resolve, 4000);
+        });
+        // Nettoyer l'URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        // Afficher la modale de reset
+        await loadData();
+        render();
+        setTimeout(() => showResetPasswordModal(), 200);
+        return;
+    }
+
+    // ── 2. CONNEXION GOOGLE (OAuth callback) ──────────────────────────────
+    const isOAuthCallback = urlHash.includes('access_token') && !isRecovery;
+    const hasPendingGoogleType = !!localStorage.getItem('google_oauth_type');
+
+    if (isOAuthCallback || hasPendingGoogleType) {
+        // Récupérer la session (Supabase l'a déjà parsée depuis le hash)
+        const { data: { session } } = await sb.auth.getSession();
+
+        if (session && session.user?.app_metadata?.provider === 'google') {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            await handleGoogleCallback(session);
+            await loadData();
+            render();
+            return;
+        }
+
+        // Session pas encore dispo → attendre onAuthStateChange
+        if (!session && isOAuthCallback) {
             await new Promise(resolve => {
-                const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
-                    if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+                const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, newSession) => {
+                    if (newSession) {
                         subscription.unsubscribe();
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        await handleGoogleCallback(newSession);
+                        await loadData();
+                        render();
                         resolve();
                     }
                 });
-                setTimeout(resolve, 3000); // timeout de sécurité
+                setTimeout(resolve, 5000);
             });
+            return;
         }
-        // Nettoyer l'URL et afficher la modale
-        if (window.history && window.history.replaceState) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-        setTimeout(() => showResetPasswordModal(), 300);
     }
 
-    // Lire les paramètres URL pour routing direct
-    const urlParams = new URLSearchParams(window.location.search);
-    const roleParam = urlParams.get('role');
-    const adminKey = urlParams.get('admin');
-
+    // ── 3. SESSION NORMALE (déjà connecté) ────────────────────────────────
     const { data: { session } } = await sb.auth.getSession();
-
-    // Détecter si c'est un retour de connexion Google (OAuth callback)
-    // Supabase peut retourner les tokens dans le hash OU dans la session directement
-    const isGoogleCallback = 
-        urlHash.includes('access_token') || 
-        urlHash.includes('provider_token') ||
-        (session && session.user?.app_metadata?.provider === 'google' && localStorage.getItem('google_oauth_type'));
-
-    if (session && isGoogleCallback) {
-        // Nettoyer l'URL immédiatement
-        if (window.history && window.history.replaceState) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-        await handleGoogleCallback(session);
-        await loadData();
-        render();
-        return;
-    }
-
-    // Cas où Google a redirigé mais getSession() est encore vide → attendre l'event onAuthStateChange
-    if (urlHash.includes('access_token') && !session) {
-        await new Promise(resolve => {
-            const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, newSession) => {
-                if (newSession) {
-                    subscription.unsubscribe();
-                    if (window.history && window.history.replaceState) {
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }
-                    await handleGoogleCallback(newSession);
-                    await loadData();
-                    render();
-                    resolve();
-                }
-            });
-            // Timeout de sécurité 5s
-            setTimeout(() => { resolve(); }, 5000);
-        });
-        return;
-    }
     if (session) {
         const userId = session.user.id;
         const meta = session.user.user_metadata || {};
