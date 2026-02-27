@@ -233,7 +233,11 @@
         .db-action-btn.logout { border-color:#F9D3D3; background:#FFF5F5; }
         .db-action-btn.logout:hover { background:#FEECEC; border-color:#F3A8A8; box-shadow: 0 12px 28px rgba(220,38,38,0.12); }
         .dark .db-action-btn { background:#1C1C1E; border-color:#2C2C2E; box-shadow: 0 8px 18px rgba(0,0,0,0.34); }
-        .db-action-icon { width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:24px; }
+        .db-action-icon {
+            width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:22px;
+            border: 1px solid rgba(15,23,42,0.06);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+        }
 
         .db-tab-bar { 
             position:sticky; bottom:0; background:rgba(255,255,255,0.97); backdrop-filter:blur(24px); 
@@ -282,6 +286,11 @@
         }
         @media (min-width: 1024px) {
             .db-main { padding: 28px 24px 128px; }
+            .db-booking-card { padding: 16px; border-radius: 18px; }
+            .db-instructor-chip { padding: 14px 15px; border-radius: 18px; }
+            .slot-card { padding: 14px 15px; border-radius: 16px; }
+            .db-responsive-list { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px !important; }
+            .db-map-list { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px !important; }
         }
         @media (prefers-reduced-motion: reduce) {
             .fade-in, .slide-in, .scale-in, .success-pop, .stagger > *, .db-action-btn, .db-tab .tab-icon {
@@ -1196,7 +1205,7 @@ function StudentDashboard() {
 
             <!-- Moniteurs dispo -->
             <p class="db-section-title">Moniteurs disponibles <span style="background:#F0F0F0;color:#6B7280;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">${instructors.length}</span></p>
-            <div class="stagger" style="display:flex;flex-direction:column;gap:12px">
+            <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:12px">
                 ${instructors.slice(0,5).map((i,idx)=>{
                     const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
                     const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
@@ -1226,7 +1235,7 @@ function StudentDashboard() {
         ${tab==='bookings' ? `
             <p class="db-section-title">Mes réservations</p>
             ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:var(--text-muted)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:var(--text)">Aucune réservation</p><p style="font-size:14px;margin-top:6px">Réservez un créneau avec un moniteur !</p></div>`:''}
-            <div class="stagger" style="display:flex;flex-direction:column;gap:14px">
+            <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:14px">
             ${myBookings.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
                 const isPast = new Date(b.date) < new Date();
                 const canCancel = b.status!=='cancelled' && b.status!=='completed' && !isPast;
@@ -1267,7 +1276,7 @@ function StudentDashboard() {
             <div class="db-surface-card" style="overflow:hidden;margin-bottom:16px">
                 <div id="map" style="height:280px;border-radius:0"></div>
             </div>
-            <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="db-map-list" style="display:flex;flex-direction:column;gap:10px">
             ${instructors.map((i,idx)=>{
                 const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
                 const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
@@ -1770,7 +1779,7 @@ function InstructorDashboard() {
                 const upcoming = myBookings.filter(b=>b.status==='confirmed'&&new Date(b.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
                 if (!upcoming.length) return '<div style="text-align:center;padding:30px;background:#fff;border-radius:20px;border:1px solid #F0F0F0"><p style="font-size:36px;margin-bottom:8px">📅</p><p style="font-weight:700;color:var(--text)">Aucun cours à venir</p><p style="font-size:13px;color:var(--text-muted);margin-top:4px">Ajoutez des créneaux pour être réservé</p></div>';
                 return `<p class="db-section-title">Prochains cours</p>
-                <div style="display:flex;flex-direction:column;gap:10px">
+                <div class="db-responsive-list" style="display:flex;flex-direction:column;gap:10px">
                 ${upcoming.slice(0,3).map(b=>{
                     const daysLeft = Math.ceil((new Date(b.date)-new Date())/(1000*60*60*24));
                     return `<div class="db-booking-card">
@@ -1835,7 +1844,7 @@ function InstructorDashboard() {
         ${tab==='bookings' ? `
             <p class="db-section-title">Toutes les réservations</p>
             ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:var(--text-muted)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:var(--text)">Aucune réservation</p></div>`:''}
-            <div class="stagger" style="display:flex;flex-direction:column;gap:14px">
+            <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:14px">
             ${[...myBookings].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
                 const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':b.status==='pending'?'#D97706':b.status==='dispute'?'#9333EA':'#6B7280';
                 const statusBg   = b.status==='confirmed'?'#ECFDF5':b.status==='cancelled'?'#FEF2F2':b.status==='completed'?'#ECFDF5':b.status==='pending'?'#FFFBEB':b.status==='dispute'?'#F3E8FF':'#F3F4F6';
