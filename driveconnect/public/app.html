@@ -705,9 +705,19 @@ async function finalizeSignup(email, name, userType) {
             verified: false, is_online: false,
             lat: NOUMEA.lat, lng: NOUMEA.lng,
             visibility_penalty: 0,
-            approval_status: 'pending_documents'
+            approval_status: 'pending_documents',
+            referral_code: Math.random().toString(36).substring(2, 10).toUpperCase(),
+            referral_count: 0,
+            referral_code_active: true
         }, { onConflict: 'id' });
         if (instErr) console.error('[SIGNUP] Instructor create error:', instErr.message);
+    }
+
+    // Appliquer code de parrainage si présent (fonctionne pour moniteurs ET élèves)
+    const pendingRef = localStorage.getItem('pending_referral');
+    if (pendingRef) {
+        await applyReferralCode(userId, pendingRef);
+        localStorage.removeItem('pending_referral');
     }
 
     // Construire currentUser même si le profil n'existe pas encore en DB
@@ -1745,23 +1755,19 @@ function InstructorDashboard() {
             <!-- Parrainage -->
             <div style="background:#fff;border-radius:20px;padding:20px;border:1px solid #F0F0F0;margin-bottom:14px">
                 <h3 style="font-weight:800;font-size:16px;margin-bottom:4px;color:var(--text)">🎁 Parrainage</h3>
-                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Parrainez un moniteur → <strong>3% de commission en moins</strong> pendant 10 cours.</p>
-                <div id="referral-code-display" style="background:#FFF7ED;border:2px dashed #FF5A1F;border-radius:14px;padding:14px;text-align:center;font-family:monospace;font-size:22px;font-weight:900;color:#FF5A1F;letter-spacing:6px;margin-bottom:12px">${profile.referral_code||'Chargement...'}</div>
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px">Parrainez moniteurs ET élèves avec votre lien → <strong>1% de commission en moins</strong> sur 1 cours validé (non cumulable).</p>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">⚠️ Maximum <strong>10 parrainages</strong> aboutis, puis votre code se désactive automatiquement.</p>
+                <div id="referral-code-display" style="background:#FFF7ED;border:2px dashed #FF5A1F;border-radius:14px;padding:14px;text-align:center;font-family:monospace;font-size:22px;font-weight:900;color:#FF5A1F;letter-spacing:6px;margin-bottom:8px">${profile.referral_code||'...'}</div>
+                <p id="referral-status" style="text-align:center;font-size:12px;font-weight:700;margin-bottom:12px;color:var(--text-muted)">Chargement...</p>
                 <div style="display:flex;gap:8px;margin-bottom:12px">
                     <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:#F3F4F6;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:var(--text);transition:all 0.15s" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">📋 Copier</button>
-                    <button onclick="shareReferralLink()" style="flex:1;padding:12px;background:linear-gradient(135deg,#FF5A1F,#FF7340);border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:#fff;transition:all 0.15s" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">🔗 Partager</button>
+                    <button onclick="shareReferralLink()" style="flex:1;padding:12px;background:linear-gradient(135deg,#FF5A1F,#FF7340);border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:#fff;transition:all 0.15s" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">🔗 Partager le lien</button>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                    <div style="background:#F9FAFB;border-radius:12px;padding:14px;text-align:center">
-                        <p id="referral-count" style="font-size:24px;font-weight:900;color:var(--text)">0</p>
-                        <p style="font-size:12px;color:var(--text-muted);margin-top:2px">Filleuls</p>
-                    </div>
-                    <div style="background:#F9FAFB;border-radius:12px;padding:14px;text-align:center">
-                        <p id="referral-savings" style="font-size:24px;font-weight:900;color:#FF5A1F">0</p>
-                        <p style="font-size:12px;color:var(--text-muted);margin-top:2px">XPF économisés</p>
-                    </div>
+                <div style="background:#F9FAFB;border-radius:12px;padding:14px;text-align:center;margin-bottom:12px">
+                    <p id="referral-count" style="font-size:24px;font-weight:900;color:var(--text)">0/10</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:2px">Parrainages aboutis (max 10)</p>
                 </div>
-                <div id="referral-list" class="mt-4"></div>
+                <div id="referral-list"></div>
             </div>
             <!-- Déconnexion -->
             <button onclick="logout()" style="width:100%;padding:14px;border-radius:16px;border:1.5px solid #FEE2E2;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.15s" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'">🚪 Se déconnecter</button>
@@ -1848,7 +1854,6 @@ window.showAddSlot = function() {
                 </div>
                 <p style="font-size:11px;color:#9CA3AF;margin-top:5px">Votre tarif habituel : ${defaultRate.toLocaleString()} XPF/h</p>
             </div>
-            <div id="sl-preview" style="background:#FFF7ED;border-radius:12px;padding:12px 14px;font-size:13px;color:#EA580C;font-weight:600;display:none"></div>
             <div style="display:flex;gap:10px;margin-top:4px">
                 <button type="button" onclick="this.closest('.fixed').remove()" style="flex:1;padding:14px;border:1.5px solid #E5E7EB;border-radius:14px;font-weight:700;font-size:15px;background:#fff;cursor:pointer;color:#0D0D0D">Annuler</button>
                 <button type="submit" style="flex:1;padding:14px;background:#FF5A1F;color:#fff;border:none;border-radius:14px;font-weight:900;font-size:15px;cursor:pointer">Créer le créneau</button>
@@ -1863,17 +1868,10 @@ window.showAddSlot = function() {
     function updatePreview() {
         const price = parseInt(modal.querySelector('#sl-price').value) || 0;
         const dur = parseFloat(modal.querySelector('#sl-dur').value) || 1;
-        const total = Math.round(price * dur);
-        const commission = Math.round(total * 0.15);
-        const net = total - commission;
-        if (price > 0) {
-            previewDiv.style.display = 'block';
-            previewDiv.innerHTML = `💰 Total élève : <strong>\${total.toLocaleString()} XPF</strong> · Vos revenus nets : <strong>\${net.toLocaleString()} XPF</strong>`;
-        }
+        // Preview supprimé — plus d'affichage du total élève ni revenus nets
     }
     modal.querySelector('#sl-price').addEventListener('input', updatePreview);
     modal.querySelector('#sl-dur').addEventListener('change', updatePreview);
-    updatePreview();
 
     modal.querySelector('#slot-form').onsubmit = async function(e) {
         e.preventDefault();
@@ -2340,6 +2338,61 @@ window.openValidateModal = function(bookingId, studentName) {
     });
 };
 
+// ========== GESTION ABSENCE ÉLÈVE (Auto-révélation du code après l'heure) ==========
+// Vérifie si l'élève ne s'est pas présenté après la fin du créneau
+// et affiche automatiquement le code au moniteur pour valider son heure
+function checkNoShowBookings() {
+    if (!currentUser || currentUser.user_type !== 'instructor') return;
+    const now = new Date();
+    const confirmed = DB.bookings.filter(b => b.status === 'confirmed');
+    confirmed.forEach(b => {
+        // Calculer l'heure de fin du créneau
+        const slotStart = new Date(b.date + 'T' + (b.time || '00:00'));
+        const duration = parseFloat(b.duration) || 1;
+        const slotEnd = new Date(slotStart.getTime() + duration * 3600000);
+        // Si le créneau est terminé et que le code n'a pas été révélé
+        if (now >= slotEnd && b.completion_code && !b._noshow_code_shown) {
+            b._noshow_code_shown = true;
+            showNoShowCodeModal(b);
+        }
+    });
+}
+
+function showNoShowCodeModal(booking) {
+    const existingModal = document.getElementById('noshow-modal-' + booking.id);
+    if (existingModal) return;
+    const modal = document.createElement('div');
+    modal.id = 'noshow-modal-' + booking.id;
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeUp 0.3s ease-out';
+    modal.innerHTML = `<div style="background:#0D0D0D;border-radius:28px;width:100%;max-width:420px;padding:28px;text-align:center">
+        <div style="width:64px;height:64px;background:rgba(251,191,36,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;border:1px solid rgba(251,191,36,0.3)">⏰</div>
+        <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:8px">Heure de cours terminée</h3>
+        <p style="color:#9CA3AF;font-size:13px;margin-bottom:6px">Le créneau avec <strong style="color:#fff">${booking.student_name||'l\'élève'}</strong> est terminé.</p>
+        <p style="color:#9CA3AF;font-size:13px;margin-bottom:20px">Si l'élève n'est pas venu, vous pouvez valider le cours et signaler son absence.</p>
+        
+        <div style="background:#1A1A1A;border-radius:16px;padding:16px;margin-bottom:20px">
+            <p style="color:#9CA3AF;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:8px">CODE DE VALIDATION DU COURS</p>
+            <p style="font-family:monospace;font-weight:900;font-size:28px;color:#FF5A1F;letter-spacing:6px">${booking.completion_code}</p>
+            <p style="color:#4B5563;font-size:11px;margin-top:8px">Utilisez ce code pour valider votre heure de cours</p>
+        </div>
+        
+        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove();openValidateModal('${booking.id}','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:15px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:8px">
+            🔑 Valider mon cours
+        </button>
+        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove();reportIssue('${booking.id}','instructor','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:14px;background:rgba(147,51,234,0.1);border:1px solid rgba(147,51,234,0.3);color:#A78BFA;border:none;border-radius:16px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">
+            ⚠️ Signaler l'absence de l'élève
+        </button>
+        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove()" style="width:100%;padding:12px;background:none;border:none;color:#4B5563;font-weight:600;font-size:13px;cursor:pointer">
+            Fermer
+        </button>
+    </div>`;
+    document.body.appendChild(modal);
+    notif('⏰ Heure de cours terminée', `Votre créneau avec ${booking.student_name||'l\'élève'} est écoulé — code disponible`, 'yellow');
+}
+
+// Vérifier toutes les minutes si des cours sont terminés
+setInterval(checkNoShowBookings, 60000);
+
 window.submitValidationCode = async function(bookingId) {
     const inputs = document.querySelectorAll('.vc-input');
     const code = Array.from(inputs).map(x => x.value).join('').toUpperCase();
@@ -2698,16 +2751,8 @@ function initMap() {
         if (userMarker && userMarker.getLatLng) {
             userMarker.addTo(map);
         }
-    } else {
-        // Élève : tenter de géolocaliser pour centrer la carte
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => { if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 14, { animate: true }); },
-                () => {},
-                { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 }
-            );
-        }
     }
+    // Élèves : JAMAIS de géolocalisation — confidentialité garantie
 
     // Souscrire aux deux canaux
     subscribeMapRealtime();
@@ -3239,8 +3284,9 @@ function AdminDashboard() {
         { id: 'students',     icon: '👨‍🎓', label: 'Élèves' },
         { id: 'instructors',  icon: '🚗', label: 'Moniteurs' },
         { id: 'revenue',      icon: '💰', label: 'Revenus' },
+        { id: 'signalements', icon: '⚠️', label: 'Signalements' + (adminData.bookings.filter(b=>b.status==='dispute').length > 0 ? ' 🔴' : '') },
         { id: 'map',          icon: '🗺️', label: 'Carte live' },
-        { id: 'danger',       icon: '⚠️', label: 'Admin' }
+        { id: 'danger',       icon: '🛠️', label: 'Admin' }
     ];
 
     return `<div style="min-height:100vh;background:#0A0A0A;color:#fff;font-family:'DM Sans',sans-serif">
@@ -3665,6 +3711,14 @@ GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
 
         return `
         <div style="display:flex;flex-direction:column;gap:20px">
+            <!-- Bouton remise à zéro -->
+            <div style="display:flex;justify-content:flex-end">
+                <button onclick="adminResetRevenueCounters()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer">🔄 Remettre les compteurs à 0</button>
+            </div>
+            <!-- Commission info -->
+            <div style="background:rgba(255,90,31,0.08);border:1px solid rgba(255,90,31,0.2);border-radius:14px;padding:14px 18px">
+                <p style="color:#FF5A1F;font-size:13px;font-weight:700">💡 Commission actuelle : <strong>15%</strong> sur chaque créneau payé</p>
+            </div>
             <!-- Totaux -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
                 <div style="background:linear-gradient(135deg,rgba(255,90,31,0.1),rgba(255,90,31,0.05));border:1px solid rgba(255,90,31,0.2);border-radius:18px;padding:20px;text-align:center">
@@ -3717,6 +3771,63 @@ GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
                     </div>`).join('')}
                 </div>
             </div>
+        </div>`;
+    }
+
+    // ── SIGNALEMENTS ──────────────────────────────────────────────────────────
+    if (tab === 'signalements') {
+        const disputes = adminData.bookings.filter(b => b.status === 'dispute' || b.dispute_reason);
+        return `
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <p style="font-weight:800;font-size:16px">${disputes.length} signalement${disputes.length>1?'s':''}</p>
+                <button onclick="this.textContent='⏳...';this.disabled=true;loadAdminData()" style="padding:8px 14px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);color:#60A5FA;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">🔄 Actualiser</button>
+            </div>
+            ${disputes.length === 0 ? '<div style="text-align:center;padding:60px;color:#4B5563"><p style="font-size:40px;margin-bottom:12px">✅</p><p style="font-weight:700">Aucun signalement en cours</p></div>' :
+            `<div style="display:flex;flex-direction:column;gap:12px">
+            ${disputes.map(b => {
+                const disputeLabels = {
+                    'no_show': '🚫 Moniteur absent',
+                    'bad_conduct': '⚠️ Comportement inapproprié',
+                    'safety': '🛑 Problème de sécurité',
+                    'student_absent': '🚫 Élève absent',
+                    'bad_behavior': '⚠️ Comportement élève',
+                    'other': '💬 Autre'
+                };
+                const signalLabel = disputeLabels[b.dispute_reason] || (b.dispute_reason || '⚠️ Litige');
+                const reporterLabel = b.dispute_by === 'student' ? '👨‍🎓 Signalé par l\'élève' : '🚗 Signalé par le moniteur';
+                return `
+                <div style="background:#1A1A1A;border-radius:16px;padding:18px;border:1px solid rgba(147,51,234,0.3)">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+                        <div>
+                            <p style="font-weight:800;font-size:15px">${b.student_name||'Élève'} ↔ ${b.instructor_name||'Moniteur'}</p>
+                            <p style="font-size:12px;color:#6B7280;margin-top:2px">📅 ${b.date} à ${b.time}</p>
+                        </div>
+                        <span style="padding:4px 12px;background:rgba(147,51,234,0.15);color:#A78BFA;border-radius:20px;font-size:11px;font-weight:700">⚠️ Litige</span>
+                    </div>
+                    <div style="background:#111;border-radius:12px;padding:12px;margin-bottom:10px">
+                        <p style="font-size:12px;color:#A78BFA;font-weight:700;margin-bottom:4px">${reporterLabel}</p>
+                        <p style="font-size:14px;font-weight:700;color:#fff">${signalLabel}</p>
+                        ${b.dispute_details ? `<p style="font-size:13px;color:#9CA3AF;margin-top:6px;line-height:1.5">${b.dispute_details}</p>` : ''}
+                        ${b.dispute_at ? `<p style="font-size:10px;color:#4B5563;margin-top:6px">Signalé le ${new Date(b.dispute_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
+                    </div>
+                    <!-- Infos contact -->
+                    ${(()=>{
+                        const studentUser = adminData.users.find(u => u.id === b.student_id);
+                        const instUser = adminData.instructors.find(i => i.id === b.instructor_id);
+                        return `<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+                            ${studentUser?.phone_number ? `<span style="font-size:12px;color:#60A5FA">📱 Élève: ${studentUser.phone_number}</span>` : ''}
+                            ${instUser?.phone_number ? `<span style="font-size:12px;color:#34D399">📱 Moniteur: ${instUser.phone_number}</span>` : ''}
+                        </div>`;
+                    })()}
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <button onclick="adminResolveDispute('${b.id}','student')" style="padding:8px 14px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);color:#60A5FA;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✅ Résoudre (faveur élève)</button>
+                        <button onclick="adminResolveDispute('${b.id}','instructor')" style="padding:8px 14px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);color:#34D399;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✅ Résoudre (faveur moniteur)</button>
+                        <button onclick="adminForceCancel('${b.id}')" style="padding:8px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);color:#EF4444;border-radius:8px;font-size:12px;cursor:pointer">🗑️ Annuler résa</button>
+                    </div>
+                </div>`;
+            }).join('')}
+            </div>`}
         </div>`;
     }
 
@@ -3903,6 +4014,28 @@ window.adminSetDispute = async (id) => {
     await adminExec('bookings', 'update', { status: 'dispute' }, 'id', id);
     notif('⚠️ Réservation en litige', '', 'orange');
     await loadAdminData();
+};
+
+window.adminResolveDispute = async (id, favor) => {
+    const label = favor === 'student' ? 'résolu en faveur de l\'élève' : 'résolu en faveur du moniteur';
+    if (!confirm(`Marquer ce litige comme ${label} ?`)) return;
+    await adminExec('bookings', 'update', { status: 'completed', dispute_resolved_by: favor, dispute_resolved_at: new Date().toISOString() }, 'id', id);
+    notif('✅ Litige résolu', label, 'green');
+    await loadAdminData();
+};
+
+window.adminResetRevenueCounters = async () => {
+    if (!confirm('⚠️ Remettre TOUS les compteurs de revenus à 0 ?\nCela marquera toutes les réservations payées comme "archivées" pour repartir de zéro. Action irréversible.')) return;
+    // Archiver toutes les réservations payées (changer leur payment_status en "archived")
+    const { error } = await sb.from('bookings')
+        .update({ payment_status: 'archived' })
+        .eq('payment_status', 'paid');
+    if (error) {
+        notif('❌ Erreur', error.message, 'red');
+    } else {
+        notif('✅ Compteurs remis à 0', 'Toutes les réservations payées ont été archivées', 'green');
+        await loadAdminData();
+    }
 };
 
 window.adminCleanSlots = async () => {
@@ -4146,19 +4279,25 @@ async function sendPushToUser(userId, title, body) {
 // ===== PARRAINAGE =====
 async function loadReferralData() {
     if (!currentUser || currentUser.user_type !== 'instructor') return;
-    const { data: instructor } = await sb.from('instructors').select('referral_code').eq('id', currentUser.id).single();
+    const { data: instructor } = await sb.from('instructors').select('referral_code, referral_count, referral_code_active').eq('id', currentUser.id).single();
     if (instructor?.referral_code) {
         const el = document.getElementById('referral-code-display');
         if (el) el.textContent = instructor.referral_code;
-    }
-    const { data: referrals } = await sb.from('referrals').select('*, referred:referred_id(name)').eq('referrer_id', currentUser.id).eq('status', 'active');
-    if (referrals) {
+
+        const isActive = instructor.referral_code_active !== false && (instructor.referral_count || 0) < 10;
         const countEl = document.getElementById('referral-count');
-        if (countEl) countEl.textContent = referrals.length;
-        const savingsEl = document.getElementById('referral-savings');
-        if (savingsEl) savingsEl.textContent = (referrals.reduce((s, r) => s + r.bonus_courses_remaining * 450, 0)).toLocaleString();
+        if (countEl) countEl.textContent = (instructor.referral_count || 0) + '/10';
+
+        const statusEl = document.getElementById('referral-status');
+        if (statusEl) {
+            statusEl.textContent = isActive ? '✅ Code actif' : '🚫 Code désactivé (10/10 atteint)';
+            statusEl.style.color = isActive ? '#059669' : '#DC2626';
+        }
+    }
+    const { data: referrals } = await sb.from('referrals').select('*, referred:referred_id(name)').eq('referrer_id', currentUser.id);
+    if (referrals) {
         const listEl = document.getElementById('referral-list');
-        if (listEl && referrals.length > 0) listEl.innerHTML = referrals.map(r => `<div class="flex justify-between items-center p-3 rounded-xl" style="background:var(--bg)"><p class="text-sm font-semibold">${r.referred?.name||'Moniteur'}</p><span class="text-xs" style="color:var(--primary)">${r.bonus_courses_remaining} cours restants</span></div>`).join('');
+        if (listEl && referrals.length > 0) listEl.innerHTML = referrals.map(r => `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:14px;background:var(--bg);margin-bottom:6px"><p style="font-size:13px;font-weight:700">${r.referred?.name||'Utilisateur'}</p><span style="font-size:11px;font-weight:700;color:${r.bonus_used?'#9CA3AF':'var(--primary)'}">${r.bonus_used?'✅ Bonus utilisé':'⏳ En attente du 1er cours'}</span></div>`).join('');
     }
 }
 
@@ -4181,14 +4320,47 @@ async function shareReferralLink() {
     }
 }
 
-async function applyReferralCode(newInstructorId, referralCode) {
+async function applyReferralCode(newUserId, referralCode) {
+    // Le code de parrainage fonctionne pour tout inscrit (moniteur ou élève)
     if (!referralCode || referralCode.length !== 8) return;
     const code = referralCode.toUpperCase().trim();
-    const { data: referrer } = await sb.from('instructors').select('id, name').eq('referral_code', code).single();
+
+    // Récupérer le moniteur parrain
+    const { data: referrer } = await sb.from('instructors').select('id, name, referral_code, referral_count').eq('referral_code', code).single();
     if (!referrer) { notif('⚠️ Code invalide', 'Ce code de parrainage n\'existe pas', 'yellow'); return; }
-    await sb.from('referrals').insert({ referrer_id: referrer.id, referred_id: newInstructorId, referral_code: code, status: 'active', bonus_courses_remaining: 10, commission_discount: 3 });
-    sendPushToUser(referrer.id, '🎉 Nouveau filleul !', `Un nouveau moniteur a rejoint DriveConnect avec votre code !`);
-    notif('✅ Code appliqué !', `Parrain : ${referrer.name}. 3% de commission en moins pendant 10 cours.`, 'green');
+
+    // Vérifier que le code n'est pas désactivé (max 10 parrainages aboutis)
+    const currentCount = referrer.referral_count || 0;
+    if (currentCount >= 10) {
+        notif('⚠️ Code inactif', 'Ce code de parrainage a atteint son maximum de 10 utilisations et est désactivé.', 'yellow');
+        return;
+    }
+
+    // Vérifier que cette personne n'a pas déjà utilisé un code (non cumulable)
+    const { data: existingRef } = await sb.from('referrals').select('id').eq('referred_id', newUserId).maybeSingle();
+    if (existingRef) { notif('⚠️ Déjà parrainé', 'Vous avez déjà utilisé un code de parrainage.', 'yellow'); return; }
+
+    // Créer le parrainage — commission_discount = 1% par heure de conduite valide (1 seule fois)
+    await sb.from('referrals').insert({
+        referrer_id: referrer.id,
+        referred_id: newUserId,
+        referral_code: code,
+        status: 'active',
+        bonus_used: false,        // devient true après utilisation unique
+        commission_discount: 1     // 1% de commission en moins sur 1 cours validé
+    });
+
+    // Incrémenter le compteur du parrain
+    const newCount = currentCount + 1;
+    const updates = { referral_count: newCount };
+    // Si 10 parrainages atteints → désactiver le code
+    if (newCount >= 10) {
+        updates.referral_code_active = false;
+    }
+    await sb.from('instructors').update(updates).eq('id', referrer.id);
+
+    sendPushToUser(referrer.id, '🎉 Nouveau filleul !', `Quelqu'un a rejoint DriveConnect avec votre code ! (${newCount}/10)`);
+    notif('✅ Code appliqué !', `Parrain : ${referrer.name}. Bonus 1% sur votre 1er cours validé.`, 'green');
 }
 
 function checkReferralInUrl() {
@@ -4431,10 +4603,26 @@ window._submitReport = async function(bookingId, reporterType) {
     if (!reason) return;
     const btn = document.getElementById('report-submit-btn');
     if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+
+    const booking = DB.bookings.find(x => x.id === bookingId);
+
     await sb.from('bookings').update({
         status: 'dispute', dispute_reason: reason, dispute_details: details,
         dispute_by: reporterType, dispute_at: new Date().toISOString()
     }).eq('id', bookingId);
+
+    // Insérer dans la table reports pour que l'admin reçoive dans l'onglet Signalements
+    await sb.from('reports').insert({
+        booking_id: bookingId,
+        reporter_id: currentUser.id,
+        reporter_type: reporterType,
+        reporter_name: currentUser.name,
+        reported_name: reporterType === 'student' ? (booking?.instructor_name || '?') : (booking?.student_name || '?'),
+        reason: reason,
+        details: details,
+        created_at: new Date().toISOString()
+    }).select(); // ignore error if table doesn't exist — bookings update is the primary record
+
     document.getElementById('report-modal')?.remove();
     notif('⚠️ Signalement envoyé', 'L\'administration traitera votre demande sous 24-48h', 'orange');
     await loadData(); render();
