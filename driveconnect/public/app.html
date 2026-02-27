@@ -419,6 +419,137 @@ async function loadData() {
 }
 
 // ========== AUTH ==========
+
+// ========== CONNEXION GOOGLE ==========
+window.loginWithGoogle = async function(userType) {
+    // Sauvegarder le type (student/instructor) pour le callback
+    localStorage.setItem('google_oauth_type', userType);
+
+    // Afficher un feedback visuel
+    const btn = event?.target?.closest('button');
+    if (btn) { btn.innerHTML = '<span style="opacity:0.7">⏳ Redirection vers Google...</span>'; btn.disabled = true; }
+
+    const redirectUrl = window.location.origin + window.location.pathname;
+
+    const { data, error } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: redirectUrl,
+            queryParams: {
+                access_type: 'offline',
+                prompt: 'select_account'
+            }
+        }
+    });
+
+    if (error) {
+        notif('❌ Erreur Google', error.message, 'red');
+        if (btn) { btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg> Continuer avec Google`; btn.disabled = false; }
+    }
+    // Sinon Google redirige → callback géré au boot
+};
+
+// Gérer le retour après connexion Google (appelé au démarrage de l'app)
+async function handleGoogleCallback(session) {
+    const userType = localStorage.getItem('google_oauth_type') || 'student';
+    localStorage.removeItem('google_oauth_type');
+
+    const userId = session.user.id;
+    const meta = session.user.user_metadata || {};
+    const googleName = meta.full_name || meta.name || session.user.email.split('@')[0];
+    const googleAvatar = meta.avatar_url || meta.picture || null;
+    const email = session.user.email;
+
+    // Afficher un loading pendant la création du profil
+    const app = document.getElementById('app');
+    if (app) app.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:#F5F5F5">
+        <div style="width:56px;height:56px;background:#FFF7ED;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:24px">🔄</div>
+        <p style="font-weight:700;color:#111">Connexion en cours...</p>
+        <p style="font-size:13px;color:#9CA3AF">Création de votre profil DriveConnect</p>
+    </div>`;
+
+    try {
+        // Vérifier si l'utilisateur existe déjà
+        let { data: profile } = await sb.from('users').select('*').eq('id', userId).maybeSingle();
+
+        if (!profile) {
+            // Première connexion Google → créer le profil
+            const { data: newProfile, error: insertErr } = await sb.from('users').upsert({
+                id: userId,
+                email: email,
+                name: googleName,
+                user_type: userType,
+                avatar_url: googleAvatar,
+                created_at: new Date().toISOString()
+            }, { onConflict: 'id' }).select().single();
+
+            if (insertErr) {
+                console.error('[GOOGLE] Erreur création profil:', insertErr);
+                // Réessayer après un délai
+                await new Promise(r => setTimeout(r, 1500));
+                const retry = await sb.from('users').select('*').eq('id', userId).maybeSingle();
+                profile = retry.data;
+            } else {
+                profile = newProfile;
+            }
+
+            // Si moniteur → créer le profil instructeur
+            if (userType === 'instructor' && profile) {
+                await sb.from('instructors').upsert({
+                    id: userId,
+                    user_id: userId,
+                    name: googleName,
+                    email: email,
+                    avatar_url: googleAvatar,
+                    rating: 0, total_reviews: 0, experience: 0,
+                    location: 'Nouméa', hourly_rate: 4500,
+                    verified: false, is_online: false,
+                    lat: NOUMEA.lat, lng: NOUMEA.lng,
+                    visibility_penalty: 0,
+                    approval_status: 'pending_documents'
+                }, { onConflict: 'id' });
+            }
+        } else {
+            // Utilisateur existant → mettre à jour avatar si nécessaire
+            if (googleAvatar && !profile.avatar_url) {
+                await sb.from('users').update({ avatar_url: googleAvatar }).eq('id', userId);
+                profile.avatar_url = googleAvatar;
+            }
+            if (profile.user_type === 'instructor' && googleAvatar) {
+                await sb.from('instructors').update({ avatar_url: googleAvatar }).eq('id', userId).is('avatar_url', null);
+            }
+        }
+
+        if (!profile) {
+            notif('❌ Erreur création profil', 'Réessayez', 'red');
+            currentView = 'home';
+            return;
+        }
+
+        currentUser = { ...profile, ...session.user, user_type: profile.user_type || userType };
+
+        if (profile.is_admin) {
+            currentView = 'admin';
+        } else if (currentUser.user_type === 'instructor') {
+            const { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', userId).maybeSingle();
+            const status = instProfile?.approval_status || 'pending_documents';
+            if (status === 'approved') currentView = 'instructor-dashboard';
+            else if (status === 'pending_documents') currentView = 'instructor-upload-docs';
+            else if (status === 'rejected') currentView = 'instructor-rejected';
+            else currentView = 'instructor-pending';
+        } else {
+            currentView = 'student-dashboard';
+        }
+
+        notif('✅ Connecté avec Google !', `Bienvenue ${googleName.split(' ')[0]} 👋`, 'green');
+
+    } catch(e) {
+        console.error('[GOOGLE CALLBACK ERROR]', e);
+        notif('❌ Erreur connexion Google', e.message, 'red');
+        currentView = 'home';
+    }
+}
+
 async function login(email, password, userType) {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) { 
@@ -831,6 +962,20 @@ function LoginPage(type) {
 
         <!-- Formulaire -->
         <div class="flex-1 px-6">
+
+            <!-- Bouton Google -->
+            <button onclick="loginWithGoogle('${type}')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:15px;background:#fff;border:1.5px solid #E5E7EB;border-radius:16px;font-weight:700;font-size:15px;color:#111;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:all 0.2s;margin-bottom:16px" onmouseover="this.style.borderColor='#9CA3AF';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#E5E7EB';this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'">
+                <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+                Continuer avec Google
+            </button>
+
+            <!-- Séparateur -->
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                <div style="flex:1;height:1px;background:#E5E7EB"></div>
+                <span style="font-size:12px;color:#9CA3AF;font-weight:600">ou par email</span>
+                <div style="flex:1;height:1px;background:#E5E7EB"></div>
+            </div>
+
             <form id="login-form" class="space-y-4">
                 <div id="name-field" style="display:none">
                     <input type="text" id="name" class="input-field" placeholder="Nom complet">
@@ -4691,6 +4836,45 @@ async function boot() {
     const adminKey = urlParams.get('admin');
 
     const { data: { session } } = await sb.auth.getSession();
+
+    // Détecter si c'est un retour de connexion Google (OAuth callback)
+    // Supabase peut retourner les tokens dans le hash OU dans la session directement
+    const isGoogleCallback = 
+        urlHash.includes('access_token') || 
+        urlHash.includes('provider_token') ||
+        (session && session.user?.app_metadata?.provider === 'google' && localStorage.getItem('google_oauth_type'));
+
+    if (session && isGoogleCallback) {
+        // Nettoyer l'URL immédiatement
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        await handleGoogleCallback(session);
+        await loadData();
+        render();
+        return;
+    }
+
+    // Cas où Google a redirigé mais getSession() est encore vide → attendre l'event onAuthStateChange
+    if (urlHash.includes('access_token') && !session) {
+        await new Promise(resolve => {
+            const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, newSession) => {
+                if (newSession) {
+                    subscription.unsubscribe();
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                    await handleGoogleCallback(newSession);
+                    await loadData();
+                    render();
+                    resolve();
+                }
+            });
+            // Timeout de sécurité 5s
+            setTimeout(() => { resolve(); }, 5000);
+        });
+        return;
+    }
     if (session) {
         const userId = session.user.id;
         const meta = session.user.user_metadata || {};
