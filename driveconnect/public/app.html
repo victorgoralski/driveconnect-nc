@@ -2484,48 +2484,66 @@ window.openValidateModal = function(bookingId, studentName) {
 };
 
 // ========== GESTION ABSENCE & ALERTE SOS ==========
-// Logique :
-//   ➜ Dès la fin du créneau  → le MONITEUR voit le code de validation
-//   ➜ +20 min après la fin ET code PAS encore validé (status toujours 'confirmed')
-//     → MONITEUR + ÉLÈVE reçoivent l'alerte SOS
-//   ➜ Si le cours a été validé (status='completed') avant les 20 min → RIEN ne s'active
+// Logique STRICTE :
+//   ➜ Le créneau doit être TERMINÉ depuis 20min à 4h MAX (pas les vieilles résa)
+//   ➜ Status doit être 'confirmed' en base (pas 'completed', 'cancelled', etc.)
+//   ➜ Code PAS encore entré par le moniteur
+//   ➜ Si tout ça → alerte SOS une seule fois
+//   ➜ JAMAIS sur des réservations futures ou trop anciennes
+
+// Appelée UNE SEULE FOIS au démarrage pour marquer toutes les vieilles résa comme "déjà vues"
+// → empêche l'alerte SOS de se déclencher sur des créneaux test ou passés depuis longtemps
+function initNoShowGuards() {
+    if (!currentUser) return;
+    const now = new Date();
+    DB.bookings.forEach(b => {
+        if (!b.date || !b.time) { b._sos_shown = true; b._noshow_code_shown = true; return; }
+        const slotStart = new Date(b.date + 'T' + b.time);
+        if (isNaN(slotStart.getTime())) { b._sos_shown = true; b._noshow_code_shown = true; return; }
+        const duration  = parseFloat(b.duration) || 1;
+        const slotEnd   = new Date(slotStart.getTime() + duration * 3600000);
+        const deadline4h = new Date(slotEnd.getTime() + 4 * 3600000);
+        // Si le créneau est déjà passé depuis plus de 4h → marquer immédiatement comme vu
+        if (now > deadline4h) {
+            b._sos_shown = true;
+            b._noshow_code_shown = true;
+        }
+    });
+}
 
 function checkNoShowBookings() {
     if (!currentUser) return;
     const now = new Date();
 
-    // Récupérer les bookings frais depuis Supabase pour avoir le vrai status
+    // Uniquement les bookings confirmés
     const confirmed = DB.bookings.filter(b => b.status === 'confirmed');
 
     confirmed.forEach(async b => {
-        const slotStart  = new Date(b.date + 'T' + (b.time || '00:00'));
+        if (!b.date || !b.time) return;
+        const slotStart  = new Date(b.date + 'T' + b.time);
+        if (isNaN(slotStart.getTime())) return;
+
         const duration   = parseFloat(b.duration) || 1;
         const slotEnd    = new Date(slotStart.getTime() + duration * 3600000);
-        const deadline20 = new Date(slotEnd.getTime() + 20 * 60000); // +20 min après la fin
+        const deadline20 = new Date(slotEnd.getTime() + 20 * 60000);
+        const deadline4h = new Date(slotEnd.getTime() + 4 * 3600000);
 
-        // Moniteur : affiche le code dès que le créneau est terminé (si pas encore validé)
+        // ── Modale code : moniteur uniquement, créneau terminé depuis < 4h ──
         if (currentUser.user_type === 'instructor') {
-            if (now >= slotEnd && b.completion_code && !b._noshow_code_shown) {
+            if (now >= slotEnd && now <= deadline4h && b.completion_code && !b._noshow_code_shown) {
                 b._noshow_code_shown = true;
                 showNoShowCodeModal(b);
             }
         }
 
-        // Alerte SOS : seulement si +20 min ET pas encore montré
-        if (now >= deadline20 && !b._sos_shown) {
+        // ── Alerte SOS : fenêtre stricte 20min → 4h après la fin ──
+        if (now >= deadline20 && now <= deadline4h && !b._sos_shown) {
             b._sos_shown = true;
-
-            // Vérifier en temps réel dans Supabase que le cours n'est pas déjà validé
-            const { data: fresh } = await sb.from('bookings')
-                .select('status')
-                .eq('id', b.id)
-                .single();
-
-            // Si le cours a été validé entre-temps → ne pas afficher l'alerte SOS
-            if (fresh && fresh.status === 'completed') {
-                return;
-            }
-
+            try {
+                const { data: fresh } = await sb.from('bookings')
+                    .select('status').eq('id', b.id).single();
+                if (!fresh || fresh.status !== 'confirmed') return;
+            } catch(e) { return; }
             showSosModal(b);
         }
     });
@@ -2562,9 +2580,10 @@ function showSosModal(booking) {
     if (document.getElementById('sos-modal-' + booking.id)) return;
     const isInst = currentUser.user_type === 'instructor';
     const otherName = isInst ? (booking.student_name || 'l\'élève') : (booking.instructor_name || 'le moniteur');
+    const modalId = 'sos-modal-' + booking.id;
 
     const modal = document.createElement('div');
-    modal.id = 'sos-modal-' + booking.id;
+    modal.id = modalId;
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:99999;display:flex;align-items:flex-end;justify-content:center;padding:12px;animation:fadeUp 0.3s ease-out';
     modal.innerHTML = `
     <div style="background:#0D0D0D;border-radius:28px 28px 20px 20px;width:100%;max-width:440px;padding:26px 24px 28px;max-height:93vh;overflow-y:auto">
@@ -2590,19 +2609,25 @@ function showSosModal(booking) {
             <p style="color:#6B7280;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px">CODE DE VALIDATION</p>
             <p style="font-family:monospace;font-weight:900;font-size:26px;color:#FF5A1F;letter-spacing:5px">${booking.completion_code}</p>
         </div>
-        <button onclick="document.getElementById('sos-modal-${booking.id}').remove();openValidateModal('${booking.id}','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(255,90,31,0.12);border:1.5px solid rgba(255,90,31,0.35);color:#FF5A1F;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:8px">
+        <button onclick="document.getElementById('${modalId}').remove();openValidateModal('${booking.id}','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(255,90,31,0.12);border:1.5px solid rgba(255,90,31,0.35);color:#FF5A1F;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:8px">
             🔑 Valider le cours maintenant
         </button>` : ''}
-        <button onclick="document.getElementById('sos-modal-${booking.id}').remove();reportIssue('${booking.id}','${isInst?'instructor':'student'}','${otherName.replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(147,51,234,0.1);border:1.5px solid rgba(147,51,234,0.3);color:#A78BFA;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer;margin-bottom:8px">
+        <button onclick="document.getElementById('${modalId}').remove();reportIssue('${booking.id}','${isInst?'instructor':'student'}','${otherName.replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(147,51,234,0.1);border:1.5px solid rgba(147,51,234,0.3);color:#A78BFA;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer;margin-bottom:8px">
             ⚠️ Signaler un problème à DriveConnect
         </button>
-        <button onclick="document.getElementById('sos-modal-${booking.id}').remove()" style="width:100%;padding:11px;background:none;border:none;color:#374151;font-weight:600;font-size:13px;cursor:pointer">Fermer</button>
+        <button onclick="document.getElementById('${modalId}').remove()" style="width:100%;padding:14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#9CA3AF;font-weight:700;font-size:14px;cursor:pointer;border-radius:14px">
+            ✕ Fermer
+        </button>
     </div>`;
     document.body.appendChild(modal);
+
+    // Fermeture en cliquant sur le fond
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
     notif('🚨 Cours non validé', '20 min écoulées — contactez la police ou DriveConnect si besoin', 'red');
 }
 
-// Vérifie toutes les minutes
+// Vérifie toutes les minutes — les vieilles résa sont déjà neutralisées par initNoShowGuards()
 setInterval(checkNoShowBookings, 60000);
 
 window.submitValidationCode = async function(bookingId) {
@@ -2954,13 +2979,13 @@ function initMap() {
     const useDark = isDark;
 
     if (useDark) {
-        // Tuiles CartoDB Dark Matter — design sombre premium
+        // CartoDB Dark Matter — design sombre premium
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             subdomains: 'abcd', maxZoom: 20, maxNativeZoom: 18
         }).addTo(map);
     } else {
-        // Tuiles Stadia AlidadeSmooth — design light très propre
-        L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+        // Stadia Maps Alidade Smooth — clé API dans l'URL
+        L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=fd17811c-eb49-495f-b414-101cb5f1308c', {
             maxZoom: 20, maxNativeZoom: 18
         }).addTo(map);
     }
@@ -4918,6 +4943,7 @@ async function boot() {
     checkReferralInUrl();
 
     await loadData();
+    initNoShowGuards(); // Neutralise immédiatement toutes les vieilles réservations
     render();
 
     // Charger les données de parrainage APRÈS render (les éléments DOM doivent exister)
