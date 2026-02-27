@@ -281,16 +281,30 @@
         .db-instructor-chip:active { transform:translateY(0); }
         .dark .db-instructor-chip { background:#1C1C1E; border-color:#2C2C2E; }
 
-        @media (min-width: 720px) {
-            .db-action-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        @media (max-width: 520px) {
+            .db-main { padding: 18px 14px 112px; }
+            .db-action-grid { gap: 10px; }
+            .db-action-btn { min-height: 96px; padding: 14px 10px; border-radius: 16px; }
+            .db-action-icon { width:46px; height:46px; border-radius:14px; font-size:20px; }
+            .db-booking-card { padding: 16px; border-radius: 18px; }
+            .db-instructor-chip { padding: 13px 14px; border-radius: 16px; }
+            .db-tab { padding: 5px 0; }
+            .db-tab .tab-label { font-size: 9px; }
+            .db-tab .tab-icon { font-size: 20px; }
         }
-        @media (min-width: 1024px) {
+        @media (min-width: 700px) {
+            .db-action-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (min-width: 960px) {
             .db-main { padding: 28px 24px 128px; }
             .db-booking-card { padding: 16px; border-radius: 18px; }
             .db-instructor-chip { padding: 14px 15px; border-radius: 18px; }
             .slot-card { padding: 14px 15px; border-radius: 16px; }
             .db-responsive-list { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px !important; }
             .db-map-list { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px !important; }
+        }
+        @media (min-width: 1240px) {
+            .db-action-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         }
         @media (prefers-reduced-motion: reduce) {
             .fade-in, .slide-in, .scale-in, .success-pop, .stagger > *, .db-action-btn, .db-tab .tab-icon {
@@ -1154,7 +1168,7 @@ function StudentDashboard() {
                     <span class="badge badge-online" style="font-size:11px"><span style="color:#16A34A">●</span> Disponible</span>
                     <span class="badge badge-gray" style="font-size:11px">○ Hors ligne</span>
                 </div>
-                <div id="map" style="height:240px;border-radius:0"></div>
+                <div id="map" style="height:clamp(220px,36vh,320px);border-radius:0"></div>
             </div>
 
             <!-- Actions rapides -->
@@ -1274,7 +1288,7 @@ function StudentDashboard() {
         ${tab==='map' ? `
             <p class="db-section-title">Tous les moniteurs</p>
             <div class="db-surface-card" style="overflow:hidden;margin-bottom:16px">
-                <div id="map" style="height:280px;border-radius:0"></div>
+                <div id="map" style="height:clamp(250px,42vh,420px);border-radius:0"></div>
             </div>
             <div class="db-map-list" style="display:flex;flex-direction:column;gap:10px">
             ${instructors.map((i,idx)=>{
@@ -1807,7 +1821,7 @@ function InstructorDashboard() {
                     <p id="gps-status" style="font-size:12px;color:#9CA3AF;margin:0">GPS non actif</p>
                     <button onclick="watchId?stopTracking():startTracking()" style="background:#FF5A1F;color:#fff;border:none;border-radius:10px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer" id="gps-toggle-btn">▶ Activer</button>
                 </div>
-                <div id="map" style="height:220px;border-radius:0"></div>
+                <div id="map" style="height:clamp(210px,34vh,300px);border-radius:0"></div>
             </div>
         ` : ''}
 
