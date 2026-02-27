@@ -420,6 +420,10 @@ async function checkDoubleBooking(instructorId, date, time) {
 
 const COMMISSION = 0.15;
 const NOUMEA = { lat: -22.2758, lng: 166.4580 };
+const SOS_POLICE_TEL = '17';
+const SOS_POLICE_LABEL = '17';
+const SOS_DRIVECONNECT_TEL = '+687844022';
+const SOS_DRIVECONNECT_LABEL = '+687 84 40 22';
 
 let currentUser = null;
 let currentView = 'home';
@@ -468,6 +472,16 @@ function notif(title, msg, color='orange') {
 function calcPrices(amount) {
     const commission = Math.round(amount * COMMISSION);
     return { total: amount, commission, net: amount - commission };
+}
+
+async function generateUniqueCompletionCode(maxAttempts = 8) {
+    for (let i = 0; i < maxAttempts; i++) {
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const { data, error } = await sb.from('bookings').select('id').eq('completion_code', code).limit(1);
+        if (error) continue;
+        if (!data || data.length === 0) return code;
+    }
+    return (Date.now().toString(36).slice(-3) + Math.random().toString(36).slice(2, 5)).toUpperCase();
 }
 
 function cancellationPolicy(date, time) {
@@ -2285,12 +2299,21 @@ function showPaymentModal(slot, instructor, prices) {
             return;
         }
 
-        // Marquer le slot comme indisponible immédiatement
-        const { error } = await sb.from('slots').update({ available: false }).eq('id', slot.id).eq('available', true);
-        if (error) { notif('❌ Créneau indisponible', 'Ce créneau a été réservé par un autre élève', 'red'); _bookingInProgress = false; return; }
+        // Verrouillage atomique du créneau: si aucune ligne touchée, il est déjà pris.
+        const { data: lockedSlot, error: lockErr } = await sb.from('slots')
+            .update({ available: false })
+            .eq('id', slot.id)
+            .eq('available', true)
+            .select('id')
+            .maybeSingle();
+        if (lockErr || !lockedSlot) {
+            notif('❌ Créneau indisponible', 'Ce créneau a été réservé par un autre élève', 'red');
+            _bookingInProgress = false;
+            return;
+        }
 
         // Générer un code unique de 6 caractères
-        const completionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const completionCode = await generateUniqueCompletionCode();
 
         const { data: booking, error: bError } = await sb.from('bookings').insert({
             slot_id: slot.id,
@@ -2305,7 +2328,13 @@ function showPaymentModal(slot, instructor, prices) {
             completion_code: completionCode
         }).select().single();
 
-        if (bError) { notif('❌ Erreur réservation', bError.message, 'red'); _bookingInProgress = false; return; }
+        if (bError) {
+            // Rollback du verrouillage slot en cas d'échec d'insertion booking.
+            await sb.from('slots').update({ available: true }).eq('id', slot.id);
+            notif('❌ Erreur réservation', bError.message, 'red');
+            _bookingInProgress = false;
+            return;
+        }
 
         sendPushToUser(instructor.id, '🎉 Nouvelle réservation !',
             `${currentUser.name} a réservé le ${slot.date} à ${slot.time}`);
@@ -2643,12 +2672,32 @@ function checkNoShowBookings() {
             b._sos_shown = true;
             try {
                 const { data: fresh } = await sb.from('bookings')
-                    .select('status').eq('id', b.id).single();
+                    .select('status,student_id,instructor_id').eq('id', b.id).single();
                 if (!fresh || fresh.status !== 'confirmed') return;
+                await maybeSendSosPushOnce({
+                    id: b.id,
+                    student_id: fresh.student_id || b.student_id,
+                    instructor_id: fresh.instructor_id || b.instructor_id
+                });
             } catch(e) { return; }
             showSosModal(b);
         }
     });
+}
+
+async function maybeSendSosPushOnce(booking) {
+    if (!booking || !booking.id) return;
+    const key = 'sos_push_sent_' + booking.id;
+    if (localStorage.getItem(key) === '1') return;
+
+    const body = `Cours non validé après 20 min. Urgence: ${SOS_POLICE_LABEL}. Support DriveConnect: ${SOS_DRIVECONNECT_LABEL}.`;
+    const jobs = [];
+    if (booking.student_id) jobs.push(sendPushToUser(booking.student_id, '🚨 SOS Alerte cours', body));
+    if (booking.instructor_id) jobs.push(sendPushToUser(booking.instructor_id, '🚨 SOS Alerte cours', body));
+    try {
+        await Promise.all(jobs);
+        localStorage.setItem(key, '1');
+    } catch(e) {}
 }
 
 function showNoShowCodeModal(booking) {
@@ -2699,11 +2748,11 @@ function showSosModal(booking) {
         <p style="color:#9CA3AF;font-size:13px;line-height:1.6;margin-bottom:20px;text-align:center">
             Si vous êtes en danger ou faites face à une situation urgente,<br>appelez la police. Pour tout litige ou problème lié à l'application, contactez DriveConnect directement.
         </p>
-        <a href="tel:17" style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:18px;background:linear-gradient(135deg,#1D4ED8,#2563EB);color:#fff;text-decoration:none;border-radius:18px;font-weight:900;font-size:18px;margin-bottom:10px;box-shadow:0 6px 24px rgba(37,99,235,0.45)">
-            🚔 &nbsp;Police — appeler le 17
+        <a href="tel:${SOS_POLICE_TEL}" style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:18px;background:linear-gradient(135deg,#1D4ED8,#2563EB);color:#fff;text-decoration:none;border-radius:18px;font-weight:900;font-size:18px;margin-bottom:10px;box-shadow:0 6px 24px rgba(37,99,235,0.45)">
+            🚔 &nbsp;Police — appeler le ${SOS_POLICE_LABEL}
         </a>
-        <a href="tel:+68784402" style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF7C3F);color:#fff;text-decoration:none;border-radius:18px;font-weight:800;font-size:16px;margin-bottom:6px;box-shadow:0 6px 24px rgba(255,90,31,0.35)">
-            📞 &nbsp;DriveConnect — +687 84 40 22
+        <a href="tel:${SOS_DRIVECONNECT_TEL}" style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF7C3F);color:#fff;text-decoration:none;border-radius:18px;font-weight:800;font-size:16px;margin-bottom:6px;box-shadow:0 6px 24px rgba(255,90,31,0.35)">
+            📞 &nbsp;DriveConnect — ${SOS_DRIVECONNECT_LABEL}
         </a>
         <p style="color:#4B5563;font-size:11px;text-align:center;margin-bottom:16px">Litige • Problème d'application • Intervention admin</p>
         ${isInst && booking.completion_code ? `
