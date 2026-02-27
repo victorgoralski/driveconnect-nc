@@ -2672,32 +2672,12 @@ function checkNoShowBookings() {
             b._sos_shown = true;
             try {
                 const { data: fresh } = await sb.from('bookings')
-                    .select('status,student_id,instructor_id').eq('id', b.id).single();
+                    .select('status').eq('id', b.id).single();
                 if (!fresh || fresh.status !== 'confirmed') return;
-                await maybeSendSosPushOnce({
-                    id: b.id,
-                    student_id: fresh.student_id || b.student_id,
-                    instructor_id: fresh.instructor_id || b.instructor_id
-                });
             } catch(e) { return; }
             showSosModal(b);
         }
     });
-}
-
-async function maybeSendSosPushOnce(booking) {
-    if (!booking || !booking.id) return;
-    const key = 'sos_push_sent_' + booking.id;
-    if (localStorage.getItem(key) === '1') return;
-
-    const body = `Cours non validé après 20 min. Urgence: ${SOS_POLICE_LABEL}. Support DriveConnect: ${SOS_DRIVECONNECT_LABEL}.`;
-    const jobs = [];
-    if (booking.student_id) jobs.push(sendPushToUser(booking.student_id, '🚨 SOS Alerte cours', body));
-    if (booking.instructor_id) jobs.push(sendPushToUser(booking.instructor_id, '🚨 SOS Alerte cours', body));
-    try {
-        await Promise.all(jobs);
-        localStorage.setItem(key, '1');
-    } catch(e) {}
 }
 
 function showNoShowCodeModal(booking) {
