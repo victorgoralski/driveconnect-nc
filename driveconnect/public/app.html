@@ -429,6 +429,9 @@ let currentUser = null;
 let currentView = 'home';
 let currentTab = 'home';
 let map = null, userMarker = null, iMarkers = [], watchId = null;
+let deferredInstallPrompt = null;
+let appUiInitDone = false;
+let _lastGlobalErrTs = 0;
 
 // Cache local pour éviter trop de requêtes
 let DB = { instructors: [], slots: [], bookings: [], progressNotes: [] };
@@ -474,6 +477,169 @@ function calcPrices(amount) {
     return { total: amount, commission, net: amount - commission };
 }
 
+function showNetworkBanner(text, color) {
+    let el = document.getElementById('network-banner');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'network-banner';
+        el.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100000;padding:10px 14px;border-radius:999px;font-size:12px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,0.18);display:none';
+        document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.style.background = color;
+    el.style.color = '#fff';
+    el.style.display = 'block';
+}
+
+function hideNetworkBanner() {
+    const el = document.getElementById('network-banner');
+    if (!el) return;
+    el.style.display = 'none';
+}
+
+function updateNetworkUi() {
+    if (navigator.onLine) {
+        showNetworkBanner('🟢 Connexion rétablie', '#059669');
+        setTimeout(hideNetworkBanner, 1800);
+    } else {
+        showNetworkBanner('🔴 Hors ligne — fonctionnalités limitées', '#DC2626');
+    }
+}
+
+function ensureInstallFab() {
+    let btn = document.getElementById('install-app-fab');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'install-app-fab';
+        btn.style.cssText = 'position:fixed;right:14px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:100000;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;border:none;border-radius:999px;padding:12px 14px;font-size:12px;font-weight:900;box-shadow:0 10px 28px rgba(255,90,31,0.35);cursor:pointer;display:none';
+        btn.textContent = '⬇️ Installer l’app';
+        btn.onclick = async () => {
+            if (!deferredInstallPrompt) return;
+            deferredInstallPrompt.prompt();
+            try { await deferredInstallPrompt.userChoice; } catch(e) {}
+            deferredInstallPrompt = null;
+            btn.style.display = 'none';
+        };
+        document.body.appendChild(btn);
+    }
+    return btn;
+}
+
+function setupAppEnhancements() {
+    if (appUiInitDone) return;
+    appUiInitDone = true;
+
+    window.addEventListener('online', updateNetworkUi);
+    window.addEventListener('offline', updateNetworkUi);
+    updateNetworkUi();
+
+    const fab = ensureInstallFab();
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        if (fab) fab.style.display = 'inline-flex';
+    });
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        if (fab) fab.style.display = 'none';
+        notif('✅ Application installée', 'DriveConnect est maintenant sur votre écran d’accueil', 'green');
+    });
+
+    window.addEventListener('error', () => {
+        const now = Date.now();
+        if (now - _lastGlobalErrTs < 6000) return;
+        _lastGlobalErrTs = now;
+        notif('⚠️ Erreur temporaire', 'Une action a échoué, réessayez.', 'yellow');
+        logAppError('window.error', new Error('Global window error'));
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+        const now = Date.now();
+        if (now - _lastGlobalErrTs < 6000) return;
+        _lastGlobalErrTs = now;
+        notif('⚠️ Problème réseau/serveur', 'Réessayez dans quelques secondes.', 'yellow');
+        logAppError('window.unhandledrejection', e?.reason || 'Unhandled promise rejection');
+    });
+}
+
+function showApiRetryBanner(msg = 'Connexion serveur interrompue') {
+    let el = document.getElementById('api-retry-banner');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'api-retry-banner';
+        el.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:100001;background:#111827;color:#fff;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,0.28)';
+        document.body.appendChild(el);
+    }
+    el.innerHTML = `<span style="font-size:12px;font-weight:700;white-space:nowrap">${msg}</span>
+        <button id="api-retry-btn" style="background:#FF5A1F;color:#fff;border:none;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer">Réessayer</button>`;
+    const btn = document.getElementById('api-retry-btn');
+    if (btn) {
+        btn.onclick = async () => {
+            btn.textContent = '...';
+            btn.disabled = true;
+            try {
+                await loadData();
+                hideApiRetryBanner();
+                render();
+                notif('✅ Reconnecté', 'Données synchronisées', 'green');
+            } catch(e) {
+                notif('⚠️ Toujours indisponible', 'Vérifiez votre connexion et réessayez', 'yellow');
+            } finally {
+                btn.textContent = 'Réessayer';
+                btn.disabled = false;
+            }
+        };
+    }
+}
+
+function hideApiRetryBanner() {
+    const el = document.getElementById('api-retry-banner');
+    if (el) el.remove();
+}
+
+function renderMaintenanceScreen() {
+    const app = document.getElementById('app');
+    if (!app) return;
+    app.innerHTML = `<div class="min-h-screen flex items-center justify-center px-6" style="background:linear-gradient(160deg,#0f0f0f 0%,#1a1a1a 50%,#0f0f0f 100%)">
+        <div style="max-width:460px;width:100%;text-align:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:28px 22px">
+            <div style="width:72px;height:72px;border-radius:20px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px">🛠️</div>
+            <h2 style="color:#fff;font-size:22px;font-weight:900;margin-bottom:8px">Serveur temporairement indisponible</h2>
+            <p style="color:#9CA3AF;font-size:14px;line-height:1.6;margin-bottom:18px">Impossible de joindre Supabase pour le moment. Vérifiez internet, puis réessayez.</p>
+            <button onclick="boot()" style="width:100%;padding:14px;border:none;border-radius:14px;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;font-weight:900;font-size:15px;cursor:pointer">🔄 Réessayer</button>
+        </div>
+    </div>`;
+}
+
+async function checkSupabaseReachable(timeoutMs = 4500) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+        await fetch(SUPABASE_URL + '/rest/v1/', {
+            method: 'GET',
+            headers: { apikey: SUPABASE_KEY },
+            signal: ctrl.signal
+        });
+        return true;
+    } catch(e) {
+        return false;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function logAppError(context, err, extra = {}) {
+    try {
+        const e = err instanceof Error ? err : new Error(typeof err === 'string' ? err : JSON.stringify(err));
+        const payload = {
+            context,
+            message: e.message || 'unknown',
+            stack: e.stack ? String(e.stack).substring(0, 3000) : null,
+            user_id: currentUser?.id || null,
+            meta: extra
+        };
+        await sb.from('app_errors').insert(payload);
+    } catch(_) {}
+}
+
 async function generateUniqueCompletionCode(maxAttempts = 8) {
     for (let i = 0; i < maxAttempts; i++) {
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -502,27 +668,41 @@ function sortedInstructors() {
 
 // ========== CHARGEMENT DONNÉES SUPABASE ==========
 async function loadData() {
-    const [instRes, slotsRes] = await Promise.all([
-        sb.from('instructors').select('*'),
-        sb.from('slots').select('*').eq('available', true).gte('date', new Date().toISOString().split('T')[0])
-    ]);
-    DB.instructors = instRes.data || [];
-    DB.slots = slotsRes.data || [];
+    try {
+        const [instRes, slotsRes] = await Promise.all([
+            sb.from('instructors').select('*'),
+            sb.from('slots').select('*').eq('available', true).gte('date', new Date().toISOString().split('T')[0])
+        ]);
+        if (instRes.error) throw instRes.error;
+        if (slotsRes.error) throw slotsRes.error;
 
-    if (currentUser) {
-        const field = currentUser.user_type === 'student' ? 'student_id' : 'instructor_id';
-        const { data } = await sb.from('bookings').select('*').eq(field, currentUser.id).order('created_at', { ascending: false });
-        DB.bookings = data || [];
+        DB.instructors = instRes.data || [];
+        DB.slots = slotsRes.data || [];
 
-        // Charger les fiches de suivi
-        if (currentUser.user_type === 'student') {
-            const { data: notes } = await sb.from('progress_notes').select('*').eq('student_id', currentUser.id).order('created_at', { ascending: false });
-            DB.progressNotes = notes || [];
-        } else {
-            // Moniteur : charger les notes qu'il a écrites
-            const { data: notes } = await sb.from('progress_notes').select('*').eq('instructor_id', currentUser.id).order('created_at', { ascending: false });
-            DB.progressNotes = notes || [];
+        if (currentUser) {
+            const field = currentUser.user_type === 'student' ? 'student_id' : 'instructor_id';
+            const { data, error: bErr } = await sb.from('bookings').select('*').eq(field, currentUser.id).order('created_at', { ascending: false });
+            if (bErr) throw bErr;
+            DB.bookings = data || [];
+
+            // Charger les fiches de suivi
+            if (currentUser.user_type === 'student') {
+                const { data: notes, error: nErr } = await sb.from('progress_notes').select('*').eq('student_id', currentUser.id).order('created_at', { ascending: false });
+                if (nErr) throw nErr;
+                DB.progressNotes = notes || [];
+            } else {
+                // Moniteur : charger les notes qu'il a écrites
+                const { data: notes, error: nErr } = await sb.from('progress_notes').select('*').eq('instructor_id', currentUser.id).order('created_at', { ascending: false });
+                if (nErr) throw nErr;
+                DB.progressNotes = notes || [];
+            }
         }
+
+        hideApiRetryBanner();
+    } catch (e) {
+        showApiRetryBanner('Connexion API perdue');
+        await logAppError('loadData', e);
+        throw e;
     }
 }
 
@@ -4785,7 +4965,17 @@ function render() {
 // ========== DÉMARRAGE ==========
 // ========== SERVICE WORKER PWA ==========
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+            const installing = reg.installing;
+            if (!installing) return;
+            installing.addEventListener('statechange', () => {
+                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                    notif('⬆️ Mise à jour disponible', 'Rechargez l’application pour appliquer la nouvelle version', 'orange');
+                }
+            });
+        });
+    }).catch(() => {});
 }
 const VAPID_PUBLIC = 'BMjTOVHtirDedvOuVi151Q7lrkGvJM0h8tmgwHxrfbPzXc0-P4LQufCwlfXYw5pKLV6-SIKeTMVZNAQMxVtjqHU';
 
@@ -4943,7 +5133,14 @@ window.submitNewPassword = async function() {
 };
 
 async function boot() {
+    setupAppEnhancements();
     document.getElementById('app').innerHTML = '<div class="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center"><div class="text-center"><div class="text-5xl mb-4">🚗</div><p class="text-xl font-bold text-orange-600">DriveConnect NC</p><p class="text-gray-400 mt-2">Connexion à la base de données...</p><div class="mt-4 w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div></div></div>';
+    try {
+    const reachable = await checkSupabaseReachable();
+    if (!reachable) {
+        renderMaintenanceScreen();
+        return;
+    }
 
     const urlHash = window.location.hash;
     const urlParams = new URLSearchParams(window.location.search);
@@ -5086,7 +5283,7 @@ async function boot() {
             // Ne JAMAIS re-render les pages d'upload docs (détruit les inputs file)
             if (currentView === 'instructor-upload-docs' || currentView === 'instructor-rejected' || currentView === 'instructor-pending') return;
 
-            await loadData();
+            try { await loadData(); } catch (_) { return; }
             if (currentUser) {
                 // Si sur le dashboard étudiant avec carte visible, juste mettre à jour les markers
                 if (currentView === 'student-dashboard' && map && iMarkers.length > 0) {
@@ -5097,6 +5294,10 @@ async function boot() {
             }
         }
     }, 10000); // 10s pour plus de réactivité
+    } catch (e) {
+        await logAppError('boot', e);
+        renderMaintenanceScreen();
+    }
 }
 
 
