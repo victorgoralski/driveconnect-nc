@@ -215,9 +215,23 @@
             background:#fff; border-radius:20px; border:1.5px solid #ECF0F7; cursor:pointer;
             transition: all var(--transition); box-shadow: 0 4px 14px rgba(15,23,42,0.05);
             min-height: 104px;
+            position: relative;
+            overflow: hidden;
+        }
+        .db-action-btn::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+            transform: translateX(-130%);
+            transition: transform 0.55s ease;
+            pointer-events: none;
         }
         .db-action-btn:hover { background:#FFF8F4; border-color:#FFCCA8; transform:translateY(-2px); box-shadow: 0 12px 28px rgba(255,90,31,0.12); }
+        .db-action-btn:hover::before { transform: translateX(130%); }
         .db-action-btn:active { transform:translateY(0); }
+        .db-action-btn.logout { border-color:#F9D3D3; background:#FFF5F5; }
+        .db-action-btn.logout:hover { background:#FEECEC; border-color:#F3A8A8; box-shadow: 0 12px 28px rgba(220,38,38,0.12); }
         .dark .db-action-btn { background:#1C1C1E; border-color:#2C2C2E; box-shadow: 0 8px 18px rgba(0,0,0,0.34); }
         .db-action-icon { width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:24px; }
 
@@ -236,6 +250,18 @@
         .db-tab.active::after { 
             content:''; position:absolute; top:-1px; left:50%; transform:translateX(-50%); 
             width:24px; height:3px; background:#FF5A1F; border-radius:0 0 3px 3px; 
+        }
+        .db-tab.active::before {
+            content:'';
+            position:absolute;
+            top:-10px;
+            left:50%;
+            transform:translateX(-50%);
+            width:34px;
+            height:14px;
+            border-radius:999px;
+            background: radial-gradient(circle at center, rgba(255,90,31,0.45), rgba(255,90,31,0));
+            pointer-events:none;
         }
         .db-tab:not(.active):hover { color:#888; }
         .db-tab .tab-icon { font-size:22px; transition: transform var(--transition-fast); }
@@ -256,6 +282,14 @@
         }
         @media (min-width: 1024px) {
             .db-main { padding: 28px 24px 128px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .fade-in, .slide-in, .scale-in, .success-pop, .stagger > *, .db-action-btn, .db-tab .tab-icon {
+                animation: none !important;
+                transition: none !important;
+                transform: none !important;
+            }
+            .db-action-btn::before { display: none; }
         }
 
         .slot-card { 
@@ -1128,6 +1162,10 @@ function StudentDashboard() {
                 <button class="db-action-btn" onclick="switchTab('profile')">
                     <div class="db-action-icon" style="background:#F3F4F6">⚙️</div>
                     <span style="font-size:12px;font-weight:700;color:var(--text)">Paramètres</span>
+                </button>
+                <button class="db-action-btn logout" onclick="logout()">
+                    <div class="db-action-icon" style="background:#FEE2E2">🚪</div>
+                    <span style="font-size:12px;font-weight:700;color:#B91C1C">Se déconnecter</span>
                 </button>
             </div>
 
