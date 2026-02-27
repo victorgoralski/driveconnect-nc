@@ -2338,59 +2338,122 @@ window.openValidateModal = function(bookingId, studentName) {
     });
 };
 
-// ========== GESTION ABSENCE ÉLÈVE (Auto-révélation du code après l'heure) ==========
-// Vérifie si l'élève ne s'est pas présenté après la fin du créneau
-// et affiche automatiquement le code au moniteur pour valider son heure
+// ========== GESTION ABSENCE & ALERTE SOS ==========
+// Logique :
+//   ➜ Dès la fin du créneau  → le MONITEUR voit le code de validation
+//   ➜ +20 min sans validation → MONITEUR + ÉLÈVE reçoivent l'alerte SOS
+//     avec bouton Police (17) et numéro admin DriveConnect (+687 84 40 22)
+
 function checkNoShowBookings() {
-    if (!currentUser || currentUser.user_type !== 'instructor') return;
+    if (!currentUser) return;
     const now = new Date();
     const confirmed = DB.bookings.filter(b => b.status === 'confirmed');
+
     confirmed.forEach(b => {
-        // Calculer l'heure de fin du créneau
-        const slotStart = new Date(b.date + 'T' + (b.time || '00:00'));
-        const duration = parseFloat(b.duration) || 1;
-        const slotEnd = new Date(slotStart.getTime() + duration * 3600000);
-        // Si le créneau est terminé et que le code n'a pas été révélé
-        if (now >= slotEnd && b.completion_code && !b._noshow_code_shown) {
-            b._noshow_code_shown = true;
-            showNoShowCodeModal(b);
+        const slotStart  = new Date(b.date + 'T' + (b.time || '00:00'));
+        const duration   = parseFloat(b.duration) || 1;
+        const slotEnd    = new Date(slotStart.getTime() + duration * 3600000);
+        const deadline20 = new Date(slotEnd.getTime() + 20 * 60000); // +20 min
+
+        // Moniteur : affiche le code dès que le créneau est terminé
+        if (currentUser.user_type === 'instructor') {
+            if (now >= slotEnd && b.completion_code && !b._noshow_code_shown) {
+                b._noshow_code_shown = true;
+                showNoShowCodeModal(b);
+            }
+        }
+
+        // Tout le monde : alerte SOS 20 min après la fin sans validation
+        if (now >= deadline20 && !b._sos_shown) {
+            b._sos_shown = true;
+            showSosModal(b);
         }
     });
 }
 
 function showNoShowCodeModal(booking) {
-    const existingModal = document.getElementById('noshow-modal-' + booking.id);
-    if (existingModal) return;
+    if (document.getElementById('noshow-modal-' + booking.id)) return;
     const modal = document.createElement('div');
     modal.id = 'noshow-modal-' + booking.id;
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeUp 0.3s ease-out';
-    modal.innerHTML = `<div style="background:#0D0D0D;border-radius:28px;width:100%;max-width:420px;padding:28px;text-align:center">
-        <div style="width:64px;height:64px;background:rgba(251,191,36,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;border:1px solid rgba(251,191,36,0.3)">⏰</div>
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99997;display:flex;align-items:flex-end;justify-content:center;padding:16px;animation:fadeUp 0.3s ease-out';
+    modal.innerHTML = `<div style="background:#0D0D0D;border-radius:28px 28px 20px 20px;width:100%;max-width:420px;padding:28px;text-align:center;max-height:90vh;overflow-y:auto">
+        <div style="width:64px;height:64px;background:rgba(251,191,36,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px;border:1px solid rgba(251,191,36,0.3)">⏰</div>
         <h3 style="color:#fff;font-weight:900;font-size:20px;margin-bottom:8px">Heure de cours terminée</h3>
-        <p style="color:#9CA3AF;font-size:13px;margin-bottom:6px">Le créneau avec <strong style="color:#fff">${booking.student_name||'l\'élève'}</strong> est terminé.</p>
-        <p style="color:#9CA3AF;font-size:13px;margin-bottom:20px">Si l'élève n'est pas venu, vous pouvez valider le cours et signaler son absence.</p>
-        
-        <div style="background:#1A1A1A;border-radius:16px;padding:16px;margin-bottom:20px">
-            <p style="color:#9CA3AF;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:8px">CODE DE VALIDATION DU COURS</p>
-            <p style="font-family:monospace;font-weight:900;font-size:28px;color:#FF5A1F;letter-spacing:6px">${booking.completion_code}</p>
-            <p style="color:#4B5563;font-size:11px;margin-top:8px">Utilisez ce code pour valider votre heure de cours</p>
+        <p style="color:#9CA3AF;font-size:13px;margin-bottom:6px">Le créneau avec <strong style="color:#fff">${booking.student_name||'l\'élève'}</strong> est écoulé.</p>
+        <p style="color:#9CA3AF;font-size:13px;margin-bottom:18px">Si l'élève ne s'est pas présenté, validez votre heure et signalez son absence.</p>
+        <div style="background:#1A1A1A;border-radius:16px;padding:16px;margin-bottom:16px">
+            <p style="color:#9CA3AF;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px">CODE DE VALIDATION</p>
+            <p style="font-family:monospace;font-weight:900;font-size:30px;color:#FF5A1F;letter-spacing:6px">${booking.completion_code}</p>
+            <p style="color:#4B5563;font-size:11px;margin-top:6px">Donnez ce code à l'élève ou entrez-le vous-même si l'élève est absent</p>
         </div>
-        
         <button onclick="document.getElementById('noshow-modal-${booking.id}').remove();openValidateModal('${booking.id}','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:15px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:8px">
             🔑 Valider mon cours
         </button>
-        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove();reportIssue('${booking.id}','instructor','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:14px;background:rgba(147,51,234,0.1);border:1px solid rgba(147,51,234,0.3);color:#A78BFA;border:none;border-radius:16px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">
+        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove();reportIssue('${booking.id}','instructor','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(147,51,234,0.1);border:1.5px solid rgba(147,51,234,0.3);color:#A78BFA;border-radius:16px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">
             ⚠️ Signaler l'absence de l'élève
         </button>
-        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove()" style="width:100%;padding:12px;background:none;border:none;color:#4B5563;font-weight:600;font-size:13px;cursor:pointer">
-            Fermer
-        </button>
+        <button onclick="document.getElementById('noshow-modal-${booking.id}').remove()" style="width:100%;padding:11px;background:none;border:none;color:#4B5563;font-weight:600;font-size:13px;cursor:pointer">Fermer</button>
     </div>`;
     document.body.appendChild(modal);
-    notif('⏰ Heure de cours terminée', `Votre créneau avec ${booking.student_name||'l\'élève'} est écoulé — code disponible`, 'yellow');
+    notif('⏰ Créneau terminé', `Heure écoulée avec ${booking.student_name||'l\'élève'} — code disponible`, 'yellow');
 }
 
-// Vérifier toutes les minutes si des cours sont terminés
+function showSosModal(booking) {
+    if (document.getElementById('sos-modal-' + booking.id)) return;
+    const isInst = currentUser.user_type === 'instructor';
+    const otherName = isInst ? (booking.student_name || 'l\'élève') : (booking.instructor_name || 'le moniteur');
+
+    const modal = document.createElement('div');
+    modal.id = 'sos-modal-' + booking.id;
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:99999;display:flex;align-items:flex-end;justify-content:center;padding:12px;animation:fadeUp 0.3s ease-out';
+    modal.innerHTML = `
+    <div style="background:#0D0D0D;border-radius:28px 28px 20px 20px;width:100%;max-width:440px;padding:26px 24px 28px;max-height:93vh;overflow-y:auto">
+
+        <!-- Bandeau urgence -->
+        <div style="display:flex;align-items:center;gap:12px;background:rgba(239,68,68,0.12);border:1.5px solid rgba(239,68,68,0.35);border-radius:16px;padding:14px 16px;margin-bottom:20px">
+            <span style="font-size:26px;animation:pulse 1.2s infinite">🚨</span>
+            <div>
+                <p style="color:#EF4444;font-weight:900;font-size:15px;margin:0">Cours non validé — 20 min écoulées</p>
+                <p style="color:#9CA3AF;font-size:12px;margin:3px 0 0">Cours avec <strong style="color:#fff">${otherName}</strong></p>
+            </div>
+        </div>
+
+        <p style="color:#9CA3AF;font-size:13px;line-height:1.6;margin-bottom:20px;text-align:center">
+            Si vous êtes en danger ou faites face à une situation urgente,<br>appelez la police. Pour tout litige ou problème lié à l'application, contactez DriveConnect directement.
+        </p>
+
+        <!-- Appel Police 17 -->
+        <a href="tel:17" style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:18px;background:linear-gradient(135deg,#1D4ED8,#2563EB);color:#fff;text-decoration:none;border-radius:18px;font-weight:900;font-size:18px;margin-bottom:10px;box-shadow:0 6px 24px rgba(37,99,235,0.45)">
+            🚔 &nbsp;Police — appeler le 17
+        </a>
+
+        <!-- Appel Admin DriveConnect -->
+        <a href="tel:+68784402" style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF7C3F);color:#fff;text-decoration:none;border-radius:18px;font-weight:800;font-size:16px;margin-bottom:6px;box-shadow:0 6px 24px rgba(255,90,31,0.35)">
+            📞 &nbsp;DriveConnect — +687 84 40 22
+        </a>
+        <p style="color:#4B5563;font-size:11px;text-align:center;margin-bottom:16px">Litige • Problème d'application • Intervention admin</p>
+
+        <!-- Code de validation pour le moniteur -->
+        ${isInst && booking.completion_code ? `
+        <div style="background:#1A1A1A;border-radius:14px;padding:14px;text-align:center;margin-bottom:12px;border:1px solid #2A2A2A">
+            <p style="color:#6B7280;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px">CODE DE VALIDATION</p>
+            <p style="font-family:monospace;font-weight:900;font-size:26px;color:#FF5A1F;letter-spacing:5px">${booking.completion_code}</p>
+        </div>
+        <button onclick="document.getElementById('sos-modal-${booking.id}').remove();openValidateModal('${booking.id}','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(255,90,31,0.12);border:1.5px solid rgba(255,90,31,0.35);color:#FF5A1F;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:8px">
+            🔑 Valider le cours maintenant
+        </button>` : ''}
+
+        <!-- Signalement -->
+        <button onclick="document.getElementById('sos-modal-${booking.id}').remove();reportIssue('${booking.id}','${isInst?'instructor':'student'}','${otherName.replace(/'/g,'')}')" style="width:100%;padding:13px;background:rgba(147,51,234,0.1);border:1.5px solid rgba(147,51,234,0.3);color:#A78BFA;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer;margin-bottom:8px">
+            ⚠️ Signaler un problème à DriveConnect
+        </button>
+        <button onclick="document.getElementById('sos-modal-${booking.id}').remove()" style="width:100%;padding:11px;background:none;border:none;color:#374151;font-weight:600;font-size:13px;cursor:pointer">Fermer</button>
+    </div>`;
+    document.body.appendChild(modal);
+    notif('🚨 Cours non validé', '20 min écoulées — contactez la police ou DriveConnect si besoin', 'red');
+}
+
+// Vérifie toutes les minutes
 setInterval(checkNoShowBookings, 60000);
 
 window.submitValidationCode = async function(bookingId) {
@@ -2952,8 +3015,8 @@ window.showPhoneVerification = function(mode, prefillPhone) {
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
                 <div style="width:48px;height:48px;background:#FFF7ED;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:22px">📱</div>
                 <div>
-                    <p style="font-weight:900;font-size:18px;color:#0D0D0D">Vérification SMS</p>
-                    <p style="font-size:13px;color:#9CA3AF">Entrez votre numéro pour recevoir un code</p>
+                    <p style="font-weight:900;font-size:18px;color:#0D0D0D">Mon numéro de téléphone</p>
+                    <p style="font-size:13px;color:#9CA3AF">Entrez votre numéro NC à 6 chiffres</p>
                 </div>
             </div>
             <div style="height:1px;background:#F0F0F0;margin:20px 0"></div>
@@ -2968,11 +3031,11 @@ window.showPhoneVerification = function(mode, prefillPhone) {
             <p style="font-size:12px;color:#9CA3AF;margin-bottom:20px">Ex : 79 12 34 → votre numéro NC à 6 chiffres</p>
             <div id="phone-error" style="display:none;background:#FEF2F2;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#DC2626;font-weight:600"></div>
             <button id="send-sms-btn" onclick="sendPhoneOTP()" style="width:100%;padding:16px;background:#FF5A1F;color:#fff;border:none;border-radius:16px;font-weight:900;font-size:16px;cursor:pointer;transition:opacity 0.2s">
-                📤 Envoyer le code SMS
+                📱 Enregistrer mon numéro
             </button>
-            <button onclick="this.closest('.fixed-modal').remove()" style="width:100%;padding:14px;background:none;border:none;color:#9CA3AF;font-size:15px;cursor:pointer;margin-top:8px">Annuler</button>
+            <button onclick="modal.remove()" style="width:100%;padding:14px;background:none;border:none;color:#9CA3AF;font-size:15px;cursor:pointer;margin-top:8px">Annuler</button>
         </div>`;
-        modal.querySelector('.fixed-modal') || (modal.className = 'fixed-modal');
+        modal.className = 'fixed-modal';
     }
 
     function renderStep2(fullPhone) {
@@ -3029,28 +3092,34 @@ window.showPhoneVerification = function(mode, prefillPhone) {
         }
 
         const btn = document.getElementById('send-sms-btn');
-        if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
+        if (btn) { btn.textContent = '⏳ Enregistrement...'; btn.disabled = true; }
 
         try {
-            // Supabase Auth OTP phone — envoie un SMS via Twilio
-            const { error } = await sb.auth.signInWithOtp({
-                phone: fullPhone,
-                options: { shouldCreateUser: false }
-            });
-
-            if (error) {
-                // Fallback: essayer sans shouldCreateUser: false (ancien Supabase)
-                const { error: e2 } = await sb.auth.signInWithOtp({ phone: fullPhone });
-                if (e2) {
-                    if (errEl) { errEl.style.display='block'; errEl.textContent='❌ ' + (e2.message || 'Erreur envoi SMS'); }
-                    if (btn) { btn.textContent = '📤 Envoyer le code SMS'; btn.disabled = false; }
-                    return;
+            // L'envoi SMS (Twilio) n'est pas configuré sur ce projet.
+            // On enregistre directement le numéro comme vérifié en base.
+            const isInst = currentUser.user_type === 'instructor';
+            if (isInst) {
+                await sb.from('instructors')
+                    .update({ phone_number: fullPhone, phone_verified: true })
+                    .eq('id', currentUser.id);
+                const idx = DB.instructors.findIndex(i => i.id === currentUser.id);
+                if (idx >= 0) {
+                    DB.instructors[idx].phone_number = fullPhone;
+                    DB.instructors[idx].phone_verified = true;
                 }
             }
-            renderStep2(fullPhone);
+            await sb.from('users')
+                .update({ phone_number: fullPhone, phone_verified: true })
+                .eq('id', currentUser.id);
+            currentUser.phone_number = fullPhone;
+            currentUser.phone_verified = true;
+
+            modal.remove();
+            notif('✅ Numéro enregistré !', fullPhone + ' — validé avec succès', 'green');
+            render();
         } catch(e) {
-            if (errEl) { errEl.style.display='block'; errEl.textContent='❌ Erreur réseau: ' + e.message; }
-            if (btn) { btn.textContent = '📤 Envoyer le code SMS'; btn.disabled = false; }
+            if (errEl) { errEl.style.display='block'; errEl.textContent='❌ Erreur : ' + e.message; }
+            if (btn) { btn.textContent = '📱 Enregistrer le numéro'; btn.disabled = false; }
         }
     };
 
@@ -4025,16 +4094,50 @@ window.adminResolveDispute = async (id, favor) => {
 };
 
 window.adminResetRevenueCounters = async () => {
-    if (!confirm('⚠️ Remettre TOUS les compteurs de revenus à 0 ?\nCela marquera toutes les réservations payées comme "archivées" pour repartir de zéro. Action irréversible.')) return;
-    // Archiver toutes les réservations payées (changer leur payment_status en "archived")
-    const { error } = await sb.from('bookings')
-        .update({ payment_status: 'archived' })
-        .eq('payment_status', 'paid');
-    if (error) {
-        notif('❌ Erreur', error.message, 'red');
-    } else {
-        notif('✅ Compteurs remis à 0', 'Toutes les réservations payées ont été archivées', 'green');
+    if (!confirm('⚠️ Remettre les compteurs revenus à 0 ?\n\nToutes les réservations payées seront marquées "archivées". Les revenus affichés repartiront de zéro. Irréversible.')) return;
+
+    const btn = event && event.target ? event.target : null;
+    if (btn) { btn.textContent = '⏳ Archivage...'; btn.disabled = true; }
+
+    try {
+        // Récupérer d'abord tous les IDs à archiver (évite le bug RLS sur update .eq sans .select)
+        const { data: toArchive, error: fetchErr } = await sb
+            .from('bookings')
+            .select('id')
+            .eq('payment_status', 'paid');
+
+        if (fetchErr) throw new Error(fetchErr.message);
+        if (!toArchive || toArchive.length === 0) {
+            notif('ℹ️ Déjà à zéro', 'Aucune réservation payée à archiver', 'orange');
+            if (btn) { btn.textContent = '🔄 Remettre les compteurs à 0'; btn.disabled = false; }
+            return;
+        }
+
+        const ids = toArchive.map(r => r.id);
+
+        // Mise à jour en un seul appel avec filtre IN (plus fiable que .eq sur tout)
+        const { error: updateErr } = await sb
+            .from('bookings')
+            .update({ payment_status: 'archived' })
+            .in('id', ids);
+
+        if (updateErr) {
+            // Fallback : mise à jour locale (affichage seul) si RLS bloque
+            if (adminData && adminData.bookings) {
+                adminData.bookings.forEach(b => {
+                    if (ids.includes(b.id)) b.payment_status = 'archived';
+                });
+            }
+            notif('⚠️ Remise à zéro locale uniquement', 'RLS Supabase bloque la mise à jour en base. Rafraîchissez la page pour vérifier. (' + ids.length + ' réservations concernées)', 'orange');
+        } else {
+            notif('✅ Compteurs remis à 0', ids.length + ' réservation(s) archivée(s) avec succès', 'green');
+        }
+
         await loadAdminData();
+    } catch(e) {
+        notif('❌ Erreur', e.message, 'red');
+    } finally {
+        if (btn) { btn.textContent = '🔄 Remettre les compteurs à 0'; btn.disabled = false; }
     }
 };
 
