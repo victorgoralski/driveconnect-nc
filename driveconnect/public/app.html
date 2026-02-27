@@ -880,8 +880,8 @@ function StudentDashboard() {
                 </div>
                 <div style="display:flex;align-items:center;gap:12px">
                     <button onclick="toggleDark()" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s" id="dark-btn" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">🌙</button>
-                    <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px;flex-shrink:0;box-shadow:0 4px 16px rgba(255,90,31,0.3)">
-                        ${(currentUser.name||'?').charAt(0).toUpperCase()}
+                    <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px;flex-shrink:0;box-shadow:0 4px 16px rgba(255,90,31,0.3)">
+                        ${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
                     </div>
                 </div>
             </div>
@@ -1117,15 +1117,30 @@ function StudentDashboard() {
         ${tab==='profile' ? `
             <p class="db-section-title">Mon profil</p>
 
+            <!-- Photo de profil -->
+            <div style="background:#fff;border-radius:20px;padding:20px;border:1px solid #F0F0F0;margin-bottom:14px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                <div id="student-avatar-preview" style="width:72px;height:72px;border-radius:20px;overflow:hidden;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:28px;flex-shrink:0">
+                    ${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
+                </div>
+                <div style="flex:1">
+                    <p style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:4px">Photo de profil</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">${currentUser.avatar_url?'✅ Photo ajoutée':'Ajoutez une photo pour être reconnaissable'}</p>
+                    <label style="background:#FF5A1F;color:#fff;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;display:inline-block">
+                        📷 ${currentUser.avatar_url?'Changer':'Ajouter'}
+                        <input type="file" accept="image/*" style="display:none" onchange="uploadStudentAvatar(this.files[0])">
+                    </label>
+                </div>
+            </div>
+
             <!-- Carte identité -->
             <div style="background:#fff;border-radius:20px;padding:20px;border:1px solid #F0F0F0;margin-bottom:14px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
-                <div style="width:72px;height:72px;border-radius:20px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:28px;flex-shrink:0">
-                    ${(currentUser.name||'?').charAt(0).toUpperCase()}
+                <div style="width:52px;height:52px;border-radius:16px;overflow:hidden;background:#EFF6FF;display:flex;align-items:center;justify-content:center;font-weight:900;color:#1D4ED8;font-size:20px;flex-shrink:0">
+                    👨‍🎓
                 </div>
                 <div>
                     <p style="font-weight:900;font-size:17px;color:var(--text)">${currentUser.name||''}</p>
                     <p style="font-size:13px;color:var(--text-muted);margin-top:2px">${currentUser.email||''}</p>
-                    <span style="background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;margin-top:6px;display:inline-block">👨‍🎓 Élève</span>
+                    <span style="background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;margin-top:6px;display:inline-block">Élève</span>
                 </div>
             </div>
 
@@ -2802,6 +2817,75 @@ window.stopTracking = () => {
     notif('⚫ GPS arrêté', '', 'orange');
 };
 
+// ========== AUTO ONLINE / OFFLINE MONITEUR ==========
+window.toggleOnline = async function() {
+    if (!currentUser || currentUser.user_type !== 'instructor') return;
+    const profile = DB.instructors.find(i => i.id === currentUser.id);
+    const newState = !(profile?.is_online);
+    await sb.from('instructors').update({ is_online: newState }).eq('id', currentUser.id);
+    if (profile) profile.is_online = newState;
+    if (newState) {
+        notif('🟢 Vous êtes en ligne', 'Les élèves peuvent vous voir', 'green');
+        window.startTracking();
+    } else {
+        notif('⚫ Hors ligne', 'Vous n\'apparaissez plus sur la carte', 'orange');
+        window.stopTracking();
+    }
+    render();
+};
+
+// Mettre automatiquement en ligne quand moniteur arrive sur le dashboard
+async function _autoSetOnline() {
+    if (!currentUser || currentUser.user_type !== 'instructor') return;
+    await sb.from('instructors').update({ is_online: true }).eq('id', currentUser.id);
+    const idx = DB.instructors.findIndex(i => i.id === currentUser.id);
+    if (idx >= 0) DB.instructors[idx].is_online = true;
+    console.log('[ONLINE] Moniteur mis en ligne automatiquement');
+}
+
+// Mettre automatiquement hors ligne quand moniteur quitte
+async function _autoSetOffline() {
+    if (!currentUser || currentUser.user_type !== 'instructor') return;
+    // navigator.sendBeacon pour fiabilité (fonctionne même si la page se ferme)
+    const url = sb.supabaseUrl + '/rest/v1/instructors?id=eq.' + currentUser.id;
+    const headers = {
+        'apikey': sb.supabaseKey,
+        'Authorization': 'Bearer ' + (await sb.auth.getSession()).data?.session?.access_token,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+    };
+    try {
+        if (navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify({ is_online: false })], { type: 'application/json' });
+            // sendBeacon ne supporte pas les headers custom, fallback fetch
+            fetch(url, { method: 'PATCH', headers, body: JSON.stringify({ is_online: false }), keepalive: true }).catch(() => {});
+        } else {
+            fetch(url, { method: 'PATCH', headers, body: JSON.stringify({ is_online: false }), keepalive: true }).catch(() => {});
+        }
+    } catch(e) {}
+    // Aussi via Supabase client (backup)
+    sb.from('instructors').update({ is_online: false }).eq('id', currentUser.id).then(() => {});
+    if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    console.log('[OFFLINE] Moniteur mis hors ligne automatiquement');
+}
+
+// Listeners pour fermeture page / changement d'onglet
+window.addEventListener('beforeunload', () => {
+    if (currentUser?.user_type === 'instructor') _autoSetOffline();
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (!currentUser || currentUser.user_type !== 'instructor') return;
+    if (document.visibilityState === 'hidden') {
+        // Page masquée → hors ligne après 30s
+        window._offlineTimer = setTimeout(() => _autoSetOffline(), 30000);
+    } else {
+        // Page visible → annuler le timer et remettre en ligne
+        if (window._offlineTimer) { clearTimeout(window._offlineTimer); window._offlineTimer = null; }
+        _autoSetOnline();
+    }
+});
+
 // ========== VÉRIFICATION TÉLÉPHONE PAR SMS ==========================
 // Utilise Supabase Auth OTP (nécessite Twilio configuré dans Supabase)
 // Tables : ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;
@@ -4019,7 +4103,7 @@ function render() {
         case 'student-login':       app.innerHTML=LoginPage('student');    setupLoginForm('student');    break;
         case 'instructor-login':    app.innerHTML=LoginPage('instructor'); setupLoginForm('instructor'); break;
         case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>initMap(),100); break;
-        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();if(currentTab==='settings')loadReferralData();},150); break;
+        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();if(currentTab==='settings')loadReferralData();_autoSetOnline();},150); break;
         case 'instructor-upload-docs': app.innerHTML=InstructorUploadDocs(); setTimeout(()=>setupDocUpload(),100); break;
         case 'instructor-pending':  app.innerHTML=InstructorPending(); break;
         case 'instructor-rejected': app.innerHTML=InstructorRejected(); setTimeout(()=>setupDocUpload(),100); break;
@@ -4727,6 +4811,21 @@ async function _chatSendImg(bookingId, fileInput) {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
     const path = bookingId + '/' + Date.now() + '_' + Math.random().toString(36).substr(2,6) + '.' + ext;
 
+    // Créer un blob URL local pour affichage immédiat (pas de latence CDN)
+    const localBlobUrl = URL.createObjectURL(file);
+
+    // Afficher immédiatement avec l'image locale
+    const content = caption || '📷 Photo';
+    const localMsg = {
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content, image_url: localBlobUrl, created_at: new Date().toISOString()
+    };
+    _chatAppend(localMsg);
+    _chatCancelPreview();
+    if (document.getElementById('chat-input')) document.getElementById('chat-input').value = '';
+
+    // Upload en arrière-plan
     const { error: upErr } = await sb.storage.from('chat-images').upload(path, file, { upsert:false, contentType:file.type });
     if (upErr) {
         notif('❌ Erreur upload', upErr.message, 'red');
@@ -4737,20 +4836,17 @@ async function _chatSendImg(bookingId, fileInput) {
     const imageUrl = urlData?.publicUrl;
     if (!imageUrl) { notif('❌ URL introuvable', '', 'red'); return; }
 
-    const content = caption || '📷 Photo';
-    const msg = {
+    // Envoyer le message avec l'URL permanente (pour l'autre personne)
+    const remoteMsg = {
         booking_id: bookingId, sender_id: currentUser.id,
         sender_name: currentUser.name || 'Moi',
         content, image_url: imageUrl, created_at: new Date().toISOString()
     };
-    _chatAppend(msg);
-    try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: msg }); } catch(e){}
+    try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: remoteMsg }); } catch(e){}
     await sb.from('messages').insert({
         booking_id: bookingId, sender_id: currentUser.id,
         sender_name: currentUser.name || 'Moi', content, image_url: imageUrl
     });
-    _chatCancelPreview();
-    if (document.getElementById('chat-input')) document.getElementById('chat-input').value = '';
     notif('✅ Photo envoyée !', '', 'green');
 }
 
@@ -4806,7 +4902,20 @@ function _chatAppend(msg) {
             objectFit:'cover', borderRadius:'12px', cursor:'pointer'
         });
         img.addEventListener('click', () => _chatFullImg(msg.image_url));
-        img.addEventListener('error', () => img.style.display = 'none');
+        // Retry loading au lieu de cacher l'image (CDN peut être lent)
+        let retryCount = 0;
+        img.addEventListener('error', () => {
+            if (retryCount < 3) {
+                retryCount++;
+                setTimeout(() => { img.src = msg.image_url + (msg.image_url.includes('?') ? '&' : '?') + 'retry=' + retryCount; }, retryCount * 1500);
+            } else {
+                img.style.display = 'none';
+                const fallback = document.createElement('p');
+                fallback.textContent = '📷 Photo (chargement échoué)';
+                fallback.style.cssText = 'color:#999;font-size:12px;padding:8px;text-align:center';
+                imgWrap.appendChild(fallback);
+            }
+        });
         imgWrap.appendChild(img);
         if (msg.content && msg.content !== '📷 Photo') {
             const cap = document.createElement('p');
@@ -4905,6 +5014,39 @@ async function uploadAvatar(file) {
     await loadData();
     render();
 }
+
+// Upload avatar ÉLÈVE
+window.uploadStudentAvatar = async function(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { notif('❌ Fichier trop lourd', 'Maximum 5MB', 'red'); return; }
+
+    // Preview immédiat
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('student-avatar-preview');
+        if (preview) preview.innerHTML = '<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+    };
+    reader.readAsDataURL(file);
+
+    notif('⏳ Upload en cours...', '', 'orange');
+
+    const ext = file.name.split('.').pop();
+    const path = currentUser.id + '/avatar.' + ext;
+
+    const { data, error } = await sb.storage.from('avatars').upload(path, file, {
+        upsert: true, contentType: file.type
+    });
+    if (error) { notif('❌ Erreur upload', error.message, 'red'); return; }
+
+    const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+    const avatarUrl = urlData.publicUrl + '?t=' + Date.now();
+
+    await sb.from('users').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
+    currentUser.avatar_url = avatarUrl;
+    notif('✅ Photo mise à jour !', 'Visible par les moniteurs', 'green');
+    await loadData();
+    render();
+};
 
 
 
