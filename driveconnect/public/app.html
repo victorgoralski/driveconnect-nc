@@ -3492,13 +3492,16 @@ window.forgotPassword = async () => {
         if (inp) { inp.style.border = '2px solid #FF5A1F'; inp.focus(); setTimeout(() => inp.style.border = '', 2000); }
         return;
     }
-    const { error } = await sb.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/app.html?reset=true'
-    });
+
+    // Utiliser l'URL exacte de la page actuelle comme redirectTo
+    // (évite le 404 causé par /app.html qui n'existe pas sur Vercel)
+    const redirectTo = window.location.origin + window.location.pathname + '?reset=true';
+
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
     if (error) {
         notif('❌ Erreur', error.message, 'red');
     } else {
-        notif('📧 Email envoyé !', 'Vérifiez votre boîte mail pour réinitialiser votre mot de passe', 'green');
+        notif('📧 Email envoyé !', 'Vérifiez votre boîte mail — cliquez le lien pour changer votre mot de passe', 'green');
     }
 };
 
@@ -4792,16 +4795,20 @@ window.showResetPasswordModal = function() {
     document.querySelectorAll('.reset-pwd-modal').forEach(m => m.remove());
     const m = document.createElement('div');
     m.className = 'reset-pwd-modal fixed inset-0 z-[9999] flex items-center justify-center p-4';
-    m.style.background = 'rgba(0,0,0,0.8)';
-    m.innerHTML = `<div style="background:#fff;border-radius:24px;padding:32px;max-width:400px;width:100%;text-align:center">
-        <div style="font-size:2.5rem;margin-bottom:8px">🔐</div>
+    m.style.background = 'rgba(0,0,0,0.85)';
+    m.innerHTML = `<div style="background:#fff;border-radius:28px;padding:32px;max-width:400px;width:100%;text-align:center;animation:scaleIn 0.3s ease-out">
+        <div style="width:64px;height:64px;background:#FFF7ED;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px">🔐</div>
         <h2 style="font-size:1.3rem;font-weight:800;color:#111;margin-bottom:8px">Nouveau mot de passe</h2>
-        <p style="color:#888;font-size:13px;margin-bottom:20px">Choisissez un nouveau mot de passe sécurisé (6 caractères minimum)</p>
-        <input type="password" id="new-pwd-1" placeholder="Nouveau mot de passe" minlength="6" style="width:100%;padding:14px;border:2px solid #E5E7EB;border-radius:14px;font-size:15px;margin-bottom:10px;outline:none;font-family:inherit">
-        <input type="password" id="new-pwd-2" placeholder="Confirmer le mot de passe" minlength="6" style="width:100%;padding:14px;border:2px solid #E5E7EB;border-radius:14px;font-size:15px;margin-bottom:6px;outline:none;font-family:inherit">
+        <p style="color:#888;font-size:13px;margin-bottom:24px">Choisissez un nouveau mot de passe sécurisé<br>(6 caractères minimum)</p>
+        <input type="password" id="new-pwd-1" placeholder="Nouveau mot de passe" minlength="6"
+            style="width:100%;padding:14px 16px;border:2px solid #E5E7EB;border-radius:14px;font-size:15px;margin-bottom:10px;outline:none;font-family:inherit;box-sizing:border-box"
+            onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='#E5E7EB'">
+        <input type="password" id="new-pwd-2" placeholder="Confirmer le mot de passe" minlength="6"
+            style="width:100%;padding:14px 16px;border:2px solid #E5E7EB;border-radius:14px;font-size:15px;margin-bottom:8px;outline:none;font-family:inherit;box-sizing:border-box"
+            onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='#E5E7EB'">
         <p id="reset-pwd-err" style="color:#DC2626;font-size:12px;min-height:20px;margin-bottom:12px"></p>
-        <button onclick="submitNewPassword()" style="width:100%;background:#FF5A1F;color:white;border:none;padding:15px;border-radius:14px;font-weight:800;font-size:16px;cursor:pointer">
-            Changer mon mot de passe
+        <button onclick="submitNewPassword()" style="width:100%;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:white;border:none;padding:15px;border-radius:16px;font-weight:800;font-size:16px;cursor:pointer;box-shadow:0 4px 16px rgba(255,90,31,0.3)">
+            ✅ Changer mon mot de passe
         </button>
     </div>`;
     document.body.appendChild(m);
@@ -4826,8 +4833,31 @@ async function boot() {
 
     // Détecter le retour de réinitialisation de mot de passe
     const urlHash = window.location.hash;
-    if (urlHash.includes('type=recovery') || new URLSearchParams(window.location.search).get('reset') === 'true') {
-        setTimeout(() => showResetPasswordModal(), 500);
+    const urlSearchParams = new URLSearchParams(window.location.search);
+
+    // Supabase envoie type=recovery dans le hash (#access_token=...&type=recovery)
+    // OU on peut avoir ?reset=true dans les params si la redirection est propre
+    const isRecovery = urlHash.includes('type=recovery') || urlSearchParams.get('type') === 'recovery' || urlSearchParams.get('reset') === 'true';
+
+    if (isRecovery) {
+        // Si les tokens sont dans le hash, laisser Supabase les traiter d'abord
+        if (urlHash.includes('access_token')) {
+            // Attendre que Supabase établisse la session depuis le hash
+            await new Promise(resolve => {
+                const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+                    if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+                        subscription.unsubscribe();
+                        resolve();
+                    }
+                });
+                setTimeout(resolve, 3000); // timeout de sécurité
+            });
+        }
+        // Nettoyer l'URL et afficher la modale
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        setTimeout(() => showResetPasswordModal(), 300);
     }
 
     // Lire les paramètres URL pour routing direct
