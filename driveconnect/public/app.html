@@ -43,7 +43,7 @@
             --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         * { font-family: 'DM Sans', sans-serif; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); overscroll-behavior-y: contain; -webkit-font-smoothing: antialiased; }
+        body { background: var(--bg); color: var(--text); overscroll-behavior-y: contain; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
         input, textarea, select { font-size: 16px !important; font-family: 'DM Sans', sans-serif; }
 
         /* TYPOGRAPHIE */
@@ -5279,7 +5279,7 @@ function LegalPage(type) {
     </div>`;
 }
 
-function render() {
+function _renderNow() {
     if(map){map.remove();map=null;iMarkers=[];}
     if(mapRealtimeChannel){mapRealtimeChannel.unsubscribe();mapRealtimeChannel=null;}
     const app=document.getElementById('app');
@@ -5297,6 +5297,16 @@ function render() {
         case 'terms':               app.innerHTML=LegalPage('terms'); break;
         case 'mentions':            app.innerHTML=LegalPage('mentions'); break;
     }
+}
+
+let _renderScheduled = false;
+function render() {
+    if (_renderScheduled) return;
+    _renderScheduled = true;
+    requestAnimationFrame(() => {
+        _renderScheduled = false;
+        _renderNow();
+    });
 }
 
 // ========== DÉMARRAGE ==========
