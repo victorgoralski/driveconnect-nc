@@ -432,6 +432,8 @@ let map = null, userMarker = null, iMarkers = [], watchId = null;
 let deferredInstallPrompt = null;
 let appUiInitDone = false;
 let _lastGlobalErrTs = 0;
+let studentFinderFilters = { onlineOnly: false, maxRate: 10000, minRating: 0 };
+let pwdResetState = { email: '', cooldownUntil: 0 };
 
 // Cache local pour éviter trop de requêtes
 let DB = { instructors: [], slots: [], bookings: [], progressNotes: [] };
@@ -663,6 +665,15 @@ function sortedInstructors() {
         const sA = (a.rating||0)*100 - (a.penalty_until && new Date(a.penalty_until)>now ? (a.visibility_penalty||0) : 0);
         const sB = (b.rating||0)*100 - (b.penalty_until && new Date(b.penalty_until)>now ? (b.visibility_penalty||0) : 0);
         return sB - sA;
+    });
+}
+
+function getFilteredInstructors(list) {
+    return (list || []).filter(i => {
+        if (studentFinderFilters.onlineOnly && !i.is_online) return false;
+        if ((i.hourly_rate || 0) > (studentFinderFilters.maxRate || 10000)) return false;
+        if (studentFinderFilters.minRating > 0 && (i.rating || 0) < studentFinderFilters.minRating) return false;
+        return true;
     });
 }
 
@@ -1303,7 +1314,8 @@ function LoginPage(type) {
 // ========== STUDENT DASHBOARD ====================
 function StudentDashboard() {
     const myBookings = DB.bookings;
-    const instructors = sortedInstructors();
+    const allInstructors = sortedInstructors();
+    const instructors = getFilteredInstructors(allInstructors);
     const confirmed = myBookings.filter(b=>b.status==='confirmed').length;
     const totalSpent = myBookings.filter(b=>b.status==='confirmed'&&b.payment_status==='paid').reduce((s,b)=>s+(b.amount||0),0);
     const firstName = (currentUser.name||'').split(' ')[0];
@@ -1380,6 +1392,10 @@ function StudentDashboard() {
                     <div class="db-action-icon" style="background:#F3F4F6">⚙️</div>
                     <span style="font-size:12px;font-weight:700;color:var(--text)">Paramètres</span>
                 </button>
+                <button class="db-action-btn" onclick="openHelpCenter()">
+                    <div class="db-action-icon" style="background:#EEF2FF">🆘</div>
+                    <span style="font-size:12px;font-weight:700;color:var(--text)">Aide</span>
+                </button>
                 <button class="db-action-btn logout" onclick="logout()">
                     <div class="db-action-icon" style="background:#FEE2E2">🚪</div>
                     <span style="font-size:12px;font-weight:700;color:#B91C1C">Se déconnecter</span>
@@ -1412,7 +1428,7 @@ function StudentDashboard() {
             })()}
 
             <!-- Moniteurs dispo -->
-            <p class="db-section-title">Moniteurs disponibles <span style="background:#F0F0F0;color:#6B7280;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">${instructors.length}</span></p>
+            <p class="db-section-title">Moniteurs disponibles <span style="background:#F0F0F0;color:#6B7280;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">${instructors.length}</span>${instructors.length!==allInstructors.length?` <span style="font-size:11px;color:#9CA3AF">/ ${allInstructors.length} total</span>`:''}</p>
             <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:12px">
                 ${instructors.slice(0,5).map((i,idx)=>{
                     const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
@@ -1484,6 +1500,29 @@ function StudentDashboard() {
             <div class="db-surface-card" style="overflow:hidden;margin-bottom:16px">
                 <div id="map" style="height:clamp(250px,42vh,420px);border-radius:0"></div>
             </div>
+            <div class="db-surface-card" style="padding:14px 14px 12px;margin-bottom:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
+                    <p style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase">Filtres recherche</p>
+                    <button onclick="resetStudentFilters()" style="border:none;background:none;color:#FF5A1F;font-weight:700;font-size:12px;cursor:pointer">Réinitialiser</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <button onclick="updateStudentFilter('onlineOnly', ${!studentFinderFilters.onlineOnly})" style="padding:10px;border-radius:12px;border:1px solid ${studentFinderFilters.onlineOnly?'#22C55E':'#E5E7EB'};background:${studentFinderFilters.onlineOnly?'#ECFDF5':'#fff'};color:${studentFinderFilters.onlineOnly?'#166534':'#6B7280'};font-weight:700;font-size:12px;cursor:pointer">
+                        ${studentFinderFilters.onlineOnly?'🟢 En ligne':'⚪ Tous statuts'}
+                    </button>
+                    <select onchange="updateStudentFilter('minRating', this.value)" style="padding:10px;border-radius:12px;border:1px solid #E5E7EB;background:#fff;color:#374151;font-weight:700;font-size:12px;cursor:pointer">
+                        <option value="0" ${studentFinderFilters.minRating===0?'selected':''}>Note min: aucune</option>
+                        <option value="3.5" ${studentFinderFilters.minRating===3.5?'selected':''}>Note min: 3.5+</option>
+                        <option value="4" ${studentFinderFilters.minRating===4?'selected':''}>Note min: 4.0+</option>
+                        <option value="4.5" ${studentFinderFilters.minRating===4.5?'selected':''}>Note min: 4.5+</option>
+                    </select>
+                </div>
+                <div style="margin-top:10px">
+                    <label style="display:flex;justify-content:space-between;font-size:12px;color:#6B7280;font-weight:700;margin-bottom:6px">
+                        <span>Tarif max</span><span>${(studentFinderFilters.maxRate||10000).toLocaleString()} XPF/h</span>
+                    </label>
+                    <input type="range" min="1000" max="10000" step="500" value="${studentFinderFilters.maxRate||10000}" oninput="updateStudentFilter('maxRate', this.value)" style="width:100%">
+                </div>
+            </div>
             <div class="db-map-list" style="display:flex;flex-direction:column;gap:10px">
             ${instructors.map((i,idx)=>{
                 const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
@@ -1505,6 +1544,7 @@ function StudentDashboard() {
                 </div>`;
             }).join('')}
             </div>
+            ${instructors.length===0?`<div style="text-align:center;padding:28px;color:var(--text-muted)"><p style="font-size:34px;margin-bottom:8px">🔎</p><p>Aucun moniteur pour ces filtres</p></div>`:''}
         ` : ''}
 
         ${tab==='suivi' ? `
@@ -1628,6 +1668,9 @@ function StudentDashboard() {
             <!-- Déconnexion -->
             <button onclick="logout()" style="width:100%;padding:14px;border-radius:16px;border:1.5px solid #FEE2E2;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.15s" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'">
                 🚪 Se déconnecter
+            </button>
+            <button onclick="openHelpCenter()" style="width:100%;margin-top:10px;padding:14px;border-radius:16px;border:1.5px solid #DBEAFE;background:#EFF6FF;color:#1D4ED8;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.15s">
+                🆘 Centre d'aide
             </button>
 
             <!-- Admin access (discret) -->
@@ -2823,7 +2866,7 @@ function initNoShowGuards() {
 }
 
 function checkNoShowBookings() {
-    if (!currentUser) return;
+    if (!currentUser || document.hidden) return;
     const now = new Date();
 
     // Uniquement les bookings confirmés
@@ -2980,6 +3023,16 @@ window.submitValidationCode = async function(bookingId) {
         status: 'completed',
         completed_at: new Date().toISOString()
     }).eq('id', bookingId);
+
+    const localBooking = DB.bookings.find(x => x.id === bookingId);
+    if (localBooking) {
+        localBooking.status = 'completed';
+        localBooking.completed_at = new Date().toISOString();
+        localBooking._sos_shown = true;
+        localBooking._noshow_code_shown = true;
+    }
+    const sosModal = document.getElementById('sos-modal-' + bookingId);
+    if (sosModal) sosModal.remove();
 
     // Notifier l'élève
     sendPushToUser(booking.student_id, '✅ Cours validé !', `Votre cours du ${booking.date} a été validé par le moniteur`);
@@ -3751,6 +3804,48 @@ window.showPhoneVerification = function(mode, prefillPhone) {
 // ========== NAVIGATION ==========
 window.showView=async (v)=>{currentView=v;render();};
 window.switchTab=(t)=>{currentTab=t;render();if(t==='settings')setTimeout(()=>loadReferralData(),200);};
+window.updateStudentFilter = function(key, value) {
+    if (key === 'onlineOnly') studentFinderFilters.onlineOnly = !!value;
+    if (key === 'maxRate') studentFinderFilters.maxRate = Number(value) || 10000;
+    if (key === 'minRating') studentFinderFilters.minRating = Number(value) || 0;
+    render();
+};
+window.resetStudentFilters = function() {
+    studentFinderFilters = { onlineOnly: false, maxRate: 10000, minRating: 0 };
+    render();
+};
+window.openHelpCenter = function() {
+    document.getElementById('help-center-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'help-center-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML = `<div style="background:#fff;border-radius:24px;max-width:460px;width:100%;padding:22px;max-height:90vh;overflow:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h3 style="font-weight:900;font-size:20px;color:#111">🆘 Centre d'aide</h3>
+            <button onclick="this.closest('#help-center-modal').remove()" style="border:none;background:#F3F4F6;color:#6B7280;width:34px;height:34px;border-radius:50%;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="padding:14px;border-radius:14px;background:#F9FAFB;border:1px solid #ECEFF5">
+                <p style="font-weight:800;color:#111;font-size:14px;margin-bottom:4px">Réservation bloquée ?</p>
+                <p style="font-size:13px;color:#6B7280;line-height:1.5">Rafraîchissez la carte, puis ouvrez le profil du moniteur pour réserver depuis ses créneaux.</p>
+            </div>
+            <div style="padding:14px;border-radius:14px;background:#F9FAFB;border:1px solid #ECEFF5">
+                <p style="font-weight:800;color:#111;font-size:14px;margin-bottom:4px">Je n'ai pas reçu le code SMS</p>
+                <p style="font-size:13px;color:#6B7280;line-height:1.5">Vérifiez le format de votre numéro, puis utilisez "Renvoyer le code".</p>
+            </div>
+            <div style="padding:14px;border-radius:14px;background:#F9FAFB;border:1px solid #ECEFF5">
+                <p style="font-weight:800;color:#111;font-size:14px;margin-bottom:4px">Cours non validé</p>
+                <p style="font-size:13px;color:#6B7280;line-height:1.5">Utilisez "Signaler" depuis votre réservation pour ouvrir un litige immédiatement.</p>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+            <a href="tel:${SOS_DRIVECONNECT_TEL}" style="flex:1;text-align:center;padding:12px;border-radius:12px;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;font-weight:800;text-decoration:none">📞 Appeler</a>
+            <button onclick="notif('✅ Support', 'Un conseiller vous répondra sous 24h', 'green')" style="flex:1;padding:12px;border-radius:12px;border:1px solid #E5E7EB;background:#fff;color:#111;font-weight:800;cursor:pointer">💬 Contact</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
 
 window.logout=async ()=>{
     if(watchId)navigator.geolocation.clearWatch(watchId);
@@ -3786,17 +3881,161 @@ window.forgotPassword = async () => {
         if (inp) { inp.style.border = '2px solid #FF5A1F'; inp.focus(); setTimeout(() => inp.style.border = '', 2000); }
         return;
     }
+    showForgotPasswordCodeModal(email.toLowerCase());
+    await sendForgotPasswordCode(false);
+};
 
-    // Utiliser l'URL exacte de la page actuelle comme redirectTo
-    // (évite le 404 causé par /app.html qui n'existe pas sur Vercel)
-    const redirectTo = window.location.origin + window.location.pathname + '?reset=true';
+window.closeForgotPasswordModal = function() {
+    document.querySelectorAll('.forgot-code-modal').forEach(m => m.remove());
+};
 
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
-    if (error) {
-        notif('❌ Erreur', error.message, 'red');
-    } else {
-        notif('📧 Email envoyé !', 'Vérifiez votre boîte mail — cliquez le lien pour changer votre mot de passe', 'green');
+window.showForgotPasswordCodeModal = function(email) {
+    window.closeForgotPasswordModal();
+    pwdResetState.email = (email || '').trim().toLowerCase();
+
+    const m = document.createElement('div');
+    m.className = 'forgot-code-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px';
+    m.innerHTML = `
+        <div style="width:100%;max-width:420px;background:#0D0D0D;border-radius:26px;padding:26px 22px;color:#fff">
+            <div style="width:58px;height:58px;border-radius:18px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px">🔐</div>
+            <h3 style="font-size:20px;font-weight:900;text-align:center;margin-bottom:6px">Code de réinitialisation</h3>
+            <p style="font-size:13px;color:#9CA3AF;text-align:center;line-height:1.55;margin-bottom:16px">Recevez un code par email, saisissez-le ici puis choisissez votre nouveau mot de passe.</p>
+
+            <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">Email</label>
+            <input id="frg-email" type="email" value="${pwdResetState.email}" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid #2F2F2F;background:#161616;color:#fff;font-size:14px;outline:none;box-sizing:border-box">
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;margin-bottom:8px">
+                <label style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.6px;text-transform:uppercase">Code email</label>
+                <button id="frg-resend-btn" onclick="sendForgotPasswordCode(true)" style="background:none;border:none;color:#FF8C42;font-size:12px;font-weight:800;cursor:pointer">Renvoyer</button>
+            </div>
+            <input id="frg-code" type="text" inputmode="numeric" maxlength="6" placeholder="______" style="width:100%;padding:14px 16px;border-radius:12px;border:1.5px solid #2F2F2F;background:#161616;color:#fff;font-size:26px;font-weight:900;letter-spacing:8px;text-align:center;font-family:monospace;box-sizing:border-box">
+
+            <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.6px;text-transform:uppercase;margin-top:12px;margin-bottom:6px">Nouveau mot de passe</label>
+            <input id="frg-pass-1" type="password" minlength="6" placeholder="Minimum 6 caractères" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid #2F2F2F;background:#161616;color:#fff;font-size:14px;outline:none;box-sizing:border-box">
+            <input id="frg-pass-2" type="password" minlength="6" placeholder="Confirmer le mot de passe" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid #2F2F2F;background:#161616;color:#fff;font-size:14px;outline:none;box-sizing:border-box;margin-top:8px">
+
+            <p id="frg-error" style="min-height:18px;font-size:12px;color:#FCA5A5;margin-top:10px"></p>
+
+            <button id="frg-submit-btn" onclick="submitForgotPasswordCode()" style="width:100%;margin-top:6px;padding:14px;border:none;border-radius:14px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;font-size:15px;font-weight:900;cursor:pointer">
+                Valider le code et changer
+            </button>
+            <button onclick="closeForgotPasswordModal()" style="width:100%;margin-top:8px;padding:12px;border:none;border-radius:12px;background:rgba(255,255,255,0.06);color:#A1A1AA;font-size:13px;font-weight:700;cursor:pointer">
+                Annuler
+            </button>
+        </div>`;
+
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) window.closeForgotPasswordModal(); });
+    const codeInp = document.getElementById('frg-code');
+    if (codeInp) {
+        codeInp.addEventListener('input', () => {
+            codeInp.value = codeInp.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+        });
     }
+};
+
+window.sendForgotPasswordCode = async function(resend) {
+    const errEl = document.getElementById('frg-error');
+    const email = document.getElementById('frg-email')?.value?.trim().toLowerCase() || pwdResetState.email;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (errEl) errEl.textContent = 'Saisissez un email valide.';
+        return;
+    }
+
+    const now = Date.now();
+    if (resend && pwdResetState.cooldownUntil > now) {
+        const secs = Math.ceil((pwdResetState.cooldownUntil - now) / 1000);
+        if (errEl) errEl.textContent = `Patientez ${secs}s avant de renvoyer un code.`;
+        return;
+    }
+
+    pwdResetState.email = email;
+    if (errEl) errEl.textContent = '';
+
+    const resendBtn = document.getElementById('frg-resend-btn');
+    if (resendBtn) {
+        resendBtn.disabled = true;
+        resendBtn.style.opacity = '0.6';
+        resendBtn.textContent = 'Envoi...';
+    }
+
+    const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false }
+    });
+
+    if (resendBtn) {
+        resendBtn.disabled = false;
+        resendBtn.style.opacity = '1';
+        resendBtn.textContent = 'Renvoyer';
+    }
+
+    if (error) {
+        if (errEl) errEl.textContent = 'Erreur envoi code: ' + error.message;
+        return;
+    }
+
+    pwdResetState.cooldownUntil = Date.now() + 30000;
+    notif('📩 Code envoyé', `Vérifiez votre boite mail: ${email}`, 'green');
+    const codeInput = document.getElementById('frg-code');
+    if (codeInput) codeInput.focus();
+};
+
+window.submitForgotPasswordCode = async function() {
+    const errEl = document.getElementById('frg-error');
+    const email = document.getElementById('frg-email')?.value?.trim().toLowerCase() || pwdResetState.email;
+    const code = (document.getElementById('frg-code')?.value || '').replace(/\s+/g, '').toUpperCase();
+    const p1 = document.getElementById('frg-pass-1')?.value || '';
+    const p2 = document.getElementById('frg-pass-2')?.value || '';
+
+    if (errEl) errEl.textContent = '';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { if (errEl) errEl.textContent = 'Email invalide.'; return; }
+    if (code.length !== 6) { if (errEl) errEl.textContent = 'Entrez le code à 6 caractères.'; return; }
+    if (p1.length < 6) { if (errEl) errEl.textContent = 'Mot de passe trop court (min 6 caractères).'; return; }
+    if (p1 !== p2) { if (errEl) errEl.textContent = 'Les mots de passe ne correspondent pas.'; return; }
+
+    const submitBtn = document.getElementById('frg-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.7';
+        submitBtn.textContent = 'Vérification...';
+    }
+
+    const { error: otpErr } = await sb.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'email'
+    });
+
+    if (otpErr) {
+        if (errEl) errEl.textContent = 'Code invalide ou expiré.';
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.textContent = 'Valider le code et changer';
+        }
+        return;
+    }
+
+    const { error: updateErr } = await sb.auth.updateUser({ password: p1 });
+    if (updateErr) {
+        if (errEl) errEl.textContent = 'Impossible de changer le mot de passe: ' + updateErr.message;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.textContent = 'Valider le code et changer';
+        }
+        return;
+    }
+
+    await sb.auth.signOut();
+    window.closeForgotPasswordModal();
+    notif('✅ Mot de passe changé', 'Connectez-vous avec votre nouveau mot de passe', 'green');
+    const emailInput = document.getElementById('email');
+    if (emailInput) emailInput.value = email;
+    const pwdInput = document.getElementById('password');
+    if (pwdInput) pwdInput.focus();
 };
 
 function setupLoginForm(type) {
