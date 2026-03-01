@@ -2579,51 +2579,83 @@ function showPaymentModal(slot, instructor, prices) {
         if (_bookingInProgress) return;
         _bookingInProgress = true;
 
-        // Vérifier que le créneau est toujours disponible (protection double réservation)
-        const { data: freshSlot, error: slotErr } = await sb.from('slots').select('available').eq('id', slot.id).single();
-        if (slotErr || !freshSlot || freshSlot.available === false) {
-            notif('❌ Créneau déjà réservé', 'Ce créneau vient d\'être pris par un autre élève', 'red');
-            _bookingInProgress = false;
-            setTimeout(() => { modal.remove(); document.body.style.overflow = ''; render(); }, 2000);
-            return;
+        let booking = null;
+        let completionCode = '';
+
+        // 1) Réservation atomique côté SQL (recommandé)
+        const { data: rpcData, error: rpcErr } = await sb.rpc('book_slot_atomic', {
+            p_slot_id: slot.id,
+            p_payment_status: paymentStatus,
+            p_paypal_order_id: orderId || null
+        });
+        if (!rpcErr && rpcData) {
+            booking = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+            completionCode = booking?.completion_code || '';
+        } else {
+            // 2) Fallback legacy si la fonction SQL n'est pas encore installée
+            if (rpcErr && !String(rpcErr.message || '').toLowerCase().includes('book_slot_atomic')) {
+                console.warn('[BOOKING][RPC] fallback legacy:', rpcErr.message);
+            }
+
+            // Vérifier que le créneau est toujours disponible (protection double réservation)
+            const { data: freshSlot, error: slotErr } = await sb.from('slots').select('available').eq('id', slot.id).single();
+            if (slotErr || !freshSlot || freshSlot.available === false) {
+                notif('❌ Créneau déjà réservé', 'Ce créneau vient d\'être pris par un autre élève', 'red');
+                _bookingInProgress = false;
+                setTimeout(() => { modal.remove(); document.body.style.overflow = ''; render(); }, 2000);
+                return;
+            }
+
+            // Verrouillage atomique du créneau: si aucune ligne touchée, il est déjà pris.
+            const { data: lockedSlot, error: lockErr } = await sb.from('slots')
+                .update({ available: false })
+                .eq('id', slot.id)
+                .eq('available', true)
+                .select('id')
+                .maybeSingle();
+            if (lockErr || !lockedSlot) {
+                notif('❌ Créneau indisponible', 'Ce créneau a été réservé par un autre élève', 'red');
+                _bookingInProgress = false;
+                return;
+            }
+
+            // Générer un code unique de 6 caractères
+            completionCode = await generateUniqueCompletionCode();
+
+            const { data: fallbackBooking, error: bError } = await sb.from('bookings').insert({
+                slot_id: slot.id,
+                student_id: currentUser.id,
+                student_name: currentUser.name,
+                instructor_id: instructor.id,
+                instructor_name: instrName,
+                date: slot.date, time: slot.time, duration: slot.duration,
+                amount: slot.price, commission: prices.commission, net: prices.net,
+                status: 'confirmed', payment_status: paymentStatus,
+                paypal_order_id: orderId,
+                completion_code: completionCode
+            }).select().single();
+
+            if (bError) {
+                // Rollback du verrouillage slot en cas d'échec d'insertion booking.
+                await sb.from('slots').update({ available: true }).eq('id', slot.id);
+                const msg = String(bError.message || '');
+                if (msg.includes('duplicate') || msg.includes('unique')) {
+                    notif('❌ Créneau indisponible', 'Ce créneau a été réservé par un autre élève', 'red');
+                } else {
+                    notif('❌ Erreur réservation', bError.message, 'red');
+                }
+                _bookingInProgress = false;
+                return;
+            }
+            booking = fallbackBooking;
         }
 
-        // Verrouillage atomique du créneau: si aucune ligne touchée, il est déjà pris.
-        const { data: lockedSlot, error: lockErr } = await sb.from('slots')
-            .update({ available: false })
-            .eq('id', slot.id)
-            .eq('available', true)
-            .select('id')
-            .maybeSingle();
-        if (lockErr || !lockedSlot) {
-            notif('❌ Créneau indisponible', 'Ce créneau a été réservé par un autre élève', 'red');
+        if (!booking) {
+            notif('❌ Réservation impossible', 'Veuillez réessayer', 'red');
             _bookingInProgress = false;
             return;
         }
-
-        // Générer un code unique de 6 caractères
-        const completionCode = await generateUniqueCompletionCode();
-
-        const { data: booking, error: bError } = await sb.from('bookings').insert({
-            slot_id: slot.id,
-            student_id: currentUser.id,
-            student_name: currentUser.name,
-            instructor_id: instructor.id,
-            instructor_name: instrName,
-            date: slot.date, time: slot.time, duration: slot.duration,
-            amount: slot.price, commission: prices.commission, net: prices.net,
-            status: 'confirmed', payment_status: paymentStatus,
-            paypal_order_id: orderId,
-            completion_code: completionCode
-        }).select().single();
-
-        if (bError) {
-            // Rollback du verrouillage slot en cas d'échec d'insertion booking.
-            await sb.from('slots').update({ available: true }).eq('id', slot.id);
-            notif('❌ Erreur réservation', bError.message, 'red');
-            _bookingInProgress = false;
-            return;
-        }
+        completionCode = booking.completion_code || completionCode;
 
         sendPushToUser(instructor.id, '🎉 Nouvelle réservation !',
             `${currentUser.name} a réservé le ${slot.date} à ${slot.time}`);
