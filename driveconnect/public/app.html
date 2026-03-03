@@ -2141,7 +2141,7 @@ function InstructorDashboard() {
                         </div>
                         <div>
                             <p style="font-weight:800;color:var(--text);font-size:15px">${s.date} à ${s.time}</p>
-                            <p style="color:var(--text-muted);font-size:13px">⏱ ${s.duration}h · ${s.price} XPF</p>
+                            <p style="color:var(--text-muted);font-size:13px">⏱ ${s.duration}h · ${s.price} XPF${s.license_type ? ` · Permis ${s.license_type}` : ''}${s.is_aac ? ' · 🚗 AAC' : ''}${s.is_refresh ? ' · 🔄 Remise à niveau' : ''}</p>
                             ${booking?`<p style="font-size:12px;color:#2563EB;font-weight:600;margin-top:2px">👨‍🎓 ${booking.student_name}</p>`:''}
                         </div>
                     </div>
@@ -2368,44 +2368,95 @@ function getTabContent(profile, myBookings, mySlots) {
 window.showAddSlot = function() {
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
     const today = new Date().toISOString().split('T')[0];
     const instructor = DB.instructors.find(x=>x.id===currentUser.id);
-    const defaultRate = instructor ? instructor.hourly_rate : 4500;
-    modal.innerHTML = `<div style="background:#fff;border-radius:28px;padding:28px;width:100%;max-width:420px;box-shadow:0 24px 80px rgba(0,0,0,0.25)">
+    const defaultRate = instructor ? Math.max(instructor.hourly_rate || 6000, 6000) : 6000;
+
+    const inputStyle = 'width:100%;padding:13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:15px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff;box-sizing:border-box';
+    const labelStyle = 'display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px';
+
+    modal.innerHTML = `<div style="background:#fff;border-radius:28px;padding:28px;width:100%;max-width:440px;box-shadow:0 24px 80px rgba(0,0,0,0.25);max-height:92vh;overflow-y:auto">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
             <div style="width:44px;height:44px;background:#FFF7ED;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px">📅</div>
             <h3 style="font-size:20px;font-weight:900;color:#0D0D0D">Nouveau créneau</h3>
         </div>
         <form id="slot-form" style="display:flex;flex-direction:column;gap:16px">
+
+            <!-- Date -->
             <div>
-                <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Date</label>
-                <input type="date" id="sl-date" min="${today}" required style="width:100%;padding:13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:16px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff">
+                <label style="${labelStyle}">Date</label>
+                <input type="date" id="sl-date" min="${today}" required style="${inputStyle}">
             </div>
+
+            <!-- Heure -->
             <div>
-                <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Heure</label>
-                <select id="sl-time" style="width:100%;padding:13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:16px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff;-webkit-appearance:none">
+                <label style="${labelStyle}">Heure</label>
+                <select id="sl-time" style="${inputStyle};-webkit-appearance:none">
                     ${['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'].map(t=>`<option>${t}</option>`).join('')}
                 </select>
             </div>
+
+            <!-- Durée -->
             <div>
-                <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Durée</label>
-                <select id="sl-dur" style="width:100%;padding:13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:16px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff;-webkit-appearance:none">
+                <label style="${labelStyle}">Durée</label>
+                <select id="sl-dur" style="${inputStyle};-webkit-appearance:none">
                     <option value="1">1 heure</option>
                     <option value="1.5">1h30</option>
                     <option value="2">2 heures</option>
                 </select>
             </div>
+
+            <!-- Type de permis -->
             <div>
-                <label style="display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tarif pour ce créneau (XPF)</label>
+                <label style="${labelStyle}">Type de permis</label>
+                <select id="sl-license" style="${inputStyle};-webkit-appearance:none">
+                    <option value="B">Permis B — Voiture</option>
+                    <option value="AT">Permis AT — Voiturette</option>
+                    <option value="A">Permis A — Moto</option>
+                    <option value="A1">Permis A1 — Moto légère</option>
+                    <option value="A2">Permis A2 — Moto intermédiaire</option>
+                    <option value="C">Permis C — Poids lourd</option>
+                    <option value="D">Permis D — Transport en commun</option>
+                    <option value="BE">Permis BE — Remorque</option>
+                </select>
+            </div>
+
+            <!-- Options -->
+            <div>
+                <label style="${labelStyle}">Options du cours</label>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                    <label style="display:flex;align-items:center;gap:12px;background:#F9FAFB;border:1.5px solid #E5E7EB;border-radius:14px;padding:14px;cursor:pointer">
+                        <input type="checkbox" id="sl-aac" style="width:18px;height:18px;accent-color:#FF5A1F;cursor:pointer;flex-shrink:0">
+                        <div>
+                            <p style="font-weight:700;color:#0D0D0D;font-size:14px">🚗 Conduite accompagnée (AAC)</p>
+                            <p style="color:#9CA3AF;font-size:11px;margin-top:2px">Élève accompagné d'un adulte référent</p>
+                        </div>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:12px;background:#F9FAFB;border:1.5px solid #E5E7EB;border-radius:14px;padding:14px;cursor:pointer">
+                        <input type="checkbox" id="sl-refresh" style="width:18px;height:18px;accent-color:#FF5A1F;cursor:pointer;flex-shrink:0">
+                        <div>
+                            <p style="font-weight:700;color:#0D0D0D;font-size:14px">🔄 Remise à niveau</p>
+                            <p style="color:#9CA3AF;font-size:11px;margin-top:2px">Pour conducteurs déjà titulaires du permis</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Tarif -->
+            <div>
+                <label style="${labelStyle}">Tarif pour ce créneau (XPF)</label>
                 <div style="position:relative">
-                    <input type="number" id="sl-price" value="${defaultRate}" min="1000" max="50000" step="100" required
-                        style="width:100%;padding:13px 56px 13px 16px;border:1.5px solid #E5E7EB;border-radius:14px;font-size:16px;outline:none;font-family:inherit;color:#0D0D0D;background:#fff">
+                    <input type="number" id="sl-price" value="${defaultRate}" min="6000" max="20000" step="100" required
+                        style="${inputStyle};padding-right:56px">
                     <span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:700;color:#9CA3AF">XPF</span>
                 </div>
-                <p style="font-size:11px;color:#9CA3AF;margin-top:5px">Votre tarif habituel : ${defaultRate.toLocaleString()} XPF/h</p>
+                <p style="font-size:11px;color:#9CA3AF;margin-top:5px">Tarif entre <strong style="color:#FF5A1F">6 000</strong> et <strong style="color:#FF5A1F">20 000 XPF</strong>/h</p>
             </div>
+
+            <!-- Boutons -->
             <div style="display:flex;gap:10px;margin-top:4px">
-                <button type="button" onclick="this.closest('.fixed').remove()" style="flex:1;padding:14px;border:1.5px solid #E5E7EB;border-radius:14px;font-weight:700;font-size:15px;background:#fff;cursor:pointer;color:#0D0D0D">Annuler</button>
+                <button type="button" onclick="this.closest('[style*=fixed]').remove()" style="flex:1;padding:14px;border:1.5px solid #E5E7EB;border-radius:14px;font-weight:700;font-size:15px;background:#fff;cursor:pointer;color:#0D0D0D">Annuler</button>
                 <button type="submit" style="flex:1;padding:14px;background:#FF5A1F;color:#fff;border:none;border-radius:14px;font-weight:900;font-size:15px;cursor:pointer">Créer le créneau</button>
             </div>
         </form>
@@ -2413,20 +2464,11 @@ window.showAddSlot = function() {
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 
-    // Prévisualisation du tarif en direct
-    const previewDiv = modal.querySelector('#sl-preview');
-    function updatePreview() {
-        const price = parseInt(modal.querySelector('#sl-price').value) || 0;
-        const dur = parseFloat(modal.querySelector('#sl-dur').value) || 1;
-        // Preview supprimé — plus d'affichage du total élève ni revenus nets
-    }
-    modal.querySelector('#sl-price').addEventListener('input', updatePreview);
-    modal.querySelector('#sl-dur').addEventListener('change', updatePreview);
-
     modal.querySelector('#slot-form').onsubmit = async function(e) {
         e.preventDefault();
         const price = parseInt(document.getElementById('sl-price').value);
-        if (!price || price < 1000) { notif('❌ Tarif invalide', 'Minimum 1000 XPF', 'red'); return; }
+        if (!price || price < 6000) { notif('❌ Tarif invalide', 'Minimum 6 000 XPF', 'red'); return; }
+        if (price > 20000) { notif('❌ Tarif invalide', 'Maximum 20 000 XPF', 'red'); return; }
         const btn = modal.querySelector('button[type=submit]');
         btn.textContent = 'Création...'; btn.disabled = true;
         const { data, error } = await sb.from('slots').insert({
@@ -2434,7 +2476,11 @@ window.showAddSlot = function() {
             date: document.getElementById('sl-date').value,
             time: document.getElementById('sl-time').value,
             duration: parseFloat(document.getElementById('sl-dur').value),
-            price, available: true
+            price,
+            license_type: document.getElementById('sl-license').value,
+            is_aac: document.getElementById('sl-aac').checked,
+            is_refresh: document.getElementById('sl-refresh').checked,
+            available: true
         }).select().single();
         if (error) { notif('❌ Erreur', error.message, 'red'); btn.textContent='Créer le créneau'; btn.disabled=false; return; }
         DB.slots.push(data);
@@ -5756,22 +5802,30 @@ window._submitReport = async function(bookingId, reporterType) {
 
     const booking = DB.bookings.find(x => x.id === bookingId);
 
-    await sb.from('bookings').update({
-        status: 'dispute', dispute_reason: reason, dispute_details: details,
-        dispute_by: reporterType, dispute_at: new Date().toISOString()
+    // Mise à jour du booking → c'est ce que l'admin lit dans l'onglet Signalements
+    const { error: updateError } = await sb.from('bookings').update({
+        status: 'dispute',
+        dispute_reason: reason,
+        dispute_details: details,
+        dispute_by: reporterType,
+        dispute_at: new Date().toISOString()
     }).eq('id', bookingId);
 
-    // Insérer dans la table reports pour que l'admin reçoive dans l'onglet Signalements
-    await sb.from('reports').insert({
-        booking_id: bookingId,
-        reporter_id: currentUser.id,
-        reporter_type: reporterType,
-        reporter_name: currentUser.name,
-        reported_name: reporterType === 'student' ? (booking?.instructor_name || '?') : (booking?.student_name || '?'),
-        reason: reason,
-        details: details,
-        created_at: new Date().toISOString()
-    }).select(); // ignore error if table doesn't exist — bookings update is the primary record
+    if (updateError) {
+        notif('❌ Erreur', 'Impossible d\'envoyer le signalement : ' + updateError.message, 'red');
+        if (btn) { btn.textContent = 'Envoyer'; btn.disabled = false; }
+        return;
+    }
+
+    // Mise à jour locale immédiate pour que l'admin le voie sans recharger
+    const localBooking = DB.bookings.find(x => x.id === bookingId);
+    if (localBooking) {
+        localBooking.status = 'dispute';
+        localBooking.dispute_reason = reason;
+        localBooking.dispute_details = details;
+        localBooking.dispute_by = reporterType;
+        localBooking.dispute_at = new Date().toISOString();
+    }
 
     document.getElementById('report-modal')?.remove();
     notif('⚠️ Signalement envoyé', 'L\'administration traitera votre demande sous 24-48h', 'orange');
