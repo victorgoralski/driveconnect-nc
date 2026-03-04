@@ -3,836 +3,484 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mentions légales — DriveConnect NC</title>
+    <title>Mentions légales & CGU — DriveConnect NC</title>
+    <meta name="description" content="Politique de confidentialité, conditions générales d'utilisation et mentions légales de DriveConnect NC.">
+    <meta name="theme-color" content="#FF5A1F">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --orange: #f97316;
-            --orange-dark: #ea580c;
-            --black: #0a0a0a;
-            --gray: #6b7280;
-            --light: #fafaf9;
-            --border: #e5e7eb;
+            --orange: #FF5A1F;
+            --orange-2: #FF7A45;
+            --dark: #080808;
+            --dark-2: #111111;
+            --dark-3: #1A1A1A;
+            --dark-4: #222222;
+            --text: #F2EDE8;
+            --text-2: rgba(242,237,232,0.55);
+            --text-3: rgba(242,237,232,0.28);
+            --border: rgba(242,237,232,0.07);
+            --border-2: rgba(242,237,232,0.13);
         }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { background: var(--dark); color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 300; overflow-x: hidden; }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .grain { position: fixed; inset: 0; pointer-events: none; z-index: 999; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E"); opacity: 0.45; }
 
-        body {
-            font-family: 'DM Sans', sans-serif;
-            background: var(--light);
-            color: var(--black);
-            line-height: 1.7;
-        }
+        nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0 52px; height: 64px; display: flex; justify-content: space-between; align-items: center; background: rgba(8,8,8,0.94); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+        .nav-logo { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; text-decoration: none; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 8px rgba(255,90,31,0.7); }
+        .nav-back { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 500; color: var(--text-3); text-decoration: none; transition: color 0.2s; }
+        .nav-back:hover { color: var(--text-2); }
 
-        /* NAV */
-        nav {
-            position: sticky;
-            top: 0;
-            background: rgba(250,250,249,0.92);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--border);
-            z-index: 100;
-            padding: 0 2rem;
-        }
+        .hero { padding: 120px 52px 72px; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -200px; right: -300px; width: 700px; height: 700px; border-radius: 50%; background: radial-gradient(circle, rgba(255,90,31,0.07) 0%, transparent 65%); pointer-events: none; }
+        .hero-label { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--orange); display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+        .hero-label::before { content: ''; width: 24px; height: 1px; background: var(--orange); opacity: 0.6; }
+        .hero h1 { font-family: 'Instrument Serif', serif; font-size: clamp(40px, 6vw, 68px); line-height: 1.0; letter-spacing: -2px; margin-bottom: 18px; max-width: 600px; }
+        .hero h1 em { font-style: italic; color: var(--orange); }
+        .hero-sub { font-size: 15px; color: var(--text-2); line-height: 1.7; max-width: 440px; margin-bottom: 28px; }
+        .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,90,31,0.08); border: 1px solid rgba(255,90,31,0.18); color: var(--text-3); padding: 6px 16px; border-radius: 100px; font-size: 12px; font-family: 'Syne', sans-serif; }
+        .hero-badge strong { color: var(--orange-2); }
 
-        .nav-inner {
-            max-width: 900px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 64px;
-        }
+        .tabs-bar { position: sticky; top: 64px; z-index: 50; background: rgba(8,8,8,0.96); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); padding: 0 52px; display: flex; overflow-x: auto; scrollbar-width: none; }
+        .tabs-bar::-webkit-scrollbar { display: none; }
+        .tab-btn { padding: 16px 26px; background: none; border: none; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-3); white-space: nowrap; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
+        .tab-btn:hover { color: var(--text-2); }
+        .tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
 
-        .nav-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.25rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, var(--orange-dark), var(--orange));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-decoration: none;
-        }
+        .layout { display: grid; grid-template-columns: 220px 1fr; max-width: 1140px; margin: 0 auto; }
 
-        .nav-tabs {
-            display: flex;
-            gap: 0;
-            background: #f3f4f6;
-            border-radius: 12px;
-            padding: 4px;
-        }
+        .toc { padding: 44px 28px; border-right: 1px solid var(--border); position: sticky; top: 120px; align-self: start; max-height: calc(100vh - 120px); overflow-y: auto; }
+        .toc-head { font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-3); margin-bottom: 18px; }
+        .toc-list { list-style: none; }
+        .toc-list a { display: block; padding: 6px 0 6px 14px; font-size: 12px; color: var(--text-3); text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; line-height: 1.4; }
+        .toc-list a:hover { color: var(--text-2); border-left-color: var(--border-2); }
+        .toc-list a.active { color: var(--orange); border-left-color: var(--orange); }
 
-        .nav-tab {
-            padding: 8px 20px;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            color: var(--gray);
-            transition: all 0.2s;
-        }
-
-        .nav-tab.active {
-            background: white;
-            color: var(--black);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-        }
-
-        /* HERO */
-        .hero {
-            background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 50%, #fff7ed 100%);
-            border-bottom: 1px solid #fed7aa;
-            padding: 5rem 2rem 4rem;
-            text-align: center;
-        }
-
-        .hero-badge {
-            display: inline-block;
-            background: #fff;
-            border: 1px solid #fed7aa;
-            color: var(--orange-dark);
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            padding: 6px 16px;
-            border-radius: 100px;
-            margin-bottom: 1.5rem;
-        }
-
-        .hero h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(2.5rem, 5vw, 4rem);
-            font-weight: 900;
-            line-height: 1.1;
-            margin-bottom: 1rem;
-        }
-
-        .hero h1 span {
-            background: linear-gradient(135deg, var(--orange-dark), var(--orange));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero p {
-            color: var(--gray);
-            font-size: 1.1rem;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .hero-date {
-            margin-top: 1.5rem;
-            font-size: 0.875rem;
-            color: #9ca3af;
-        }
-
-        /* MAIN */
-        main {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 4rem 2rem;
-        }
-
+        .content { padding: 56px 64px 120px; }
         .page { display: none; }
         .page.active { display: block; }
 
-        /* SECTION */
-        .section {
-            margin-bottom: 3.5rem;
-            padding-bottom: 3.5rem;
-            border-bottom: 1px solid var(--border);
-        }
+        .art-head { margin-bottom: 48px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+        .art-eyebrow { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--orange); display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .art-eyebrow::before { content: ''; width: 18px; height: 1px; background: var(--orange); opacity: 0.6; }
+        .art-h1 { font-family: 'Instrument Serif', serif; font-size: clamp(30px, 3.5vw, 44px); line-height: 1.05; letter-spacing: -1.5px; margin-bottom: 10px; }
+        .art-h1 em { font-style: italic; color: var(--orange); }
+        .art-meta { font-size: 12px; color: var(--text-3); }
 
-        .section:last-child {
-            border-bottom: none;
-        }
+        .intro { font-size: 16px; font-weight: 300; color: var(--text-2); line-height: 1.8; margin-bottom: 52px; padding: 24px 28px; background: var(--dark-2); border-radius: 18px; border: 1px solid var(--border); border-left: 3px solid var(--orange); }
 
-        .section-number {
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            color: var(--orange);
-            margin-bottom: 0.5rem;
-        }
+        h2.sh { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); margin: 52px 0 14px; padding-top: 52px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+        h2.sh:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+        .sh-num { font-family: 'Instrument Serif', serif; font-size: 12px; color: var(--orange); font-style: italic; font-weight: 400; }
+        h3.ssh { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); margin: 24px 0 10px; }
 
-        .section h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.75rem;
-            font-weight: 700;
-            margin-bottom: 1.25rem;
-            line-height: 1.2;
-        }
+        p.p { font-size: 15px; color: var(--text-2); line-height: 1.8; margin-bottom: 14px; font-weight: 300; }
+        strong.s { color: var(--text); font-weight: 500; }
 
-        .section p {
-            color: #374151;
-            margin-bottom: 1rem;
-            font-size: 1rem;
-        }
+        ul.ul, ol.ol { list-style: none; margin: 14px 0 18px; padding: 0; }
+        ul.ul li, ol.ol li { font-size: 15px; color: var(--text-2); line-height: 1.7; margin-bottom: 9px; padding-left: 20px; position: relative; font-weight: 300; }
+        ul.ul li::before { content: '–'; position: absolute; left: 0; color: var(--orange); font-weight: 700; }
+        ol.ol { counter-reset: li; }
+        ol.ol li { counter-increment: li; }
+        ol.ol li::before { content: counter(li) '.'; position: absolute; left: 0; color: var(--orange); font-weight: 700; font-family: 'Syne', sans-serif; font-size: 12px; }
 
-        .section p:last-child { margin-bottom: 0; }
+        .callout { border-radius: 14px; padding: 18px 22px; margin: 18px 0; display: flex; gap: 14px; align-items: flex-start; }
+        .callout.info { background: rgba(255,90,31,0.06); border: 1px solid rgba(255,90,31,0.18); }
+        .callout.warn { background: rgba(220,38,38,0.06); border: 1px solid rgba(220,38,38,0.2); }
+        .callout.note { background: var(--dark-2); border: 1px solid var(--border); }
+        .callout.blue { background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.2); }
+        .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+        .callout-body strong { display: block; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+        .callout-body p { font-size: 13px; color: var(--text-2); line-height: 1.65; margin: 0; font-weight: 300; }
 
-        /* CARDS */
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1.5rem;
-        }
+        .tbl-wrap { overflow-x: auto; margin: 16px 0 20px; border-radius: 16px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead th { text-align: left; padding: 12px 16px; background: var(--dark-3); color: var(--text-3); font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-2); line-height: 1.5; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: rgba(255,255,255,0.02); }
+        code { font-family: monospace; font-size: 12px; background: var(--dark-3); padding: 2px 6px; border-radius: 5px; color: var(--orange-2); }
 
-        .card {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.25rem;
-        }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 16px 0; }
+        .card { background: var(--dark-2); border: 1px solid var(--border); border-radius: 16px; padding: 20px; transition: border-color 0.2s; }
+        .card:hover { border-color: var(--border-2); }
+        .card-icon { font-size: 22px; margin-bottom: 10px; }
+        .card h4 { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+        .card p { font-size: 12px; color: var(--text-2); line-height: 1.6; font-weight: 300; }
 
-        .card-icon {
-            font-size: 1.75rem;
-            margin-bottom: 0.75rem;
-        }
+        .cancel-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 18px 0; }
+        .cancel-card { border-radius: 18px; padding: 24px; text-align: center; }
+        .cancel-card.g { background: rgba(34,197,94,0.07); border: 1px solid rgba(34,197,94,0.2); }
+        .cancel-card.y { background: rgba(234,179,8,0.07); border: 1px solid rgba(234,179,8,0.2); }
+        .cancel-card.r { background: rgba(220,38,38,0.07); border: 1px solid rgba(220,38,38,0.2); }
+        .cancel-pct { font-family: 'Instrument Serif', serif; font-size: 48px; line-height: 1; margin-bottom: 6px; }
+        .cancel-card.g .cancel-pct { color: #4ADE80; }
+        .cancel-card.y .cancel-pct { color: #FCD34D; }
+        .cancel-card.r .cancel-pct { color: #F87171; }
+        .cancel-lbl { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+        .cancel-sub { font-size: 11px; color: var(--text-2); line-height: 1.5; }
 
-        .card h4 {
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 0.4rem;
-        }
+        .contact-box { margin-top: 56px; padding: 36px; background: linear-gradient(135deg, rgba(255,90,31,0.12), rgba(255,90,31,0.04)); border: 1px solid rgba(255,90,31,0.25); border-radius: 24px; }
+        .contact-box h3 { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+        .contact-box p { font-size: 14px; color: var(--text-2); line-height: 1.7; margin-bottom: 6px; font-weight: 300; }
+        .contact-box a { color: var(--orange); text-decoration: none; }
+        .contact-box a:hover { text-decoration: underline; }
 
-        .card p {
-            font-size: 0.8rem;
-            color: var(--gray);
-            margin: 0;
-        }
+        footer { border-top: 1px solid var(--border); padding: 40px 52px; display: flex; justify-content: space-between; align-items: center; }
+        .foot-logo { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 7px; }
+        .foot-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+        .foot-links { display: flex; gap: 24px; }
+        .foot-links a { font-size: 12px; color: var(--text-3); text-decoration: none; transition: color 0.2s; }
+        .foot-links a:hover { color: var(--text-2); }
+        .foot-copy { font-size: 12px; color: var(--text-3); }
 
-        /* TABLE */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1.5rem;
-            font-size: 0.9rem;
-        }
-
-        .data-table th {
-            text-align: left;
-            padding: 12px 16px;
-            background: #f9fafb;
-            border-bottom: 2px solid var(--border);
-            font-weight: 600;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--gray);
-        }
-
-        .data-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border);
-            color: #374151;
-        }
-
-        .data-table tr:last-child td { border-bottom: none; }
-        .data-table tr:hover td { background: #fafaf9; }
-
-        /* ALERT */
-        .alert {
-            border-radius: 12px;
-            padding: 1.25rem 1.5rem;
-            margin: 1.5rem 0;
-            display: flex;
-            gap: 1rem;
-            align-items: flex-start;
-        }
-
-        .alert-orange {
-            background: #fff7ed;
-            border: 1px solid #fed7aa;
-        }
-
-        .alert-blue {
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-        }
-
-        .alert-red {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-        }
-
-        .alert-icon { font-size: 1.25rem; flex-shrink: 0; margin-top: 2px; }
-        .alert-content { flex: 1; }
-        .alert-content strong { display: block; font-weight: 600; margin-bottom: 0.25rem; }
-        .alert-content p { font-size: 0.9rem; color: #4b5563; margin: 0; }
-
-        /* LIST */
-        .styled-list {
-            list-style: none;
-            margin: 1rem 0;
-        }
-
-        .styled-list li {
-            padding: 0.5rem 0;
-            padding-left: 1.5rem;
-            position: relative;
-            color: #374151;
-            font-size: 0.95rem;
-        }
-
-        .styled-list li::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: var(--orange);
-            font-weight: 700;
-        }
-
-        /* ANNULATION TABLE */
-        .cancel-table {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 1rem;
-            margin-top: 1.5rem;
-        }
-
-        .cancel-card {
-            border-radius: 16px;
-            padding: 1.25rem;
-            text-align: center;
-        }
-
-        .cancel-card.green { background: #f0fdf4; border: 1px solid #bbf7d0; }
-        .cancel-card.yellow { background: #fefce8; border: 1px solid #fde68a; }
-        .cancel-card.red { background: #fef2f2; border: 1px solid #fecaca; }
-
-        .cancel-card .pct {
-            font-family: 'Playfair Display', serif;
-            font-size: 2.5rem;
-            font-weight: 900;
-            margin-bottom: 0.25rem;
-        }
-
-        .cancel-card.green .pct { color: #16a34a; }
-        .cancel-card.yellow .pct { color: #ca8a04; }
-        .cancel-card.red .pct { color: #dc2626; }
-
-        .cancel-card .label { font-size: 0.8rem; color: var(--gray); }
-
-        /* CONTACT */
-        .contact-box {
-            background: linear-gradient(135deg, var(--orange-dark), var(--orange));
-            border-radius: 24px;
-            padding: 2.5rem;
-            color: white;
-            text-align: center;
-            margin-top: 2rem;
-        }
-
-        .contact-box h3 {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.75rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .contact-box p { color: rgba(255,255,255,0.85); margin-bottom: 1.5rem; }
-
-        .contact-btn {
-            display: inline-block;
-            background: white;
-            color: var(--orange-dark);
-            font-weight: 700;
-            padding: 12px 28px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-size: 0.95rem;
-        }
-
-        /* FOOTER */
-        footer {
-            background: var(--black);
-            color: #9ca3af;
-            text-align: center;
-            padding: 2rem;
-            font-size: 0.875rem;
-        }
-
-        footer strong { color: white; }
-
-        @media (max-width: 640px) {
-            .cancel-table { grid-template-columns: 1fr; }
-            .nav-tab { padding: 8px 12px; font-size: 0.8rem; }
-            main { padding: 2rem 1rem; }
+        @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .toc { display: none; } }
+        @media (max-width: 768px) {
+            nav, .tabs-bar { padding: 0 20px; }
+            .hero { padding: 100px 20px 56px; }
+            .content { padding: 36px 20px 80px; }
+            .cancel-grid { grid-template-columns: 1fr; }
+            footer { flex-direction: column; gap: 16px; padding: 28px 20px; text-align: center; }
+            .foot-links { flex-wrap: wrap; justify-content: center; }
         }
     </style>
 </head>
 <body>
+<div class="grain"></div>
 
 <nav>
-    <div class="nav-inner">
-        <a href="/" class="nav-logo">DriveConnect NC</a>
-        <div class="nav-tabs">
-            <button class="nav-tab active" onclick="showPage('privacy')">🔒 Confidentialité</button>
-            <button class="nav-tab" onclick="showPage('terms')">📋 CGU</button>
-            <button class="nav-tab" onclick="showPage('mentions')">📄 Mentions légales</button>
-        </div>
-    </div>
+    <a href="/landing.html" class="nav-logo"><div class="nav-dot"></div>DriveConnect NC</a>
+    <a href="javascript:history.back()" class="nav-back">← Retour</a>
 </nav>
 
 <div class="hero">
-    <div class="hero-badge">Documents légaux</div>
-    <h1>Transparence &<br><span>confiance</span></h1>
-    <p>Nous nous engageons à protéger vos données et à définir clairement nos règles d'utilisation.</p>
-    <p class="hero-date">Dernière mise à jour : Février 2026</p>
+    <div class="hero-label">Documents légaux</div>
+    <h1>Transparence &amp;<br><em>confiance</em></h1>
+    <p class="hero-sub">Politique de confidentialité, conditions d'utilisation et mentions légales — des documents clairs, sans jargon inutile.</p>
+    <div class="hero-badge">Dernière mise à jour : <strong>Février 2026</strong></div>
 </div>
 
-<main>
+<div class="tabs-bar">
+    <button class="tab-btn active" onclick="showPage('privacy',this)">🔒 Confidentialité</button>
+    <button class="tab-btn" onclick="showPage('terms',this)">📋 CGU</button>
+    <button class="tab-btn" onclick="showPage('mentions',this)">🏢 Mentions légales</button>
+</div>
 
-    <!-- ==================== POLITIQUE DE CONFIDENTIALITÉ ==================== -->
-    <div id="page-privacy" class="page active">
+<div class="layout">
+    <aside class="toc">
+        <div class="toc-head">Sommaire</div>
+        <ul class="toc-list" id="toc-list"></ul>
+    </aside>
 
-        <div class="section">
-            <div class="section-number">01 — Introduction</div>
-            <h2>Politique de confidentialité</h2>
-            <p>DriveConnect NC ("nous", "notre") exploite la plateforme de mise en relation entre élèves et moniteurs de conduite à Nouméa, Nouvelle-Calédonie. Cette politique décrit comment nous collectons, utilisons et protégeons vos données personnelles conformément à la réglementation en vigueur.</p>
-            <div class="alert alert-orange">
-                <span class="alert-icon">🚗</span>
-                <div class="alert-content">
-                    <strong>Notre engagement</strong>
-                    <p>Nous collectons uniquement les données nécessaires au bon fonctionnement du service. Vos données ne sont jamais vendues à des tiers.</p>
-                </div>
+    <div class="content">
+
+        <!-- CONFIDENTIALITÉ -->
+        <div id="page-privacy" class="page active">
+            <div class="art-head">
+                <div class="art-eyebrow">Politique de confidentialité</div>
+                <h1 class="art-h1">Vos données,<br><em>protégées.</em></h1>
+                <p class="art-meta">En vigueur depuis le 26 février 2026 · DriveConnect NC</p>
             </div>
-        </div>
+            <div class="intro">DriveConnect NC s'engage à protéger votre vie privée. Cette politique explique quelles données nous collectons, pourquoi nous les utilisons et quels sont vos droits. Elle s'applique à tous les utilisateurs de la plateforme — site web et application mobile — qu'ils soient élèves ou moniteurs.</div>
 
-        <div class="section">
-            <div class="section-number">02 — Données collectées</div>
-            <h2>Quelles données collectons-nous ?</h2>
-            <p>Nous collectons les catégories de données suivantes selon votre usage de la plateforme :</p>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Catégorie</th>
-                        <th>Données</th>
-                        <th>Finalité</th>
-                    </tr>
-                </thead>
+            <h2 class="sh"><span class="sh-num">01</span> Notre engagement</h2>
+            <div class="callout info"><span class="callout-icon">🚗</span><div class="callout-body"><strong>Engagement fondamental</strong><p>Nous collectons uniquement les données strictement nécessaires au bon fonctionnement du service. Vos données ne sont <strong>jamais vendues</strong> à des tiers à des fins commerciales.</p></div></div>
+            <p class="p">Le responsable du traitement est <strong class="s">DriveConnect NC</strong>, entreprise opérant à Nouméa, Nouvelle-Calédonie. Contact : <strong class="s">contact@driveconnect.nc</strong></p>
+
+            <h2 class="sh"><span class="sh-num">02</span> Données collectées</h2>
+            <p class="p">Nous collectons les catégories suivantes selon votre profil :</p>
+            <div class="tbl-wrap"><table>
+                <thead><tr><th>Catégorie</th><th>Données</th><th>Finalité</th></tr></thead>
                 <tbody>
-                    <tr>
-                        <td><strong>Compte</strong></td>
-                        <td>Nom, email, type de compte</td>
-                        <td>Authentification et identification</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Localisation</strong></td>
-                        <td>Position GPS (moniteurs uniquement)</td>
-                        <td>Affichage en temps réel sur la carte</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Réservations</strong></td>
-                        <td>Date, heure, montant, statut</td>
-                        <td>Gestion des cours et paiements</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Paiement</strong></td>
-                        <td>Référence transaction (via PayPal)</td>
-                        <td>Traitement et suivi des paiements</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Navigation</strong></td>
-                        <td>Logs d'accès, navigateur</td>
-                        <td>Sécurité et débogage</td>
-                    </tr>
+                    <tr><td><strong class="s">Compte</strong></td><td>Nom, email, type de compte, photo de profil</td><td>Authentification et identification</td></tr>
+                    <tr><td><strong class="s">Téléphone</strong></td><td>Numéro vérifié par SMS (optionnel)</td><td>Contact entre élèves et moniteurs</td></tr>
+                    <tr><td><strong class="s">Localisation</strong></td><td>Position GPS (moniteurs uniquement, activée volontairement)</td><td>Affichage en temps réel sur la carte</td></tr>
+                    <tr><td><strong class="s">Réservations</strong></td><td>Date, heure, montant, statut, code de validation</td><td>Gestion des cours et paiements</td></tr>
+                    <tr><td><strong class="s">Paiement</strong></td><td>Référence de transaction uniquement</td><td>Suivi (aucune CB stockée)</td></tr>
+                    <tr><td><strong class="s">Messages</strong></td><td>Contenu du chat élève ↔ moniteur</td><td>Communication liée à la réservation</td></tr>
+                    <tr><td><strong class="s">Navigation</strong></td><td>Logs d'accès, navigateur, adresse IP</td><td>Sécurité et débogage</td></tr>
+                    <tr><td><strong class="s">Suivi pédagogique</strong></td><td>Notes de progression rédigées par le moniteur</td><td>Fiche de suivi de l'élève</td></tr>
                 </tbody>
-            </table>
-        </div>
+            </table></div>
 
-        <div class="section">
-            <div class="section-number">03 — Hébergement</div>
-            <h2>Où sont stockées vos données ?</h2>
-            <p>DriveConnect NC utilise les infrastructures suivantes pour stocker et traiter vos données :</p>
-            <div class="card-grid">
-                <div class="card">
-                    <div class="card-icon">🗄️</div>
-                    <h4>Supabase</h4>
-                    <p>Base de données et authentification. Serveurs en Corée du Sud (ap-northeast-2). Conforme RGPD.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">⚡</div>
-                    <h4>Vercel</h4>
-                    <p>Hébergement de l'application web. Infrastructure mondiale avec CDN sécurisé.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">💳</div>
-                    <h4>PayPal</h4>
-                    <p>Traitement des paiements. Données bancaires jamais stockées sur nos serveurs.</p>
-                </div>
+            <h2 class="sh"><span class="sh-num">03</span> Hébergement</h2>
+            <div class="cards">
+                <div class="card"><div class="card-icon">🗄️</div><h4>Supabase</h4><p>Base de données et authentification. Serveurs en Corée du Sud (ap-northeast-2).</p></div>
+                <div class="card"><div class="card-icon">⚡</div><h4>Vercel</h4><p>Hébergement de l'application web. Infrastructure mondiale avec CDN et HTTPS.</p></div>
+                <div class="card"><div class="card-icon">✉️</div><h4>Resend</h4><p>Emails transactionnels (confirmations, notifications). Aucun email marketing sans consentement.</p></div>
             </div>
-            <div class="alert alert-blue" style="margin-top:1.5rem">
-                <span class="alert-icon">ℹ️</span>
-                <div class="alert-content">
-                    <strong>Données de paiement</strong>
-                    <p>DriveConnect NC ne stocke jamais vos numéros de carte bancaire. Tous les paiements sont traités directement par PayPal selon leurs propres standards de sécurité (PCI DSS).</p>
-                </div>
-            </div>
-        </div>
+            <div class="callout blue"><span class="callout-icon">ℹ️</span><div class="callout-body"><strong>Données de paiement</strong><p>DriveConnect NC ne stocke jamais vos numéros de carte bancaire. Les paiements sont traités par notre prestataire selon les normes de sécurité en vigueur.</p></div></div>
 
-        <div class="section">
-            <div class="section-number">04 — Cookies</div>
-            <h2>Utilisation des cookies</h2>
-            <p>DriveConnect NC utilise uniquement des cookies fonctionnels essentiels au fonctionnement de la plateforme. Nous n'utilisons pas de cookies publicitaires ou de tracking tiers.</p>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Cookie</th>
-                        <th>Type</th>
-                        <th>Durée</th>
-                        <th>Finalité</th>
-                    </tr>
-                </thead>
+            <h2 class="sh"><span class="sh-num">04</span> Cookies</h2>
+            <p class="p">Uniquement des cookies fonctionnels essentiels — aucun cookie publicitaire ou de tracking tiers.</p>
+            <div class="tbl-wrap"><table>
+                <thead><tr><th>Cookie</th><th>Type</th><th>Durée</th><th>Finalité</th></tr></thead>
                 <tbody>
-                    <tr>
-                        <td><code>sb-access-token</code></td>
-                        <td>Essentiel</td>
-                        <td>Session</td>
-                        <td>Maintien de la session utilisateur</td>
-                    </tr>
-                    <tr>
-                        <td><code>sb-refresh-token</code></td>
-                        <td>Essentiel</td>
-                        <td>7 jours</td>
-                        <td>Renouvellement automatique de session</td>
-                    </tr>
+                    <tr><td><code>sb-access-token</code></td><td>Essentiel</td><td>Session</td><td>Maintien de la session utilisateur</td></tr>
+                    <tr><td><code>sb-refresh-token</code></td><td>Essentiel</td><td>7 jours</td><td>Renouvellement automatique de session</td></tr>
                 </tbody>
-            </table>
-            <p style="margin-top:1rem">Vous pouvez supprimer ces cookies à tout moment via les paramètres de votre navigateur. Cela entraînera votre déconnexion automatique de la plateforme.</p>
-        </div>
+            </table></div>
+            <p class="p">Vous pouvez les supprimer à tout moment via les paramètres de votre navigateur — cela entraîne votre déconnexion.</p>
 
-        <div class="section">
-            <div class="section-number">05 — Localisation GPS</div>
-            <h2>Données de géolocalisation</h2>
-            <p>La collecte de données GPS concerne <strong>uniquement les moniteurs</strong> qui activent volontairement le partage de position depuis leur tableau de bord.</p>
-            <ul class="styled-list">
-                <li>Le partage GPS est optionnel et peut être désactivé à tout moment</li>
-                <li>La position est visible uniquement par les élèves connectés</li>
-                <li>Les données GPS ne sont pas conservées après la session</li>
-                <li>Aucune historisation des trajets n'est effectuée</li>
+            <h2 class="sh"><span class="sh-num">05</span> Géolocalisation GPS</h2>
+            <p class="p">La collecte GPS concerne <strong class="s">uniquement les moniteurs</strong> qui activent volontairement le partage depuis leur tableau de bord.</p>
+            <ul class="ul">
+                <li>Partage optionnel, désactivable à tout moment</li>
+                <li>Position visible uniquement par les élèves connectés</li>
+                <li>Données GPS <strong class="s">non conservées</strong> après la session</li>
+                <li>Aucune historisation des trajets ni déplacements</li>
             </ul>
-        </div>
 
-        <div class="section">
-            <div class="section-number">06 — Vos droits</div>
-            <h2>Droit de suppression et contrôle</h2>
-            <p>Conformément aux principes de protection des données, vous disposez des droits suivants :</p>
-            <div class="card-grid">
-                <div class="card">
-                    <div class="card-icon">👁️</div>
-                    <h4>Droit d'accès</h4>
-                    <p>Obtenir une copie de toutes vos données personnelles que nous détenons.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">✏️</div>
-                    <h4>Droit de rectification</h4>
-                    <p>Corriger des données inexactes ou incomplètes via votre profil.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">🗑️</div>
-                    <h4>Droit à l'effacement</h4>
-                    <p>Supprimer votre compte et toutes vos données associées.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">📦</div>
-                    <h4>Portabilité</h4>
-                    <p>Recevoir vos données dans un format lisible et transférable.</p>
-                </div>
+            <h2 class="sh"><span class="sh-num">06</span> Vos droits</h2>
+            <div class="cards">
+                <div class="card"><div class="card-icon">👁️</div><h4>Accès</h4><p>Obtenir une copie de toutes vos données personnelles.</p></div>
+                <div class="card"><div class="card-icon">✏️</div><h4>Rectification</h4><p>Corriger des données inexactes via votre profil ou par email.</p></div>
+                <div class="card"><div class="card-icon">🗑️</div><h4>Effacement</h4><p>Supprimer votre compte et toutes vos données associées.</p></div>
+                <div class="card"><div class="card-icon">📦</div><h4>Portabilité</h4><p>Recevoir vos données dans un format structuré et lisible.</p></div>
             </div>
-            <div class="alert alert-orange" style="margin-top:1.5rem">
-                <span class="alert-icon">📧</span>
-                <div class="alert-content">
-                    <strong>Exercer vos droits</strong>
-                    <p>Pour toute demande relative à vos données personnelles, contactez-nous à <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f686849f8097958fb692849f809395999898939582db9895d8978686">[email&#160;protected]</a></strong>. Nous répondons sous 30 jours.</p>
-                </div>
+            <div class="callout info"><span class="callout-icon">📧</span><div class="callout-body"><strong>Exercer vos droits</strong><p>Contactez-nous à <strong>contact@driveconnect.nc</strong>. Réponse sous 30 jours ouvrables.</p></div></div>
+
+            <h2 class="sh"><span class="sh-num">07</span> Protection des mineurs</h2>
+            <p class="p">DriveConnect NC est destinée aux personnes majeures ou aux jeunes en âge de préparer le permis (16 ans minimum avec accord parental). Nous ne collectons pas sciemment des données d'enfants de moins de 16 ans. Si vous êtes parent et estimez que votre enfant a créé un compte sans autorisation, contactez-nous immédiatement.</p>
+
+            <h2 class="sh"><span class="sh-num">08</span> Modifications</h2>
+            <p class="p">En cas de modification substantielle, vous serez notifié dans l'application ou par email avec un préavis de 30 jours. La poursuite de l'utilisation du service vaut acceptation de la politique mise à jour.</p>
+
+            <div class="contact-box">
+                <h3>Contact — Protection des données</h3>
+                <p>📧 <a href="mailto:contact@driveconnect.nc">contact@driveconnect.nc</a></p>
+                <p>📍 Nouméa, Nouvelle-Calédonie</p>
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-number">07 — Mineurs</div>
-            <h2>Protection des mineurs</h2>
-            <p>DriveConnect NC est une plateforme destinée aux personnes majeures (18 ans et plus). Nous ne collectons pas sciemment des données personnelles de mineurs. Si vous êtes un parent et estimez que votre enfant a créé un compte, contactez-nous immédiatement pour procéder à la suppression.</p>
-        </div>
-
-    </div>
-
-    <!-- ==================== CONDITIONS D'UTILISATION ==================== -->
-    <div id="page-terms" class="page">
-
-        <div class="section">
-            <div class="section-number">01 — Objet</div>
-            <h2>Objet de la plateforme</h2>
-            <p>DriveConnect NC est une plateforme numérique de mise en relation entre des élèves souhaitant prendre des cours de conduite et des moniteurs indépendants exerçant à Nouméa, Nouvelle-Calédonie.</p>
-            <p>L'utilisation de DriveConnect NC implique l'acceptation pleine et entière des présentes conditions générales d'utilisation (CGU). Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser la plateforme.</p>
-            <div class="alert alert-blue">
-                <span class="alert-icon">📱</span>
-                <div class="alert-content">
-                    <strong>Application mobile</strong>
-                    <p>Ces CGU s'appliquent également à l'application mobile DriveConnect NC disponible sur l'App Store (Apple) et le Google Play Store.</p>
-                </div>
+        <!-- CGU -->
+        <div id="page-terms" class="page">
+            <div class="art-head">
+                <div class="art-eyebrow">Conditions Générales d'Utilisation</div>
+                <h1 class="art-h1">Les règles du<br><em>jeu.</em></h1>
+                <p class="art-meta">En vigueur depuis le 26 février 2026 · DriveConnect NC</p>
             </div>
-        </div>
+            <div class="intro">Les présentes CGU régissent l'utilisation de la plateforme DriveConnect NC, accessible via notre site web et application mobile (App Store & Google Play). En créant un compte ou en utilisant nos services, vous acceptez intégralement ces conditions.</div>
 
-        <div class="section">
-            <div class="section-number">02 — Rôle de DriveConnect</div>
-            <h2>Rôle et responsabilités de DriveConnect NC</h2>
-            <p>DriveConnect NC agit exclusivement en tant qu'<strong>intermédiaire technique</strong> facilitant la mise en relation entre élèves et moniteurs. À ce titre :</p>
-            <ul class="styled-list">
-                <li>DriveConnect NC n'est pas employeur des moniteurs inscrits sur la plateforme</li>
-                <li>DriveConnect NC ne garantit pas la disponibilité continue des moniteurs</li>
-                <li>DriveConnect NC prélève une commission de 15% sur chaque transaction réalisée</li>
+            <h2 class="sh"><span class="sh-num">01</span> Objet de la plateforme</h2>
+            <p class="p">DriveConnect NC est une <strong class="s">plateforme numérique de mise en relation</strong> entre élèves souhaitant apprendre à conduire et moniteurs de conduite indépendants exerçant en Nouvelle-Calédonie. DriveConnect NC agit exclusivement en qualité d'intermédiaire technique — nous ne sommes ni un établissement d'enseignement ni un employeur des moniteurs.</p>
+            <div class="callout note"><span class="callout-icon">📱</span><div class="callout-body"><strong>Application mobile</strong><p>Ces CGU s'appliquent également à l'application mobile DriveConnect NC disponible sur l'App Store (Apple) et le Google Play Store.</p></div></div>
+
+            <h2 class="sh"><span class="sh-num">02</span> Rôle de DriveConnect NC</h2>
+            <ul class="ul">
+                <li>DriveConnect NC n'est <strong class="s">pas employeur</strong> des moniteurs inscrits sur la plateforme</li>
+                <li>DriveConnect NC ne garantit pas la disponibilité continue d'un moniteur spécifique</li>
+                <li>DriveConnect NC prélève une <strong class="s">commission de 15%</strong> sur chaque transaction réalisée</li>
                 <li>DriveConnect NC peut suspendre tout compte en cas de violation des CGU</li>
                 <li>DriveConnect NC n'est pas responsable du contenu pédagogique des cours dispensés</li>
             </ul>
-        </div>
 
-        <div class="section">
-            <div class="section-number">03 — Responsabilité des moniteurs</div>
-            <h2>Obligations des moniteurs</h2>
-            <p>En s'inscrivant sur DriveConnect NC en tant que moniteur, vous déclarez et garantissez :</p>
-            <ul class="styled-list">
-                <li>Être titulaire des diplômes et autorisations légales requis pour enseigner la conduite en Nouvelle-Calédonie</li>
-                <li>Disposer d'un véhicule en bon état de fonctionnement et assuré pour l'enseignement de la conduite</li>
-                <li>Honorer les créneaux réservés et confirmés par les élèves</li>
-                <li>Mettre à jour votre disponibilité et vos informations de profil régulièrement</li>
-                <li>Ne pas contourner la plateforme pour traiter des paiements en dehors de DriveConnect NC</li>
-            </ul>
-            <div class="alert alert-red">
-                <span class="alert-icon">⚠️</span>
-                <div class="alert-content">
-                    <strong>Responsabilité pédagogique</strong>
-                    <p>Le moniteur est seul responsable de la qualité et de la conformité légale de l'enseignement dispensé. DriveConnect NC ne peut être tenu responsable d'un accident ou incident survenant lors d'un cours.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-number">04 — Inscription et vérification</div>
-            <h2>Inscription et vérification des comptes</h2>
-            <p><strong>Élèves :</strong> inscription avec email vérifié, nom et mot de passe. L'adresse email doit être confirmée via un lien envoyé automatiquement.</p>
-            <p><strong>Moniteurs :</strong> inscription avec vérification email + envoi obligatoire des documents suivants :</p>
-            <ul class="styled-list">
-                <li>Autorisation d'enseigner la conduite (ECSR, BEPECASER ou autorisation préfectorale)</li>
+            <h2 class="sh"><span class="sh-num">03</span> Inscription et vérification</h2>
+            <h3 class="ssh">Élèves</h3>
+            <p class="p">Inscription avec email vérifié, nom complet et mot de passe. L'élève peut ajouter un numéro de téléphone vérifié par SMS pour faciliter le contact avec son moniteur.</p>
+            <h3 class="ssh">Moniteurs</h3>
+            <p class="p">Les moniteurs doivent fournir les documents suivants pour validation manuelle avant activation :</p>
+            <ul class="ul">
+                <li>Autorisation d'enseigner la conduite valide en Nouvelle-Calédonie (ECSR, BEPECASER ou autorisation préfectorale)</li>
                 <li>Pièce d'identité valide</li>
-                <li>RIB / Coordonnées bancaires (pour le versement des revenus)</li>
-                <li>Assurance professionnelle (optionnelle mais recommandée)</li>
+                <li>RIB / coordonnées bancaires pour le versement des revenus</li>
+                <li>Assurance professionnelle (fortement recommandée)</li>
             </ul>
-            <p>Les documents sont vérifiés manuellement par l'administration avant validation du compte moniteur.</p>
-        </div>
 
-        <div class="section">
-            <div class="section-number">05 — Réservations et validation</div>
-            <h2>Statuts des réservations et code de validation</h2>
-            <p>Chaque réservation suit un cycle de vie défini par les statuts suivants :</p>
-            <ul class="styled-list">
-                <li><strong>En attente :</strong> réservation créée, en attente de confirmation du paiement</li>
-                <li><strong>Confirmée :</strong> paiement validé, cours programmé</li>
-                <li><strong>Terminée :</strong> cours réalisé et validé par le code de validation</li>
-                <li><strong>Annulée :</strong> cours annulé par l'élève ou le moniteur</li>
-                <li><strong>Litige :</strong> contestation en cours, traitée par l'administration de DriveConnect NC</li>
+            <h2 class="sh"><span class="sh-num">04</span> Réservations et validation</h2>
+            <ul class="ul">
+                <li><strong class="s">En attente</strong> — réservation créée, paiement en traitement</li>
+                <li><strong class="s">Confirmée</strong> — paiement validé, cours programmé, code généré</li>
+                <li><strong class="s">Terminée</strong> — cours réalisé et validé via le code unique</li>
+                <li><strong class="s">Annulée</strong> — cours annulé selon la politique en vigueur</li>
+                <li><strong class="s">Litige</strong> — contestation traitée par l'administration DriveConnect NC</li>
             </ul>
-            <div class="alert alert-orange">
-                <span class="alert-icon">🔑</span>
-                <div class="alert-content">
-                    <strong>Code de validation</strong>
-                    <p>Un code unique à 6 caractères est généré à chaque réservation. L'élève communique ce code au moniteur <strong>à la fin du cours</strong> pour valider la séance. Le code ne doit jamais être donné avant la réalisation effective du cours.</p>
-                </div>
+            <div class="callout info"><span class="callout-icon">🔑</span><div class="callout-body"><strong>Code de validation</strong><p>Un code unique à 6 caractères est généré à chaque réservation. L'élève le communique au moniteur <strong>à la fin du cours uniquement</strong>. Ne jamais donner ce code avant la réalisation effective du cours.</p></div></div>
+            <p class="p"><strong class="s">Protection anti-double réservation :</strong> un créneau payé est immédiatement verrouillé. En cas d'annulation, le créneau est <strong class="s">définitivement supprimé</strong> — le moniteur devra en créer un nouveau.</p>
+
+            <h2 class="sh"><span class="sh-num">05</span> Politique d'annulation</h2>
+            <p class="p">DriveConnect NC applique une politique d'annulation progressive :</p>
+            <div class="cancel-grid">
+                <div class="cancel-card g"><div class="cancel-pct">100%</div><div class="cancel-lbl">Remboursé</div><div class="cancel-sub">Annulation plus de 48h avant le cours</div></div>
+                <div class="cancel-card y"><div class="cancel-pct">50%</div><div class="cancel-lbl">Remboursé</div><div class="cancel-sub">Annulation entre 24h et 48h avant le cours</div></div>
+                <div class="cancel-card r"><div class="cancel-pct">0%</div><div class="cancel-lbl">Remboursé</div><div class="cancel-sub">Annulation moins de 24h avant le cours</div></div>
             </div>
-            <p><strong>Protection contre les doubles réservations :</strong> Un créneau payé est immédiatement verrouillé et ne peut être réservé par un autre élève. En cas d'annulation, le créneau est <strong>définitivement supprimé</strong> et le moniteur doit en créer un nouveau manuellement.</p>
-        </div>
+            <p class="p"><strong class="s">Annulation par le moniteur :</strong> si le moniteur annule moins de 24h avant le cours, l'élève est remboursé intégralement et le moniteur se voit appliquer une réduction de visibilité de 10% pendant 7 jours sur la plateforme.</p>
 
-        <div class="section">
-            <div class="section-number">06 — Politique d'annulation</div>
-            <h2>Annulations et remboursements</h2>
-            <p>DriveConnect NC applique une politique d'annulation progressive pour protéger à la fois les élèves et les moniteurs :</p>
-            <div class="cancel-table">
-                <div class="cancel-card green">
-                    <div class="pct">100%</div>
-                    <div style="font-weight:600;margin-bottom:0.25rem">Remboursé</div>
-                    <div class="label">Annulation plus de 48h avant le cours</div>
-                </div>
-                <div class="cancel-card yellow">
-                    <div class="pct">50%</div>
-                    <div style="font-weight:600;margin-bottom:0.25rem">Remboursé</div>
-                    <div class="label">Annulation entre 24h et 48h avant le cours</div>
-                </div>
-                <div class="cancel-card red">
-                    <div class="pct">0%</div>
-                    <div style="font-weight:600;margin-bottom:0.25rem">Remboursé</div>
-                    <div class="label">Annulation moins de 24h avant le cours</div>
-                </div>
-            </div>
-            <p style="margin-top:1.5rem"><strong>Annulation par le moniteur :</strong> Si un moniteur annule un cours confirmé moins de 24h avant l'heure prévue, l'élève est remboursé intégralement et le moniteur se voit appliquer une réduction de visibilité de 10% pendant 7 jours sur la plateforme.</p>
-            <p style="margin-top:0.75rem"><strong>Suppression du créneau :</strong> Dans tous les cas d'annulation (par l'élève ou le moniteur), le créneau horaire est <strong>définitivement supprimé</strong>. Le moniteur devra créer manuellement un nouveau créneau s'il souhaite reproposer cette plage horaire.</p>
-        </div>
-
-        <div class="section">
-            <div class="section-number">07 — Paiements</div>
-            <h2>Modalités de paiement</h2>
-            <p>Tous les paiements sur DriveConnect NC sont traités via <strong>PayPal</strong>, partenaire de confiance pour le traitement sécurisé des transactions.</p>
-            <ul class="styled-list">
-                <li>Les prix sont affichés en Francs Pacifique (XPF) et convertis en EUR au taux fixe officiel (1 EUR = 119,3317 XPF) pour le traitement PayPal</li>
-                <li>DriveConnect NC prélève une commission de 15% sur chaque transaction</li>
-                <li>Le montant net est versé au moniteur après déduction de la commission</li>
-                <li>Les remboursements sont traités dans un délai de 5 à 10 jours ouvrés</li>
-                <li>Aucune donnée bancaire n'est stockée sur les serveurs de DriveConnect NC</li>
+            <h2 class="sh"><span class="sh-num">06</span> Paiements</h2>
+            <p class="p">Les tarifs sont librement fixés par chaque moniteur et affichés en <strong class="s">Francs Pacifique (XPF)</strong>. DriveConnect NC prélève une commission de <strong class="s">15%</strong> sur chaque cours effectué.</p>
+            <div class="callout note"><span class="callout-icon">💡</span><div class="callout-body"><strong>Exemple concret</strong><p>Pour un cours à 4 500 XPF → le moniteur perçoit <strong>3 825 XPF nets</strong> (commission DriveConnect : 675 XPF).</p></div></div>
+            <ul class="ul">
+                <li>Remboursements traités en 5 à 10 jours ouvrés</li>
+                <li>Aucune donnée bancaire stockée sur les serveurs DriveConnect NC</li>
+                <li>Toutes les transactions sécurisées par protocole SSL/TLS</li>
             </ul>
-            <div class="alert alert-blue">
-                <span class="alert-icon">💳</span>
-                <div class="alert-content">
-                    <strong>Sécurité des paiements</strong>
-                    <p>Toutes les transactions sont sécurisées par le protocole SSL/TLS et traitées selon les normes PCI DSS de PayPal. DriveConnect NC n'a jamais accès à vos informations bancaires complètes.</p>
-                </div>
-            </div>
-        </div>
 
-        <div class="section">
-            <div class="section-number">08 — Suspension de compte</div>
-            <h2>Suspension et résiliation de compte</h2>
-            <p>DriveConnect NC se réserve le droit de suspendre ou supprimer tout compte dans les cas suivants :</p>
-            <ul class="styled-list">
-                <li>Violation des présentes conditions générales d'utilisation</li>
-                <li>Fausse déclaration lors de l'inscription (faux diplômes, fausses informations)</li>
-                <li>Comportement abusif envers d'autres utilisateurs de la plateforme</li>
-                <li>Tentative de contournement du système de paiement</li>
-                <li>Accumulation de mauvaises évaluations ou signalements répétés</li>
-                <li>Activité frauduleuse ou contraire aux lois en vigueur</li>
+            <h2 class="sh"><span class="sh-num">07</span> Obligations des moniteurs</h2>
+            <ul class="ul">
+                <li>Être titulaire des diplômes et autorisations légaux requis pour enseigner en Nouvelle-Calédonie</li>
+                <li>Disposer d'un véhicule en bon état de fonctionnement et assuré pour l'enseignement</li>
+                <li>Honorer les créneaux réservés et confirmés</li>
+                <li>Mettre à jour ses disponibilités et informations de profil régulièrement</li>
+                <li>Ne pas contourner la plateforme pour des paiements hors DriveConnect NC</li>
+                <li>Rédiger les fiches de suivi élève dans les 24h suivant chaque cours</li>
             </ul>
-            <p>En cas de suspension, l'utilisateur est notifié par email. Les réservations en cours sont annulées avec remboursement intégral des élèves concernés. Un droit de contestation peut être exercé en contactant notre équipe dans les 14 jours.</p>
-            <div class="alert alert-red">
-                <span class="alert-icon">🔒</span>
-                <div class="alert-content">
-                    <strong>Suspension immédiate</strong>
-                    <p>DriveConnect NC peut procéder à une suspension immédiate sans préavis en cas de fraude avérée, d'usurpation d'identité ou de mise en danger d'un utilisateur.</p>
-                </div>
+            <div class="callout warn"><span class="callout-icon">⚠️</span><div class="callout-body"><strong>Responsabilité pédagogique</strong><p>Le moniteur est seul responsable de la qualité et de la conformité légale de l'enseignement dispensé. DriveConnect NC ne peut être tenu responsable d'un accident survenant lors d'un cours.</p></div></div>
+
+            <h2 class="sh"><span class="sh-num">08</span> Système de notation</h2>
+            <ul class="ul">
+                <li>Seuls les cours effectués et validés donnent droit à un avis — aucun avis anonyme</li>
+                <li>Les avis doivent être honnêtes, factuels et respectueux</li>
+                <li>La note globale est la <strong class="s">moyenne arithmétique</strong> de toutes les notes reçues</li>
+                <li>DriveConnect NC peut supprimer tout avis manifestement abusif ou diffamatoire</li>
+            </ul>
+
+            <h2 class="sh"><span class="sh-num">09</span> Programme de parrainage</h2>
+            <ul class="ul">
+                <li>Chaque parrainage abouti (1er cours complété) donne droit à <strong class="s">1% de réduction de commission</strong></li>
+                <li>Limité à <strong class="s">10 parrainages aboutis</strong> maximum par compte moniteur</li>
+                <li>DriveConnect NC peut modifier ou interrompre ce programme avec un préavis de 30 jours</li>
+            </ul>
+
+            <h2 class="sh"><span class="sh-num">10</span> Suspension de compte</h2>
+            <p class="p">DriveConnect NC peut suspendre ou supprimer tout compte en cas de violation des CGU, fausse déclaration, comportement abusif, tentative de contournement du paiement ou signalements répétés. L'utilisateur est notifié par email et peut contester sous 14 jours.</p>
+            <div class="callout warn"><span class="callout-icon">🔒</span><div class="callout-body"><strong>Suspension immédiate sans préavis</strong><p>En cas de fraude avérée, d'usurpation d'identité ou de mise en danger d'un utilisateur.</p></div></div>
+
+            <h2 class="sh"><span class="sh-num">11</span> Droit applicable</h2>
+            <p class="p">Les présentes CGU sont soumises au <strong class="s">droit français applicable en Nouvelle-Calédonie</strong>. En cas de litige non résolu à l'amiable, les <strong class="s">tribunaux de Nouméa</strong> seront seuls compétents.</p>
+
+            <div class="contact-box">
+                <h3>Contact — CGU & litiges</h3>
+                <p>📧 <a href="mailto:contact@driveconnect.nc">contact@driveconnect.nc</a></p>
+                <p>📍 Nouméa, Nouvelle-Calédonie</p>
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-number">09 — Droit applicable</div>
-            <h2>Droit applicable et juridiction</h2>
-            <p>Les présentes CGU sont soumises au droit français applicable en Nouvelle-Calédonie. En cas de litige, les parties s'engagent à rechercher une solution amiable avant tout recours judiciaire. À défaut d'accord, les tribunaux de Nouméa seront seuls compétents.</p>
+        <!-- MENTIONS LÉGALES -->
+        <div id="page-mentions" class="page">
+            <div class="art-head">
+                <div class="art-eyebrow">Mentions légales</div>
+                <h1 class="art-h1">Qui sommes-<br><em>nous ?</em></h1>
+                <p class="art-meta">Mise à jour : 26 février 2026 · DriveConnect NC</p>
+            </div>
+            <div class="intro">Conformément aux dispositions applicables en Nouvelle-Calédonie, voici les informations légales relatives à l'éditeur, à l'hébergeur et aux services tiers de la plateforme DriveConnect NC.</div>
+
+            <h2 class="sh"><span class="sh-num">01</span> Éditeur</h2>
+            <div class="callout note"><span class="callout-icon">🏢</span><div class="callout-body">
+                <strong>DriveConnect NC</strong>
+                <p>Forme juridique : Entreprise individuelle<br>Siège social : Nouméa, Nouvelle-Calédonie<br>Directeur de la publication : Le gérant de DriveConnect NC<br>Email : <a href="mailto:contact@driveconnect.nc" style="color:var(--orange)">contact@driveconnect.nc</a></p>
+            </div></div>
+
+            <h2 class="sh"><span class="sh-num">02</span> Hébergement et services tiers</h2>
+            <ul class="ul">
+                <li><strong class="s">Site web :</strong> Vercel Inc. — 440 N Barranca Ave #4133, Covina, CA 91723, USA</li>
+                <li><strong class="s">Base de données & authentification :</strong> Supabase Inc. — serveurs ap-northeast-2 (Corée du Sud)</li>
+                <li><strong class="s">Emails transactionnels :</strong> Resend Inc.</li>
+                <li><strong class="s">Cartographie :</strong> OpenStreetMap & Stadia Maps</li>
+            </ul>
+
+            <h2 class="sh"><span class="sh-num">03</span> Nature de l'activité</h2>
+            <p class="p">DriveConnect NC est une <strong class="s">plateforme de mise en relation</strong> entre élèves et moniteurs de conduite indépendants. DriveConnect NC n'est <strong class="s">pas</strong> un établissement d'enseignement de la conduite (auto-école) et n'emploie pas directement les moniteurs.</p>
+            <p class="p">Commission prélevée : <strong class="s">15%</strong> sur chaque transaction confirmée. Le moniteur perçoit 85% du montant payé par l'élève.</p>
+
+            <h2 class="sh"><span class="sh-num">04</span> Propriété intellectuelle</h2>
+            <p class="p">L'ensemble du contenu de la plateforme — textes, graphismes, logo, icônes, code source — est la propriété exclusive de DriveConnect NC. Toute reproduction ou diffusion sans autorisation écrite préalable est interdite.</p>
+
+            <h2 class="sh"><span class="sh-num">05</span> Protection des données</h2>
+            <p class="p">Vous disposez d'un droit d'accès, de rectification, de suppression et de portabilité de vos données. Pour les détails, consultez notre <a onclick="showPage('privacy', document.querySelectorAll('.tab-btn')[0])" style="color:var(--orange);cursor:pointer">Politique de confidentialité</a>.</p>
+
+            <h2 class="sh"><span class="sh-num">06</span> Cookies</h2>
+            <p class="p">Uniquement des cookies techniques nécessaires au fonctionnement du service (session d'authentification). Aucun cookie publicitaire ni de suivi marketing.</p>
+
+            <h2 class="sh"><span class="sh-num">07</span> Médiation et juridiction</h2>
+            <p class="p">En cas de litige, les parties s'engagent à rechercher une solution amiable. À défaut d'accord, les <strong class="s">tribunaux de Nouméa, Nouvelle-Calédonie</strong> seront seuls compétents.</p>
+
+            <h2 class="sh"><span class="sh-num">08</span> Crédits</h2>
+            <p class="p">Cartographie : OpenStreetMap & Stadia Maps · Polices : Instrument Serif, Syne, DM Sans (Google Fonts) · Auth & BDD : Supabase · Hébergement : Vercel · Emails : Resend.</p>
+
+            <div class="contact-box">
+                <h3>Contact général</h3>
+                <p>📧 <a href="mailto:contact@driveconnect.nc">contact@driveconnect.nc</a></p>
+                <p>📍 Nouméa, Nouvelle-Calédonie</p>
+                <p style="margin-top:10px;font-size:12px;color:var(--text-3)">© 2026 DriveConnect NC — Tous droits réservés</p>
+            </div>
         </div>
 
     </div>
-
-    <!-- ==================== MENTIONS LÉGALES ==================== -->
-    <div id="page-mentions" class="page">
-
-        <div class="section">
-            <div class="section-number">01 — Éditeur du site</div>
-            <h2>Éditeur</h2>
-            <p><strong>Nom :</strong> DriveConnect NC</p>
-            <p><strong>Forme juridique :</strong> Entreprise individuelle</p>
-            <p><strong>Siège social :</strong> Nouméa, Nouvelle-Calédonie</p>
-            <p><strong>Email :</strong> contact@driveconnect.nc</p>
-            <p><strong>Directeur de la publication :</strong> Le gérant de DriveConnect NC</p>
-        </div>
-
-        <div class="section">
-            <div class="section-number">02 — Hébergement</div>
-            <h2>Hébergement et services tiers</h2>
-            <ul class="styled-list">
-                <li><strong>Site web :</strong> hébergé par Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA</li>
-                <li><strong>Base de données :</strong> hébergée par Supabase Inc.</li>
-                <li><strong>Paiements :</strong> traités par PayPal (Europe) S.à r.l. et Cie, S.C.A., 22-24 Boulevard Royal, L-2449 Luxembourg</li>
-                <li><strong>Emails transactionnels :</strong> envoyés via Resend Inc.</li>
-            </ul>
-        </div>
-
-        <div class="section">
-            <div class="section-number">03 — Propriété intellectuelle</div>
-            <h2>Propriété intellectuelle</h2>
-            <p>L'ensemble du contenu du site DriveConnect NC (textes, graphismes, logos, icônes, logiciels) est la propriété exclusive de DriveConnect NC ou de ses partenaires. Toute reproduction, représentation ou diffusion, en tout ou partie, du contenu de ce site est interdite sans autorisation écrite préalable.</p>
-        </div>
-
-        <div class="section">
-            <div class="section-number">04 — Activité</div>
-            <h2>Nature de l'activité</h2>
-            <p>DriveConnect NC est une plateforme de mise en relation entre élèves et moniteurs de conduite indépendants. DriveConnect NC <strong>n'est pas</strong> un établissement d'enseignement de la conduite (auto-école) et n'emploie pas directement les moniteurs.</p>
-            <p>La commission prélevée est de <strong>15%</strong> sur chaque transaction confirmée. Le moniteur perçoit 85% du montant payé par l'élève.</p>
-        </div>
-
-        <div class="section">
-            <div class="section-number">05 — Données personnelles</div>
-            <h2>Protection des données</h2>
-            <p>Conformément à la réglementation applicable en matière de protection des données personnelles, vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Pour plus de détails, consultez notre <a onclick="showPage('privacy')" style="color:var(--orange);font-weight:600;cursor:pointer;text-decoration:underline">Politique de confidentialité</a>.</p>
-        </div>
-
-        <div class="section">
-            <div class="section-number">06 — Cookies</div>
-            <h2>Cookies</h2>
-            <p>Le site utilise uniquement des cookies techniques nécessaires au fonctionnement du service (session d'authentification, préférences d'affichage). Aucun cookie publicitaire ou de suivi marketing n'est utilisé.</p>
-        </div>
-
-        <div class="section">
-            <div class="section-number">07 — Médiation et litiges</div>
-            <h2>Médiation et juridiction</h2>
-            <p>En cas de litige, le consommateur peut recourir gratuitement au service de médiation. Les litiges relatifs à l'utilisation de la plateforme sont soumis à la compétence exclusive des tribunaux de Nouméa, Nouvelle-Calédonie.</p>
-        </div>
-
-        <div class="section">
-            <div class="section-number">08 — Crédits</div>
-            <h2>Crédits</h2>
-            <p>Cartographie : OpenStreetMap & CartoDB Voyager. Paiements : PayPal. Icônes : système emoji natif. Police : DM Sans (Google Fonts). Framework CSS : Tailwind CSS.</p>
-        </div>
-
-    </div>
-
-    <!-- CONTACT -->
-    <div class="contact-box">
-        <h3>Une question légale ?</h3>
-        <p>Notre équipe répond à toutes vos questions concernant la confidentialité de vos données et nos conditions d'utilisation.</p>
-        <a href="/cdn-cgi/l/email-protection#107c7577717c507462796675737f7e7e7573643d7e733e716060" class="contact-btn">✉️ Nous contacter</a>
-    </div>
-
-</main>
+</div>
 
 <footer>
-    <p>© 2026 <strong>DriveConnect NC</strong> — Tous droits réservés — Nouméa, Nouvelle-Calédonie</p>
-    <p style="margin-top:0.5rem">Ces documents ont été mis à jour le 26 février 2026</p>
+    <div class="foot-logo"><div class="foot-dot"></div>DriveConnect NC</div>
+    <div class="foot-links">
+        <a href="#" onclick="showPage('privacy',document.querySelectorAll('.tab-btn')[0]);return false">Confidentialité</a>
+        <a href="#" onclick="showPage('terms',document.querySelectorAll('.tab-btn')[1]);return false">CGU</a>
+        <a href="#" onclick="showPage('mentions',document.querySelectorAll('.tab-btn')[2]);return false">Mentions légales</a>
+        <a href="/app.html">Accéder à l'app</a>
+    </div>
+    <div class="foot-copy">© 2026 DriveConnect NC</div>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script>
-function showPage(page) {
+function showPage(id, btn) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    const pageEl = document.getElementById('page-' + page);
-    if (pageEl) pageEl.classList.add('active');
-    const tabs = document.querySelectorAll('.nav-tab');
-    tabs.forEach(t => {
-        if (t.getAttribute('onclick') && t.getAttribute('onclick').includes(page)) {
-            t.classList.add('active');
-        }
-    });
-    // Mettre à jour le hash sans scroll brutal
-    history.replaceState(null, null, '#' + page);
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const page = document.getElementById('page-' + id);
+    if (page) page.classList.add('active');
+    if (btn) btn.classList.add('active');
+    buildTOC(id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    history.replaceState(null, '', '#' + id);
 }
 
-// Gérer l'ancre au chargement
-window.addEventListener('DOMContentLoaded', function() {
-    const hash = window.location.hash.replace('#', '');
-    if (hash === 'terms' || hash === 'privacy' || hash === 'mentions') {
-        showPage(hash);
-    }
-    // Ajouter bouton retour si vient de l'app
-    const referrer = document.referrer;
-    if (referrer && (referrer.includes('app.html') || referrer.includes('localhost') || referrer.includes('driveconnect'))) {
-        const backBtn = document.createElement('a');
-        backBtn.href = 'javascript:history.back()';
-        backBtn.style.cssText = 'position:fixed;top:20px;left:20px;background:#FF5A1F;color:white;padding:8px 16px;border-radius:20px;font-weight:700;font-size:13px;text-decoration:none;z-index:1000;box-shadow:0 4px 16px rgba(255,90,31,0.3)';
-        backBtn.textContent = '← Retour';
-        document.body.appendChild(backBtn);
-    }
-});
+function buildTOC(pageId) {
+    const page = document.getElementById('page-' + pageId);
+    const list = document.getElementById('toc-list');
+    if (!page || !list) return;
+    list.innerHTML = '';
+    page.querySelectorAll('h2.sh').forEach((h, i) => {
+        h.id = 'h-' + i;
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        const numEl = h.querySelector('.sh-num');
+        const num = numEl ? numEl.textContent : '';
+        const title = h.textContent.replace(num, '').trim();
+        a.textContent = num + ' ' + title;
+        a.href = '#h-' + i;
+        a.addEventListener('click', e => {
+            e.preventDefault();
+            h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            list.querySelectorAll('a').forEach(x => x.classList.remove('active'));
+            a.classList.add('active');
+        });
+        li.appendChild(a);
+        list.appendChild(li);
+    });
+}
+
+window.addEventListener('scroll', () => {
+    const hs = document.querySelectorAll('h2.sh[id]');
+    const as = document.querySelectorAll('#toc-list a');
+    let cur = '';
+    hs.forEach(h => { if (h.getBoundingClientRect().top < 200) cur = h.id; });
+    as.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + cur));
+}, { passive: true });
+
+// Init from hash
+(function() {
+    const hash = location.hash.replace('#', '') || 'privacy';
+    const map = { privacy: 0, terms: 1, mentions: 2 };
+    const idx = map[hash] ?? 0;
+    const keys = Object.keys(map);
+    showPage(keys[idx], document.querySelectorAll('.tab-btn')[idx]);
+})();
+
+// Bouton retour si vient de l'app
+if (document.referrer && document.referrer.includes('app.html')) {
+    document.querySelector('.nav-back').href = document.referrer;
+}
 </script>
 </body>
 </html>
