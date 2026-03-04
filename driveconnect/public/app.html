@@ -523,7 +523,6 @@ let map = null, userMarker = null, iMarkers = [], watchId = null;
 let deferredInstallPrompt = null;
 let appUiInitDone = false;
 let _lastGlobalErrTs = 0;
-let _lastUserActionTs = 0;
 let studentFinderFilters = { onlineOnly: false, maxRate: 10000, minRating: 0 };
 let pwdResetState = { email: '', cooldownUntil: 0 };
 
@@ -567,45 +566,6 @@ function renderBrandWordmark(opts = {}) {
             </div>
             <span class="brand-text" style="color:${textColor}">DriveConnect NC</span>
         </div>`;
-}
-
-function getInstructorPlaceholderAvatar(name = 'Moniteur') {
-    const initial = ((name || 'M').trim().charAt(0) || 'M').toUpperCase();
-    const safeInitial = /[A-Z0-9]/.test(initial) ? initial : 'M';
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>
-        <defs>
-            <linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'>
-                <stop offset='0%' stop-color='#EAF2FF'/>
-                <stop offset='100%' stop-color='#DDEBFF'/>
-            </linearGradient>
-            <linearGradient id='shirt' x1='0' y1='0' x2='1' y2='1'>
-                <stop offset='0%' stop-color='#FF8B57'/>
-                <stop offset='100%' stop-color='#FF5A1F'/>
-            </linearGradient>
-        </defs>
-        <rect width='120' height='120' rx='28' fill='url(#bg)'/>
-        <circle cx='60' cy='46' r='18' fill='#FFD9B3'/>
-        <path d='M34 96c2-16 13-26 26-26s24 10 26 26' fill='url(#shirt)'/>
-        <circle cx='52' cy='45' r='2.2' fill='#2A2A2A'/>
-        <circle cx='68' cy='45' r='2.2' fill='#2A2A2A'/>
-        <path d='M53 53c4 4 10 4 14 0' stroke='#2A2A2A' stroke-width='2.4' fill='none' stroke-linecap='round'/>
-        <circle cx='60' cy='78' r='13' fill='none' stroke='#1F2937' stroke-width='4'/>
-        <line x1='47' y1='78' x2='73' y2='78' stroke='#1F2937' stroke-width='3' stroke-linecap='round'/>
-        <line x1='60' y1='65' x2='60' y2='91' stroke='#1F2937' stroke-width='3' stroke-linecap='round'/>
-        <text x='98' y='108' font-size='14' font-weight='800' fill='#1D4ED8' font-family='DM Sans, Arial, sans-serif'>${safeInitial}</text>
-    </svg>`;
-    return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
-}
-
-function renderInstructorAvatarImg(url, name, style, alt = 'Photo moniteur') {
-    const src = url || getInstructorPlaceholderAvatar(name);
-    const fallback = getInstructorPlaceholderAvatar(name);
-    return `<img src="${src}" onerror="this.onerror=null;this.src='${fallback}'" style="${style}" alt="${String(alt).replace(/"/g, '&quot;')}">`;
-}
-
-function formatRating(value) {
-    const n = Number(value);
-    return Number.isFinite(n) && n > 0 ? n.toFixed(1) : '';
 }
 
 function notif(title, msg, color='orange') {
@@ -702,11 +662,6 @@ function setupAppEnhancements() {
     window.addEventListener('offline', updateNetworkUi);
     updateNetworkUi();
 
-    const markUserAction = () => { _lastUserActionTs = Date.now(); };
-    document.addEventListener('click', markUserAction, { passive: true });
-    document.addEventListener('touchstart', markUserAction, { passive: true });
-    document.addEventListener('keydown', markUserAction, { passive: true });
-
     const fab = ensureInstallFab();
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
@@ -719,37 +674,19 @@ function setupAppEnhancements() {
         notif('✅ Application installée', 'DriveConnect est maintenant sur votre écran d’accueil', 'green');
     });
 
-    window.addEventListener('error', (e) => {
+    window.addEventListener('error', () => {
         const now = Date.now();
         if (now - _lastGlobalErrTs < 6000) return;
         _lastGlobalErrTs = now;
-        const msg = String(e?.message || '');
-        const src = String(e?.filename || '');
-        const noisy =
-            msg.includes('ResizeObserver loop limit exceeded') ||
-            msg.includes('Script error') ||
-            src.includes('chrome-extension://') ||
-            src.includes('moz-extension://');
-        const recentUserAction = now - _lastUserActionTs < 4000;
-        if (!noisy && recentUserAction && !document.hidden) {
-            notif('⚠️ Erreur temporaire', 'Une action a échoué, réessayez.', 'yellow');
-        }
-        logAppError('window.error', new Error(msg || 'Global window error'));
+        notif('⚠️ Erreur temporaire', 'Une action a échoué, réessayez.', 'yellow');
+        logAppError('window.error', new Error('Global window error'));
     });
     window.addEventListener('unhandledrejection', (e) => {
         const now = Date.now();
         if (now - _lastGlobalErrTs < 6000) return;
         _lastGlobalErrTs = now;
-        const reason = String(e?.reason?.message || e?.reason || '');
-        const noisy =
-            reason.includes('ResizeObserver loop limit exceeded') ||
-            reason.includes('Script error') ||
-            reason.includes('Non-Error promise rejection captured');
-        const recentUserAction = now - _lastUserActionTs < 4000;
-        if (!noisy && recentUserAction && !document.hidden) {
-            notif('⚠️ Problème réseau/serveur', 'Réessayez dans quelques secondes.', 'yellow');
-        }
-        logAppError('window.unhandledrejection', reason || 'Unhandled promise rejection');
+        notif('⚠️ Problème réseau/serveur', 'Réessayez dans quelques secondes.', 'yellow');
+        logAppError('window.unhandledrejection', e?.reason || 'Unhandled promise rejection');
     });
 }
 
@@ -1632,15 +1569,16 @@ function StudentDashboard() {
             <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:10px">
                 ${instructors.slice(0,5).map((i,idx)=>{
                     const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
+                    const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
                     return `<div class="db-instructor-chip" onclick="showInstructorProfile('${i.id}')">
                         <div style="width:50px;height:50px;border-radius:16px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px;position:relative">
-                            ${renderInstructorAvatarImg(i.avatar_url, i.name, 'width:100%;height:100%;object-fit:cover')}
+                            ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`${initials}`}
                             <div style="position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;background:${i.is_online?'#22C55E':'#D1D5DB'};border:2px solid #fff"></div>
                         </div>
                         <div style="flex:1;min-width:0">
                             <p style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:2px">${i.name}</p>
                             <p style="font-size:12px;color:var(--text-muted)">📍 ${i.location||'Nouméa'} · ${slots} créneau${slots>1?'x':''}</p>
-                            ${formatRating(i.rating)?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><span style="color:#F59E0B;font-size:12px">★</span><span style="font-size:12px;font-weight:700;color:var(--text)">${formatRating(i.rating)}</span></div>`:''}
+                            ${i.rating?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><span style="color:#F59E0B;font-size:12px">★</span><span style="font-size:12px;font-weight:700;color:var(--text)">${i.rating.toFixed(1)}</span></div>`:''}
                         </div>
                         <div style="text-align:right;flex-shrink:0">
                             <p style="font-weight:900;font-size:16px;color:var(--text)">${i.hourly_rate||0}</p>
@@ -1728,15 +1666,16 @@ function StudentDashboard() {
             <div class="db-map-list" style="display:flex;flex-direction:column;gap:10px">
             ${instructors.map((i,idx)=>{
                 const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
+                const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
                 return `<div class="db-instructor-chip" onclick="showInstructorProfile('${i.id}')">
                     <div style="width:50px;height:50px;border-radius:16px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px;position:relative">
-                        ${renderInstructorAvatarImg(i.avatar_url, i.name, 'width:100%;height:100%;object-fit:cover')}
+                        ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`${initials}`}
                         <div style="position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;background:${i.is_online?'#22C55E':'#D1D5DB'};border:2px solid #fff"></div>
                     </div>
                     <div style="flex:1;min-width:0">
                         <p style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:2px">${i.name}</p>
                         <p style="font-size:12px;color:var(--text-muted)">📍 ${i.location||'Nouméa'} · ${slots} créneau${slots>1?'x':''}</p>
-                        ${formatRating(i.rating)?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><span style="color:#F59E0B;font-size:12px">★</span><span style="font-size:12px;font-weight:700;color:var(--text)">${formatRating(i.rating)}</span></div>`:''}
+                        ${i.rating?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><span style="color:#F59E0B;font-size:12px">★</span><span style="font-size:12px;font-weight:700;color:var(--text)">${i.rating.toFixed(1)}</span></div>`:''}
                     </div>
                     <div style="text-align:right">
                         <p style="font-weight:900;font-size:15px;color:var(--text)">${i.hourly_rate||0} <span style="font-size:10px;color:var(--text-muted)">XPF/h</span></p>
@@ -1942,7 +1881,7 @@ function InstructorDashboard() {
                     <div style="display:flex;gap:10px;align-items:center">
                         <button onclick="toggleDark()" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.2s" id="dark-btn">🌙</button>
                         <div style="width:48px;height:48px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(255,90,31,0.6);flex-shrink:0;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:19px;box-shadow:0 4px 20px rgba(255,90,31,0.4)">
-                            ${renderInstructorAvatarImg(profile.avatar_url || currentUser.avatar_url, currentUser.name, 'width:100%;height:100%;object-fit:cover')}
+                            ${profile.avatar_url?`<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
                         </div>
                     </div>
                 </div>
@@ -1965,7 +1904,7 @@ function InstructorDashboard() {
                     </div>
                     <div class="db-stat-pill" style="flex:1">
                         <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px">NOTE</p>
-                        <p style="color:#FF8C42;font-size:26px;font-weight:900;margin:6px 0 2px">${formatRating(profile.rating)||'—'}</p>
+                        <p style="color:#FF8C42;font-size:26px;font-weight:900;margin:6px 0 2px">${profile.rating?profile.rating.toFixed(1):'—'}</p>
                         <p style="color:rgba(255,255,255,0.25);font-size:10px">${profile.total_reviews?profile.total_reviews+' avis':'aucun avis'}</p>
                     </div>
                 </div>
@@ -2154,7 +2093,7 @@ function InstructorDashboard() {
             <p class="db-section-title">Paramètres</p>
 
             ${(()=>{
-                const r = Number(profile.rating) || 0;
+                const r = profile.rating || 0;
                 const n = profile.total_reviews || 0;
                 const fullStars = Math.floor(r);
                 const halfStar = (r - fullStars) >= 0.5;
@@ -2170,7 +2109,7 @@ function InstructorDashboard() {
                             </div>
                         </div>
                         <div style="text-align:right">
-                            <p style="font-size:34px;font-weight:900;color:#FF5A1F;line-height:1">${r?formatRating(r):'—'}</p>
+                            <p style="font-size:34px;font-weight:900;color:#FF5A1F;line-height:1">${r?r.toFixed(1):'—'}</p>
                             ${r?'<p style="font-size:10px;color:var(--text-muted)">sur 5.0</p>':''}
                         </div>
                     </div>
@@ -2201,7 +2140,7 @@ function InstructorDashboard() {
 
             <div style="background:#fff;border-radius:24px;padding:20px;border:1px solid #ECEFF5;box-shadow:0 4px 16px rgba(15,23,42,0.05);margin-bottom:14px;display:flex;align-items:center;gap:16px">
                 <div id="avatar-preview" style="width:72px;height:72px;border-radius:22px;overflow:hidden;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:24px;flex-shrink:0;box-shadow:0 8px 24px rgba(255,90,31,0.3)">
-                    ${renderInstructorAvatarImg(profile.avatar_url || currentUser.avatar_url, currentUser.name, 'width:100%;height:100%;object-fit:cover')}
+                    ${profile.avatar_url?`<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
                 </div>
                 <div style="flex:1">
                     <p style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:3px">Photo de profil</p>
@@ -3277,11 +3216,9 @@ function _buildInstructorIcon(i) {
         : 'box-shadow:0 4px 16px rgba(0,0,0,0.25)';
     const pulse = i.is_online ? `<div style="position:absolute;inset:-6px;border-radius:50%;border:2.5px solid rgba(34,197,94,0.4);animation:pulse-ring 2s ease-out infinite"></div>
         <div style="position:absolute;inset:-6px;border-radius:50%;border:2.5px solid rgba(34,197,94,0.2);animation:pulse-ring 2s ease-out infinite 0.5s"></div>` : '';
-    const avatarHtml = renderInstructorAvatarImg(
-        i.avatar_url,
-        i.name,
-        `width:46px;height:46px;border-radius:50%;object-fit:cover;border:3px solid ${borderColor};${shadow};display:block`
-    );
+    const avatarHtml = i.avatar_url
+        ? `<img src="${i.avatar_url}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:3px solid ${borderColor};${shadow};display:block">`
+        : `<div style="background:${color};width:46px;height:46px;border-radius:50%;border:3px solid ${borderColor};${shadow};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:white;letter-spacing:-0.5px">${(i.name||'?').charAt(0).toUpperCase()}</div>`;
     const statusDot = `<div style="position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid #fff;z-index:2"></div>`;
     return L.divIcon({
         html: `<div style="position:relative;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15))">${pulse}${avatarHtml}${statusDot}</div>`,
@@ -3296,13 +3233,13 @@ function _buildInstructorPopup(i) {
     return `<div style="font-family:'DM Sans',sans-serif;width:220px;overflow:hidden">
         <div style="background:linear-gradient(135deg,#1A1A1A,#2D2D2D);padding:16px;text-align:center">
             <div style="width:52px;height:52px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:2.5px solid ${i.is_online?'#22c55e':'#555'};">
-                ${renderInstructorAvatarImg(i.avatar_url, i.name, 'width:100%;height:100%;object-fit:cover')}
+                ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff">${(i.name||'?').charAt(0).toUpperCase()}</div>`}
             </div>
             <p style="font-weight:900;font-size:15px;color:#fff;margin:0 0 2px">${i.name}</p>
             ${i.verified ? '<span style="background:rgba(34,197,94,0.15);color:#4ADE80;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block">✓ Vérifié</span>' : ''}
         </div>
         <div style="padding:14px;background:#fff">
-            ${formatRating(i.rating) ? `<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px"><span style="color:#F59E0B;font-size:13px">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</span><span style="color:#111;font-size:12px;font-weight:700">${formatRating(i.rating)}</span></div>` : ''}
+            ${i.rating ? `<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px"><span style="color:#F59E0B;font-size:13px">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</span><span style="color:#111;font-size:12px;font-weight:700">${i.rating.toFixed(1)}</span></div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <div style="display:flex;align-items:center;gap:5px">
                     <div style="width:8px;height:8px;border-radius:50%;background:${onlineColor}"></div>
@@ -4619,7 +4556,7 @@ GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
                 <div style="background:#1A1A1A;border-radius:16px;padding:16px;border:1px solid ${penalised?'rgba(239,68,68,0.3)':i.is_online?'rgba(34,197,94,0.15)':'#222'}">
                     <div style="display:flex;align-items:flex-start;gap:14px">
                         <div style="width:50px;height:50px;border-radius:14px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex-shrink:0;color:#fff;overflow:hidden">
-                            ${renderInstructorAvatarImg(i.avatar_url, i.name, 'width:100%;height:100%;object-fit:cover', i.name || 'Moniteur')}
+                            ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : (i.name||'?').charAt(0).toUpperCase()}
                         </div>
                         <div style="flex:1;min-width:0">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
@@ -6362,7 +6299,7 @@ window.showInstructorProfile = function(instructorId) {
     const inst = DB.instructors.find(x => x.id === instructorId);
     if (!inst) return;
     const slots = DB.slots.filter(s => s.instructor_id === instructorId && s.available);
-
+    const initials = (inst.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     const stars = inst.rating ? Math.round(inst.rating) : 0;
 
     // Supprimer modal existant
@@ -6389,17 +6326,20 @@ window.showInstructorProfile = function(instructorId) {
 
     const avatarDiv = document.createElement('div');
     avatarDiv.style.cssText = 'width:72px;height:72px;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:white;background:var(--primary);flex-shrink:0';
-    const img = document.createElement('img');
-    img.src = inst.avatar_url || getInstructorPlaceholderAvatar(inst.name);
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover';
-    img.alt = inst.name || 'Moniteur';
-    img.onerror = () => { img.onerror = null; img.src = getInstructorPlaceholderAvatar(inst.name); };
-    avatarDiv.appendChild(img);
+    if (inst.avatar_url) {
+        const img = document.createElement('img');
+        img.src = inst.avatar_url;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover';
+        img.alt = inst.name;
+        avatarDiv.appendChild(img);
+    } else {
+        avatarDiv.textContent = initials;
+    }
 
     const infoDiv = document.createElement('div');
     infoDiv.innerHTML = '<h2 style="font-size:20px;font-weight:700;color:white;margin-bottom:4px">' + inst.name + (inst.verified ? ' <span style="background:#DCFCE7;color:#16A34A;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600">✓ Vérifié</span>' : '') + '</h2>' +
         '<p style="color:rgba(255,255,255,0.5);font-size:13px">📍 ' + (inst.location || 'Nouméa') + '</p>' +
-        '<p style="color:#F59E0B;font-size:14px;margin-top:4px">' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + (formatRating(inst.rating) ? ' <span style="color:rgba(255,255,255,0.7)">' + formatRating(inst.rating) + '</span>' : '') + ' <span style="color:rgba(255,255,255,0.3);font-size:12px">(' + (inst.total_reviews || 0) + ' avis)</span></p>';
+        '<p style="color:#F59E0B;font-size:14px;margin-top:4px">' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + (inst.rating ? ' <span style="color:rgba(255,255,255,0.7)">' + inst.rating.toFixed(1) + '</span>' : '') + ' <span style="color:rgba(255,255,255,0.3);font-size:12px">(' + (inst.total_reviews || 0) + ' avis)</span></p>';
 
     const flexRow = document.createElement('div');
     flexRow.style.cssText = 'display:flex;align-items:center;gap:16px';
