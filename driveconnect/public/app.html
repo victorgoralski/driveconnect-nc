@@ -15,7 +15,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://www.paypal.com/sdk/js?client-id=BAA-pkXDiQDK70NDleUwYfDK09m2Gpfm_yrFugTNqSiGLoHWmHxtD49w6f9SsLdWKk9AKeHVJWe35qNdek&components=hosted-buttons&disable-funding=venmo&currency=EUR"></script>
+    <!-- Paiement : SDK à intégrer -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap');
@@ -2591,38 +2591,22 @@ function showPaymentModal(slot, instructor, prices) {
                 <span style="margin-left:auto">🔒</span>
             </div>
 
-            <!-- Zone PayPal : 5000 XPF et 4500 XPF -->
+            <!-- Zone paiement temporaire (simulation) -->
             <div id="paypal-btn-zone">
-                ${slot.price === 5000 || slot.price === 4500 || slot.price === 4200 || slot.price === 1000 || slot.price === 1500 || slot.price === 2000 || slot.price === 2500 || slot.price === 3000 || slot.price === 3500 || slot.price === 4000 || slot.price === 5500 || slot.price === 6000 || slot.price === 6500 || slot.price === 7000 || slot.price === 7500 || slot.price === 8000 || slot.price === 8500 || slot.price === 9000 || slot.price === 10000 ? `
-                <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;background:#F9FAFB;border-radius:14px">
-                    <div style="width:20px;height:20px;border:2px solid #E5E7EB;border-top-color:#FF5A1F;border-radius:50%;animation:spin 0.7s linear infinite"></div>
-                    <span style="color:#9CA3AF;font-size:14px">Chargement du paiement…</span>
-                </div>` : `
-                <div style="background:#FFF7ED;border-radius:14px;padding:16px;text-align:center;border:1.5px solid #FED7AA">
-                    <p style="font-size:20px;margin-bottom:8px">⚠️</p>
-                    <p style="color:#EA580C;font-weight:800;font-size:14px;margin-bottom:4px">Paiement en ligne non disponible</p>
-                    <p style="color:#9CA3AF;font-size:12px">Le paiement en ligne n'est pas encore disponible pour ce montant.</p>
-                </div>`}
+                <div style="padding:12px;background:rgba(255,90,31,0.06);border:1.5px dashed rgba(255,90,31,0.3);border-radius:14px;text-align:center">
+                    <p style="color:#9CA3AF;font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:10px">🧪 PAIEMENT TEMPORAIRE</p>
+                    <button id="sim-pay-btn" onclick="completeBooking('paid','TEST-SIMULATION')" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:14px;font-weight:900;font-size:16px;cursor:pointer">
+                        ✅ Confirmer la réservation
+                    </button>
+                    <p style="color:#6B7280;font-size:11px;margin-top:8px">Nouveau système de paiement en cours d'intégration</p>
+                </div>
             </div>
 
             <p style="text-align:center;font-size:11px;color:#D1D5DB;margin-top:16px;line-height:1.5">
-                🔒 Paiement traité par <strong style="color:#9CA3AF">PayPal</strong> — DriveConnect NC ne stocke jamais vos coordonnées bancaires
+                🔒 DriveConnect NC ne stocke jamais vos coordonnées bancaires
             </p>
         </div>
     </div>`;
-
-    // Bouton test pour 6500 XPF — ajouté en JS pur pour éviter les backticks imbriqués
-    if (slot.price === 6500) {
-        const zone = modal.querySelector('#paypal-btn-zone');
-        if (zone) {
-            const testDiv = document.createElement('div');
-            testDiv.style.cssText = 'margin-top:12px;padding:12px;background:rgba(255,90,31,0.06);border:1.5px dashed rgba(255,90,31,0.3);border-radius:14px;text-align:center';
-            testDiv.innerHTML = '<p style="color:#9CA3AF;font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:8px">🧪 MODE TEST</p>'
-                + '<button onclick="completeBooking(\'paid\',\'TEST-SIMULATION\')" style="width:100%;padding:14px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:12px;font-weight:900;font-size:15px;cursor:pointer">✅ Simuler un paiement réussi</button>'
-                + '<p style="color:#6B7280;font-size:10px;margin-top:6px">Réservation marquée comme payée sans PayPal</p>';
-            zone.appendChild(testDiv);
-        }
-    }
 
     modal.querySelector('#close-pay-btn').addEventListener('click', () => {
         modal.remove(); document.body.style.overflow = '';
@@ -2835,17 +2819,7 @@ function showPaymentModal(slot, instructor, prices) {
         }
     }
 
-    // Lancer le bouton PayPal pour 5000 et 4500 XPF
-    if (slot.price === 5000 || slot.price === 4500 || slot.price === 4200 || slot.price === 1000 || slot.price === 1500 || slot.price === 2000 || slot.price === 2500 || slot.price === 3000 || slot.price === 3500 || slot.price === 4000 || slot.price === 5500 || slot.price === 6000 || slot.price === 6500 || slot.price === 7000 || slot.price === 7500 || slot.price === 8000 || slot.price === 8500 || slot.price === 9000 || slot.price === 10000) {
-        setTimeout(() => {
-            if (typeof window.paypal !== 'undefined' && window.paypal.HostedButtons) {
-                renderPayPalButton();
-            } else {
-                const zone = document.getElementById('paypal-btn-zone');
-                if (zone) zone.innerHTML = '<div style="background:#FFF7ED;border-radius:14px;padding:16px;text-align:center;border:1.5px solid #FED7AA"><p style="color:#EA580C;font-weight:700;margin-bottom:6px">🛡️ PayPal bloqué</p><p style="color:#6B7280;font-size:12px">Désactivez votre bloqueur de pub ou ouvrez en <strong>navigation privée</strong> (Ctrl+Maj+N)</p></div>';
-            }
-        }, 400);
-    }
+    // Paiement temporaire — bouton simulation déjà dans le HTML
 }
 
 
