@@ -2595,7 +2595,7 @@ function showPaymentModal(slot, instructor, prices) {
             <div id="paypal-btn-zone">
                 <div style="padding:12px;background:rgba(255,90,31,0.06);border:1.5px dashed rgba(255,90,31,0.3);border-radius:14px;text-align:center">
                     <p style="color:#9CA3AF;font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:10px">🧪 PAIEMENT TEMPORAIRE</p>
-                    <button id="sim-pay-btn" onclick="completeBooking('paid','TEST-SIMULATION')" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:14px;font-weight:900;font-size:16px;cursor:pointer">
+                    <button id="sim-pay-btn" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:14px;font-weight:900;font-size:16px;cursor:pointer">
                         ✅ Confirmer la réservation
                     </button>
                     <p style="color:#6B7280;font-size:11px;margin-top:8px">Nouveau système de paiement en cours d'intégration</p>
@@ -2607,6 +2607,10 @@ function showPaymentModal(slot, instructor, prices) {
             </p>
         </div>
     </div>`;
+
+    // Bouton simulation paiement
+    const simBtn = modal.querySelector('#sim-pay-btn');
+    if (simBtn) simBtn.addEventListener('click', () => completeBooking('paid', 'TEST-SIMULATION'));
 
     modal.querySelector('#close-pay-btn').addEventListener('click', () => {
         modal.remove(); document.body.style.overflow = '';
