@@ -1569,10 +1569,9 @@ function StudentDashboard() {
             <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:10px">
                 ${instructors.slice(0,5).map((i,idx)=>{
                     const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
-                    const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
                     return `<div class="db-instructor-chip" onclick="showInstructorProfile('${i.id}')">
                         <div style="width:50px;height:50px;border-radius:16px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px;position:relative">
-                            ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`${initials}`}
+                            ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`<img src="/icon-192.png" style="width:100%;height:100%;object-fit:cover">`}
                             <div style="position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;background:${i.is_online?'#22C55E':'#D1D5DB'};border:2px solid #fff"></div>
                         </div>
                         <div style="flex:1;min-width:0">
@@ -1666,10 +1665,9 @@ function StudentDashboard() {
             <div class="db-map-list" style="display:flex;flex-direction:column;gap:10px">
             ${instructors.map((i,idx)=>{
                 const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
-                const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
                 return `<div class="db-instructor-chip" onclick="showInstructorProfile('${i.id}')">
                     <div style="width:50px;height:50px;border-radius:16px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px;position:relative">
-                        ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`${initials}`}
+                        ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`<img src="/icon-192.png" style="width:100%;height:100%;object-fit:cover">`}
                         <div style="position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;background:${i.is_online?'#22C55E':'#D1D5DB'};border:2px solid #fff"></div>
                     </div>
                     <div style="flex:1;min-width:0">
@@ -3218,7 +3216,7 @@ function _buildInstructorIcon(i) {
         <div style="position:absolute;inset:-6px;border-radius:50%;border:2.5px solid rgba(34,197,94,0.2);animation:pulse-ring 2s ease-out infinite 0.5s"></div>` : '';
     const avatarHtml = i.avatar_url
         ? `<img src="${i.avatar_url}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:3px solid ${borderColor};${shadow};display:block">`
-        : `<div style="background:${color};width:46px;height:46px;border-radius:50%;border:3px solid ${borderColor};${shadow};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:white;letter-spacing:-0.5px">${(i.name||'?').charAt(0).toUpperCase()}</div>`;
+        : `<img src="/icon-192.png" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:3px solid ${borderColor};${shadow};display:block">`;
     const statusDot = `<div style="position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid #fff;z-index:2"></div>`;
     return L.divIcon({
         html: `<div style="position:relative;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15))">${pulse}${avatarHtml}${statusDot}</div>`,
@@ -3233,7 +3231,7 @@ function _buildInstructorPopup(i) {
     return `<div style="font-family:'DM Sans',sans-serif;width:220px;overflow:hidden">
         <div style="background:linear-gradient(135deg,#1A1A1A,#2D2D2D);padding:16px;text-align:center">
             <div style="width:52px;height:52px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:2.5px solid ${i.is_online?'#22c55e':'#555'};">
-                ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff">${(i.name||'?').charAt(0).toUpperCase()}</div>`}
+                ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : `<img src="/icon-192.png" style="width:100%;height:100%;object-fit:cover">`}
             </div>
             <p style="font-weight:900;font-size:15px;color:#fff;margin:0 0 2px">${i.name}</p>
             ${i.verified ? '<span style="background:rgba(34,197,94,0.15);color:#4ADE80;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block">✓ Vérifié</span>' : ''}
@@ -6299,7 +6297,7 @@ window.showInstructorProfile = function(instructorId) {
     const inst = DB.instructors.find(x => x.id === instructorId);
     if (!inst) return;
     const slots = DB.slots.filter(s => s.instructor_id === instructorId && s.available);
-    const initials = (inst.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
     const stars = inst.rating ? Math.round(inst.rating) : 0;
 
     // Supprimer modal existant
@@ -6333,7 +6331,10 @@ window.showInstructorProfile = function(instructorId) {
         img.alt = inst.name;
         avatarDiv.appendChild(img);
     } else {
-        avatarDiv.textContent = initials;
+        const fallbackImg = document.createElement('img');
+        fallbackImg.src = '/icon-192.png';
+        fallbackImg.style.cssText = 'width:100%;height:100%;object-fit:cover';
+        avatarDiv.appendChild(fallbackImg);
     }
 
     const infoDiv = document.createElement('div');
