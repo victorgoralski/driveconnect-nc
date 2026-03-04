@@ -523,6 +523,7 @@ let map = null, userMarker = null, iMarkers = [], watchId = null;
 let deferredInstallPrompt = null;
 let appUiInitDone = false;
 let _lastGlobalErrTs = 0;
+let _lastUserActionTs = 0;
 let studentFinderFilters = { onlineOnly: false, maxRate: 10000, minRating: 0 };
 let pwdResetState = { email: '', cooldownUntil: 0 };
 
@@ -696,6 +697,11 @@ function setupAppEnhancements() {
     window.addEventListener('offline', updateNetworkUi);
     updateNetworkUi();
 
+    const markUserAction = () => { _lastUserActionTs = Date.now(); };
+    document.addEventListener('click', markUserAction, { passive: true });
+    document.addEventListener('touchstart', markUserAction, { passive: true });
+    document.addEventListener('keydown', markUserAction, { passive: true });
+
     const fab = ensureInstallFab();
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
@@ -708,19 +714,37 @@ function setupAppEnhancements() {
         notif('✅ Application installée', 'DriveConnect est maintenant sur votre écran d’accueil', 'green');
     });
 
-    window.addEventListener('error', () => {
+    window.addEventListener('error', (e) => {
         const now = Date.now();
         if (now - _lastGlobalErrTs < 6000) return;
         _lastGlobalErrTs = now;
-        notif('⚠️ Erreur temporaire', 'Une action a échoué, réessayez.', 'yellow');
-        logAppError('window.error', new Error('Global window error'));
+        const msg = String(e?.message || '');
+        const src = String(e?.filename || '');
+        const noisy =
+            msg.includes('ResizeObserver loop limit exceeded') ||
+            msg.includes('Script error') ||
+            src.includes('chrome-extension://') ||
+            src.includes('moz-extension://');
+        const recentUserAction = now - _lastUserActionTs < 4000;
+        if (!noisy && recentUserAction && !document.hidden) {
+            notif('⚠️ Erreur temporaire', 'Une action a échoué, réessayez.', 'yellow');
+        }
+        logAppError('window.error', new Error(msg || 'Global window error'));
     });
     window.addEventListener('unhandledrejection', (e) => {
         const now = Date.now();
         if (now - _lastGlobalErrTs < 6000) return;
         _lastGlobalErrTs = now;
-        notif('⚠️ Problème réseau/serveur', 'Réessayez dans quelques secondes.', 'yellow');
-        logAppError('window.unhandledrejection', e?.reason || 'Unhandled promise rejection');
+        const reason = String(e?.reason?.message || e?.reason || '');
+        const noisy =
+            reason.includes('ResizeObserver loop limit exceeded') ||
+            reason.includes('Script error') ||
+            reason.includes('Non-Error promise rejection captured');
+        const recentUserAction = now - _lastUserActionTs < 4000;
+        if (!noisy && recentUserAction && !document.hidden) {
+            notif('⚠️ Problème réseau/serveur', 'Réessayez dans quelques secondes.', 'yellow');
+        }
+        logAppError('window.unhandledrejection', reason || 'Unhandled promise rejection');
     });
 }
 
