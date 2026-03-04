@@ -1905,7 +1905,7 @@ function InstructorDashboard() {
                     <div class="db-stat-pill" style="flex:1">
                         <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px">NOTE</p>
                         <p style="color:#FF8C42;font-size:26px;font-weight:900;margin:6px 0 2px">${profile.rating?profile.rating.toFixed(1):'—'}</p>
-                        <p style="color:rgba(255,255,255,0.25);font-size:10px">sur 5.0</p>
+                        <p style="color:rgba(255,255,255,0.25);font-size:10px">${profile.total_reviews?profile.total_reviews+' avis':'aucun avis'}</p>
                     </div>
                 </div>
             </div>
@@ -2091,6 +2091,53 @@ function InstructorDashboard() {
 
         ${tab==='settings' ? `
             <p class="db-section-title">Paramètres</p>
+
+            ${(()=>{
+                const r = profile.rating || 0;
+                const n = profile.total_reviews || 0;
+                const fullStars = Math.floor(r);
+                const halfStar = (r - fullStars) >= 0.5;
+                const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+                const ratedBookings = myBookings.filter(b=>b.rated&&b.rating_given);
+                return `<div style="background:#fff;border-radius:24px;padding:20px;border:1px solid #ECEFF5;box-shadow:0 4px 16px rgba(15,23,42,0.05);margin-bottom:14px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${r?'14px':'0'}">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="width:42px;height:42px;background:#FFF7ED;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:18px">⭐</div>
+                            <div>
+                                <p style="font-weight:800;font-size:15px;color:var(--text)">Ma note globale</p>
+                                <p style="font-size:12px;color:var(--text-muted)">${n} avis élève${n>1?'s':''}</p>
+                            </div>
+                        </div>
+                        <div style="text-align:right">
+                            <p style="font-size:34px;font-weight:900;color:#FF5A1F;line-height:1">${r?r.toFixed(1):'—'}</p>
+                            ${r?'<p style="font-size:10px;color:var(--text-muted)">sur 5.0</p>':''}
+                        </div>
+                    </div>
+                    ${r?`<div style="display:flex;align-items:center;gap:4px;margin-bottom:14px">
+                        <span style="font-size:22px;color:#F59E0B;letter-spacing:2px">${Array.from({length:5},(_,i)=>i<Math.round(r)?'★':'☆').join('')}</span>
+                    </div>`:''}
+                    ${ratedBookings.length>0?`
+                    <div style="border-top:1px solid #F3F4F6;padding-top:14px">
+                        <p style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:1px;margin-bottom:10px">DERNIERS AVIS REÇUS</p>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                        ${[...ratedBookings].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5).map(b=>`
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#F9FAFB;border-radius:12px">
+                                <div>
+                                    <p style="font-weight:700;font-size:13px;color:var(--text)">${b.student_name||'Élève'}</p>
+                                    <p style="font-size:11px;color:var(--text-muted);margin-top:1px">${b.date}</p>
+                                </div>
+                                <span style="font-size:20px;color:#F59E0B">${'★'.repeat(b.rating_given)}${'☆'.repeat(5-b.rating_given)}</span>
+                            </div>
+                        `).join('')}
+                        </div>
+                    </div>`:''}
+                    ${!r?`<div style="background:#F9FAFB;border-radius:14px;padding:16px;text-align:center;margin-top:8px">
+                        <p style="font-size:13px;color:var(--text-muted);font-weight:600">Aucun avis pour le moment</p>
+                        <p style="font-size:12px;color:var(--text-muted);margin-top:4px">Les élèves pourront noter vos cours après chaque séance</p>
+                    </div>`:''}
+                </div>`;
+            })()}
+
             <div style="background:#fff;border-radius:24px;padding:20px;border:1px solid #ECEFF5;box-shadow:0 4px 16px rgba(15,23,42,0.05);margin-bottom:14px;display:flex;align-items:center;gap:16px">
                 <div id="avatar-preview" style="width:72px;height:72px;border-radius:22px;overflow:hidden;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:24px;flex-shrink:0;box-shadow:0 8px 24px rgba(255,90,31,0.3)">
                     ${profile.avatar_url?`<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
