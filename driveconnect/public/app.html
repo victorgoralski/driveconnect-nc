@@ -603,6 +603,11 @@ function renderInstructorAvatarImg(url, name, style, alt = 'Photo moniteur') {
     return `<img src="${src}" onerror="this.onerror=null;this.src='${fallback}'" style="${style}" alt="${String(alt).replace(/"/g, '&quot;')}">`;
 }
 
+function formatRating(value) {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n.toFixed(1) : '';
+}
+
 function notif(title, msg, color='orange') {
     const colors = {
         green: { bg:'#ECFDF5', border:'#059669', icon:'#059669', iconBg:'#D1FAE5' },
@@ -1635,7 +1640,7 @@ function StudentDashboard() {
                         <div style="flex:1;min-width:0">
                             <p style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:2px">${i.name}</p>
                             <p style="font-size:12px;color:var(--text-muted)">📍 ${i.location||'Nouméa'} · ${slots} créneau${slots>1?'x':''}</p>
-                            ${i.rating?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><span style="color:#F59E0B;font-size:12px">★</span><span style="font-size:12px;font-weight:700;color:var(--text)">${i.rating.toFixed(1)}</span></div>`:''}
+                            ${formatRating(i.rating)?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><span style="color:#F59E0B;font-size:12px">★</span><span style="font-size:12px;font-weight:700;color:var(--text)">${formatRating(i.rating)}</span></div>`:''}
                         </div>
                         <div style="text-align:right;flex-shrink:0">
                             <p style="font-weight:900;font-size:16px;color:var(--text)">${i.hourly_rate||0}</p>
@@ -1731,7 +1736,7 @@ function StudentDashboard() {
                     <div style="flex:1;min-width:0">
                         <p style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:2px">${i.name}</p>
                         <p style="font-size:12px;color:var(--text-muted)">📍 ${i.location||'Nouméa'} · ${slots} créneau${slots>1?'x':''}</p>
-                        ${i.rating?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><span style="color:#F59E0B;font-size:12px">★</span><span style="font-size:12px;font-weight:700;color:var(--text)">${i.rating.toFixed(1)}</span></div>`:''}
+                        ${formatRating(i.rating)?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><span style="color:#F59E0B;font-size:12px">★</span><span style="font-size:12px;font-weight:700;color:var(--text)">${formatRating(i.rating)}</span></div>`:''}
                     </div>
                     <div style="text-align:right">
                         <p style="font-weight:900;font-size:15px;color:var(--text)">${i.hourly_rate||0} <span style="font-size:10px;color:var(--text-muted)">XPF/h</span></p>
@@ -1960,7 +1965,7 @@ function InstructorDashboard() {
                     </div>
                     <div class="db-stat-pill" style="flex:1">
                         <p style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:700;letter-spacing:1px">NOTE</p>
-                        <p style="color:#FF8C42;font-size:26px;font-weight:900;margin:6px 0 2px">${profile.rating?profile.rating.toFixed(1):'—'}</p>
+                        <p style="color:#FF8C42;font-size:26px;font-weight:900;margin:6px 0 2px">${formatRating(profile.rating)||'—'}</p>
                         <p style="color:rgba(255,255,255,0.25);font-size:10px">${profile.total_reviews?profile.total_reviews+' avis':'aucun avis'}</p>
                     </div>
                 </div>
@@ -2149,7 +2154,7 @@ function InstructorDashboard() {
             <p class="db-section-title">Paramètres</p>
 
             ${(()=>{
-                const r = profile.rating || 0;
+                const r = Number(profile.rating) || 0;
                 const n = profile.total_reviews || 0;
                 const fullStars = Math.floor(r);
                 const halfStar = (r - fullStars) >= 0.5;
@@ -2165,7 +2170,7 @@ function InstructorDashboard() {
                             </div>
                         </div>
                         <div style="text-align:right">
-                            <p style="font-size:34px;font-weight:900;color:#FF5A1F;line-height:1">${r?r.toFixed(1):'—'}</p>
+                            <p style="font-size:34px;font-weight:900;color:#FF5A1F;line-height:1">${r?formatRating(r):'—'}</p>
                             ${r?'<p style="font-size:10px;color:var(--text-muted)">sur 5.0</p>':''}
                         </div>
                     </div>
@@ -3297,7 +3302,7 @@ function _buildInstructorPopup(i) {
             ${i.verified ? '<span style="background:rgba(34,197,94,0.15);color:#4ADE80;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block">✓ Vérifié</span>' : ''}
         </div>
         <div style="padding:14px;background:#fff">
-            ${i.rating ? `<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px"><span style="color:#F59E0B;font-size:13px">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</span><span style="color:#111;font-size:12px;font-weight:700">${i.rating.toFixed(1)}</span></div>` : ''}
+            ${formatRating(i.rating) ? `<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px"><span style="color:#F59E0B;font-size:13px">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</span><span style="color:#111;font-size:12px;font-weight:700">${formatRating(i.rating)}</span></div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <div style="display:flex;align-items:center;gap:5px">
                     <div style="width:8px;height:8px;border-radius:50%;background:${onlineColor}"></div>
@@ -6394,7 +6399,7 @@ window.showInstructorProfile = function(instructorId) {
     const infoDiv = document.createElement('div');
     infoDiv.innerHTML = '<h2 style="font-size:20px;font-weight:700;color:white;margin-bottom:4px">' + inst.name + (inst.verified ? ' <span style="background:#DCFCE7;color:#16A34A;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600">✓ Vérifié</span>' : '') + '</h2>' +
         '<p style="color:rgba(255,255,255,0.5);font-size:13px">📍 ' + (inst.location || 'Nouméa') + '</p>' +
-        '<p style="color:#F59E0B;font-size:14px;margin-top:4px">' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + (inst.rating ? ' <span style="color:rgba(255,255,255,0.7)">' + inst.rating.toFixed(1) + '</span>' : '') + ' <span style="color:rgba(255,255,255,0.3);font-size:12px">(' + (inst.total_reviews || 0) + ' avis)</span></p>';
+        '<p style="color:#F59E0B;font-size:14px;margin-top:4px">' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + (formatRating(inst.rating) ? ' <span style="color:rgba(255,255,255,0.7)">' + formatRating(inst.rating) + '</span>' : '') + ' <span style="color:rgba(255,255,255,0.3);font-size:12px">(' + (inst.total_reviews || 0) + ' avis)</span></p>';
 
     const flexRow = document.createElement('div');
     flexRow.style.cssText = 'display:flex;align-items:center;gap:16px';
