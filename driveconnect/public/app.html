@@ -101,8 +101,72 @@
         .badge-online { background: #DCFCE7; color: #16A34A; }
 
         /* MAP */
-        #map { height: 380px; width: 100%; border-radius: var(--radius); overflow: hidden; position: relative; }
-        .leaflet-popup-content-wrapper { border-radius: 20px; box-shadow: var(--shadow-lg); border: none; overflow: hidden; }
+        #map { height: 380px; width: 100%; border-radius: 0; overflow: hidden; position: relative; }
+        /* Map glassmorphism controls */
+        .map-glass-ctrl {
+            position:absolute;z-index:1000;display:flex;flex-direction:column;gap:5px;
+        }
+        .map-glass-btn {
+            width:38px;height:38px;border-radius:12px;cursor:pointer;
+            background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+            color:#555;display:flex;align-items:center;justify-content:center;
+            box-shadow:0 2px 12px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.5);
+            transition:all .2s ease;border:1px solid rgba(0,0,0,0.06);
+        }
+        .map-glass-btn:hover { background:rgba(255,255,255,0.95);color:#FF5A1F;transform:scale(1.06); }
+        .map-glass-btn:active { transform:scale(0.94); }
+        .map-glass-btn svg { width:16px;height:16px; }
+        .map-glass-btn.locate { border-color:rgba(255,90,31,0.18); }
+        .map-glass-btn.locate:hover { background:rgba(255,90,31,0.08);border-color:rgba(255,90,31,0.35); }
+        .map-glass-tag {
+            padding:6px 13px;border-radius:100px;
+            background:rgba(255,255,255,0.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+            border:1px solid rgba(0,0,0,0.06);
+            font-size:11px;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:0.5px;
+            box-shadow:0 2px 10px rgba(0,0,0,0.1);display:flex;align-items:center;gap:6px;
+            cursor:pointer;transition:all .2s;color:#555;
+        }
+        .map-glass-tag:hover { color:#FF5A1F;border-color:rgba(255,90,31,0.12); }
+
+        /* Dark mode map controls */
+        .dark .map-glass-btn {
+            background:rgba(12,12,12,0.82);color:rgba(242,237,232,0.6);
+            box-shadow:0 4px 20px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.03);
+            border-color:rgba(255,255,255,0.06);
+        }
+        .dark .map-glass-btn:hover { background:rgba(20,20,20,0.95);color:#FF5A1F; }
+        .dark .map-glass-tag {
+            background:rgba(12,12,12,0.78);color:rgba(242,237,232,0.55);
+            border-color:rgba(255,255,255,0.05);box-shadow:0 4px 16px rgba(0,0,0,0.4);
+        }
+        .dark .map-glass-tag:hover { color:#FF5A1F;border-color:rgba(255,90,31,0.12); }
+        .map-vignette {
+            position:absolute;inset:0;z-index:800;pointer-events:none;
+            background:linear-gradient(180deg,rgba(245,245,245,0.3) 0%,transparent 15%),linear-gradient(0deg,rgba(245,245,245,0.2) 0%,transparent 10%);
+        }
+        .dark .map-vignette {
+            background:linear-gradient(180deg,rgba(8,8,8,0.4) 0%,transparent 15%),linear-gradient(0deg,rgba(8,8,8,0.25) 0%,transparent 10%);
+        }
+        .leaflet-control-zoom { display:none !important; }
+        .leaflet-popup-content-wrapper {
+            border-radius:22px !important;
+            box-shadow:0 20px 60px rgba(0,0,0,0.15),0 0 0 1px rgba(0,0,0,0.05) !important;
+            border:none !important;padding:0 !important;overflow:hidden !important;background:var(--db-bg2) !important;
+        }
+        .dark .leaflet-popup-content-wrapper {
+            box-shadow:0 20px 60px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.05) !important;
+        }
+        .leaflet-popup-content { margin:0 !important;width:auto !important; }
+        .leaflet-popup-tip-container { display:none !important; }
+        .leaflet-popup-close-button {
+            top:10px !important;right:10px !important;width:26px !important;height:26px !important;
+            background:rgba(255,255,255,0.06) !important;border-radius:50% !important;
+            font-size:14px !important;color:rgba(255,255,255,0.35) !important;
+            display:flex !important;align-items:center !important;justify-content:center !important;
+            line-height:1 !important;padding:0 !important;z-index:10 !important;transition:all .15s !important;
+        }
+        .leaflet-popup-close-button:hover { background:rgba(255,90,31,0.12) !important;color:#FF5A1F !important; }
+        .leaflet-container { font-family:'DM Sans',sans-serif !important; }
 
         /* TABS */
         .tab-btn { transition: all var(--transition); color: var(--text-muted); font-weight: 500; padding: 14px 20px; border-bottom: 2px solid transparent; white-space: nowrap; }
@@ -183,17 +247,53 @@
 
         /* ── DASHBOARD — LANDING STYLE ── */
 
-        /* tokens */
+        /* tokens — light mode par défaut */
         :root {
-            --db-dark:   #080808;
-            --db-dark2:  #111111;
-            --db-dark3:  #181818;
-            --db-dark4:  #222222;
+            --db-bg:     #F5F5F0;
+            --db-bg2:    #FFFFFF;
+            --db-bg3:    #F8F8F6;
+            --db-bg4:    #EEEEEA;
+            --db-text:   #1A1A1A;
+            --db-text2:  rgba(26,26,26,0.55);
+            --db-text3:  rgba(26,26,26,0.3);
+            --db-border: rgba(0,0,0,0.07);
+            --db-border2:rgba(0,0,0,0.12);
+            --db-hero-bg: linear-gradient(135deg, #FFF8F5 0%, #FFF0E8 50%, #FFFFFF 100%);
+            --db-hero-grid: rgba(0,0,0,0.03);
+            --db-hero-glow1: rgba(255,90,31,0.08);
+            --db-hero-glow2: rgba(255,90,31,0.04);
+            --db-card-hover: #F0F0EC;
+            --db-card-shadow: 0 8px 30px rgba(0,0,0,0.06);
+            --db-tab-bg: rgba(255,255,255,0.97);
+            --db-tab-inactive: rgba(0,0,0,0.25);
+            --db-tab-hover: rgba(0,0,0,0.5);
+            --db-pill-bg: rgba(0,0,0,0.03);
+            --db-pill-border: rgba(0,0,0,0.06);
+            --db-grain-opacity: 0.15;
+        }
+        /* tokens — dark mode */
+        .dark {
+            --db-bg:     #080808;
+            --db-bg2:    #111111;
+            --db-bg3:    #181818;
+            --db-bg4:    #222222;
             --db-text:   #F2EDE8;
             --db-text2:  rgba(242,237,232,0.55);
             --db-text3:  rgba(242,237,232,0.28);
             --db-border: rgba(242,237,232,0.07);
             --db-border2:rgba(242,237,232,0.13);
+            --db-hero-bg: linear-gradient(135deg, #080808 0%, #0D0D0D 100%);
+            --db-hero-grid: rgba(242,237,232,0.022);
+            --db-hero-glow1: rgba(255,90,31,0.16);
+            --db-hero-glow2: rgba(255,90,31,0.07);
+            --db-card-hover: #161616;
+            --db-card-shadow: 0 14px 40px rgba(0,0,0,0.5);
+            --db-tab-bg: rgba(8,8,8,0.97);
+            --db-tab-inactive: rgba(242,237,232,0.22);
+            --db-tab-hover: rgba(242,237,232,0.5);
+            --db-pill-bg: rgba(255,255,255,0.05);
+            --db-pill-border: rgba(242,237,232,0.09);
+            --db-grain-opacity: 0.45;
         }
 
         /* grain overlay */
@@ -201,23 +301,26 @@
         .db-grain {
             position:fixed;inset:0;pointer-events:none;z-index:9998;
             background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-            opacity:.45;
+            opacity:var(--db-grain-opacity);
         }
 
         /* hero header */
         .db-hero {
-            background:
-                radial-gradient(ellipse 800px 360px at 5% -20%, rgba(255,90,31,0.16) 0%, transparent 60%),
-                radial-gradient(ellipse 500px 250px at 95% -10%, rgba(255,90,31,0.07) 0%, transparent 60%),
-                #080808;
-            border-bottom:1px solid rgba(242,237,232,0.07);
+            background: var(--db-hero-bg);
+            border-bottom:1px solid var(--db-border);
             position:relative; overflow:hidden;
+        }
+        .dark .db-hero {
+            background:
+                radial-gradient(ellipse 800px 360px at 5% -20%, var(--db-hero-glow1) 0%, transparent 60%),
+                radial-gradient(ellipse 500px 250px at 95% -10%, var(--db-hero-glow2) 0%, transparent 60%),
+                var(--db-bg);
         }
         .db-hero::before {
             content:''; position:absolute; inset:0; pointer-events:none;
             background-image:
-                linear-gradient(rgba(242,237,232,0.022) 1px, transparent 1px),
-                linear-gradient(90deg,rgba(242,237,232,0.022) 1px, transparent 1px);
+                linear-gradient(var(--db-hero-grid) 1px, transparent 1px),
+                linear-gradient(90deg,var(--db-hero-grid) 1px, transparent 1px);
             background-size:72px 72px;
             mask-image:radial-gradient(ellipse 80% 100% at 50% 120%, black 20%, transparent 80%);
         }
@@ -227,42 +330,42 @@
         .db-section-title {
             font-family:'Syne',sans-serif;
             font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
-            color:rgba(242,237,232,0.28);
+            color:var(--db-text3);
             margin:0 0 16px;
             display:flex;align-items:center;gap:10px;
         }
         .db-section-title::before { content:'';width:18px;height:1px;background:#FF5A1F;opacity:.6; }
 
-        /* main content area — always dark */
+        /* main content area */
         .db-main {
             max-width:1120px;margin:0 auto;padding:28px 20px 120px;
-            background:#080808;
+            background:var(--db-bg);
         }
 
         /* stat pills */
         .db-stat-row { display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none; }
         .db-stat-row::-webkit-scrollbar{display:none;}
         .db-stat-pill {
-            background:rgba(255,255,255,0.05);
-            border:1px solid rgba(242,237,232,0.09);
+            background:var(--db-pill-bg);
+            border:1px solid var(--db-pill-border);
             border-radius:18px;padding:16px 20px;
             text-align:left;min-width:108px;flex-shrink:0;
             backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
             transition:all .2s ease;
         }
-        .db-stat-pill:hover { background:rgba(255,255,255,0.09);border-color:rgba(242,237,232,0.17);transform:translateY(-2px); }
+        .db-stat-pill:hover { opacity:0.85;transform:translateY(-2px); }
 
         /* cards */
         .db-surface-card {
-            background:#111111;border-radius:22px;
-            border:1px solid rgba(242,237,232,0.07);
+            background:var(--db-bg2);border-radius:22px;
+            border:1px solid var(--db-border);
         }
         .db-booking-card {
-            background:#111111;border-radius:20px;padding:20px;
-            border:1px solid rgba(242,237,232,0.07);
+            background:var(--db-bg2);border-radius:20px;padding:20px;
+            border:1px solid var(--db-border);
             transition:all .25s ease;
         }
-        .db-booking-card:hover { border-color:rgba(255,90,31,0.28);background:#161616;transform:translateY(-2px);box-shadow:0 14px 40px rgba(0,0,0,.5); }
+        .db-booking-card:hover { border-color:rgba(255,90,31,0.28);background:var(--db-card-hover);transform:translateY(-2px);box-shadow:var(--db-card-shadow); }
         .db-booking-card:active { transform:translateY(0); }
 
         /* action buttons */
@@ -272,8 +375,8 @@
         .db-action-btn {
             display:flex;flex-direction:column;align-items:center;justify-content:center;
             gap:10px;padding:20px 12px;
-            background:#111111;border-radius:20px;
-            border:1px solid rgba(242,237,232,0.07);
+            background:var(--db-bg2);border-radius:20px;
+            border:1px solid var(--db-border);
             cursor:pointer;min-height:108px;position:relative;overflow:hidden;
             transition:all .3s cubic-bezier(.34,1.56,.64,1);
         }
@@ -282,7 +385,7 @@
             background:linear-gradient(120deg,transparent 0%,rgba(255,90,31,0.07) 50%,transparent 100%);
             transform:translateX(-130%);transition:transform .55s ease;pointer-events:none;
         }
-        .db-action-btn:hover { background:#181818;border-color:rgba(255,90,31,0.22);transform:translateY(-3px);box-shadow:0 14px 36px rgba(0,0,0,.55); }
+        .db-action-btn:hover { background:var(--db-card-hover);border-color:rgba(255,90,31,0.22);transform:translateY(-3px);box-shadow:var(--db-card-shadow); }
         .db-action-btn:hover::before { transform:translateX(130%); }
         .db-action-btn:active { transform:translateY(0); }
         .db-action-btn.logout { border-color:rgba(220,38,38,0.15); }
@@ -290,7 +393,7 @@
         .db-action-icon {
             width:52px;height:52px;border-radius:16px;
             display:flex;align-items:center;justify-content:center;font-size:22px;
-            background:rgba(255,255,255,0.05);border:1px solid rgba(242,237,232,0.07);
+            background:var(--db-pill-bg);border:1px solid var(--db-border);
             transition:all .25s ease;
         }
         .db-action-btn:hover .db-action-icon { background:rgba(255,90,31,0.1);border-color:rgba(255,90,31,0.22); }
@@ -298,14 +401,14 @@
         /* bottom tab bar */
         .db-tab-bar {
             position:sticky;bottom:0;
-            background:rgba(8,8,8,0.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-            border-top:1px solid rgba(242,237,232,0.07);
+            background:var(--db-tab-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+            border-top:1px solid var(--db-border);
             padding:10px 0 env(safe-area-inset-bottom);z-index:30;display:flex;
         }
         .db-tab {
             display:flex;flex-direction:column;align-items:center;gap:4px;
             padding:6px 0;flex:1;cursor:pointer;border:none;background:none;
-            color:rgba(242,237,232,0.22);transition:all .2s ease;position:relative;
+            color:var(--db-tab-inactive);transition:all .2s ease;position:relative;
         }
         .db-tab.active { color:#FF5A1F; }
         .db-tab.active::after {
@@ -317,38 +420,40 @@
             width:42px;height:16px;border-radius:999px;pointer-events:none;
             background:radial-gradient(circle at center,rgba(255,90,31,0.35),transparent);
         }
-        .db-tab:not(.active):hover { color:rgba(242,237,232,0.5); }
-        .db-tab .tab-icon { font-size:22px;transition:transform .25s cubic-bezier(.34,1.56,.64,1); }
-        .db-tab.active .tab-icon { transform:scale(1.12); }
+        .db-tab:not(.active):hover { color:var(--db-tab-hover); }
+        .db-tab .tab-icon { font-size:22px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;justify-content:center; }
+        .db-tab .tab-icon svg { width:22px;height:22px; }
+        .db-tab.active .tab-icon { transform:scale(1.1); }
+        .db-tab.active .tab-icon svg { stroke-width:2.5; }
         .db-tab .tab-label { font-size:10px;font-weight:700;letter-spacing:.4px;font-family:'Syne',sans-serif; }
 
         /* instructor chips */
         .db-instructor-chip {
             display:flex;align-items:center;gap:14px;padding:16px 18px;
-            background:#111111;border-radius:18px;
-            border:1px solid rgba(242,237,232,0.07);
+            background:var(--db-bg2);border-radius:18px;
+            border:1px solid var(--db-border);
             cursor:pointer;transition:all .25s ease;
         }
-        .db-instructor-chip:hover { border-color:rgba(255,90,31,0.28);background:#181818;transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.5); }
+        .db-instructor-chip:hover { border-color:rgba(255,90,31,0.28);background:var(--db-card-hover);transform:translateY(-2px);box-shadow:var(--db-card-shadow); }
         .db-instructor-chip:active { transform:translateY(0); }
 
         /* slot cards */
         .slot-card {
-            background:#111111;border-radius:18px;padding:16px 18px;
-            border:1px solid rgba(242,237,232,0.07);
+            background:var(--db-bg2);border-radius:18px;padding:16px 18px;
+            border:1px solid var(--db-border);
             display:flex;align-items:center;justify-content:space-between;gap:14px;
             transition:all .25s ease;
         }
-        .slot-card:hover { border-color:rgba(255,90,31,0.22);background:#181818; }
+        .slot-card:hover { border-color:rgba(255,90,31,0.22);background:var(--db-card-hover); }
         .slot-card.booked { border-color:rgba(59,130,246,0.28);background:rgba(59,130,246,0.05); }
 
-        /* text helpers for dark dashboard */
-        .db-text  { color:#F2EDE8; }
-        .db-text2 { color:rgba(242,237,232,0.55); }
-        .db-text3 { color:rgba(242,237,232,0.28); }
+        /* text helpers for dashboard */
+        .db-text  { color:var(--db-text); }
+        .db-text2 { color:var(--db-text2); }
+        .db-text3 { color:var(--db-text3); }
 
-        /* override .dark class — dashboard is always dark */
-        body:has(.db-hero) { background:#080808 !important; }
+        /* dashboard body background */
+        body:has(.db-hero) { background:var(--db-bg) !important; }
 
         @media (max-width: 520px) {
             .db-main { padding: 18px 14px 112px; }
@@ -481,6 +586,8 @@ async function checkDoubleBooking(instructorId, date, time) {
 
 const COMMISSION = 0.15;
 const NOUMEA = { lat: -22.2758, lng: 166.4580 };
+// Avatar par défaut — silhouette personne style friendly
+const DEFAULT_AVATAR = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="28" fill="#F0EDE8"/><circle cx="60" cy="44" r="22" fill="#F5CBA7"/><circle cx="52" cy="40" r="2.5" fill="#333"/><circle cx="68" cy="40" r="2.5" fill="#333"/><path d="M54 50 Q60 56 66 50" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/><path d="M30 105 Q30 72 60 72 Q90 72 90 105" fill="#FF5A1F"/><circle cx="60" cy="84" r="6" fill="none" stroke="#fff" stroke-width="2.5"/><line x1="60" y1="78" x2="60" y2="90" stroke="#fff" stroke-width="2.5"/><line x1="54" y1="84" x2="66" y2="84" stroke="#fff" stroke-width="2.5"/></svg>');
 const SOS_POLICE_TEL = '17';
 const SOS_POLICE_LABEL = '17';
 const SOS_DRIVECONNECT_TEL = '+687844022';
@@ -1346,7 +1453,7 @@ function LoginPage(type) {
     return `<div class="min-h-screen flex flex-col" style="background:var(--bg)">
         <!-- Header minimal -->
         <div class="px-6 pt-14 pb-6">
-            <button onclick="showView('home')" class="flex items-center gap-2 text-sm font-medium mb-10" style="color:rgba(242,237,232,0.4)">
+            <button onclick="showView('home')" class="flex items-center gap-2 text-sm font-medium mb-10" style="color:var(--db-text2)">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                 Retour
             </button>
@@ -1355,7 +1462,7 @@ function LoginPage(type) {
                 ${isStudent ? '🎓 Espace Élève' : '🚗 Espace Moniteur'}
             </div>
             <h2 class="text-3xl font-bold mb-2" id="form-title" style="color:#F2EDE8">Connexion</h2>
-            <p class="text-sm" style="color:rgba(242,237,232,0.4)">Content de vous revoir !</p>
+            <p class="text-sm" style="color:var(--db-text2)">Content de vous revoir !</p>
         </div>
 
         <!-- Formulaire -->
@@ -1376,10 +1483,10 @@ function LoginPage(type) {
 
             <form id="login-form" class="space-y-4">
                 <div id="name-field" style="display:none">
-                    <input type="text" id="name" style="background:#181818;color:#F2EDE8;border:1.5px solid rgba(242,237,232,0.1);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='rgba(242,237,232,0.1)'" class="input-field" placeholder="Nom complet">
+                    <input type="text" id="name" style="background:#FFFFFF;color:#111;border:1.5px solid #E0E0E0;border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F';this.style.boxShadow='0 0 0 3px rgba(255,90,31,0.12)'" onblur="this.style.borderColor='#E0E0E0';this.style.boxShadow='none'" class="input-field" placeholder="Nom complet">
                 </div>
-                <input type="email" id="email" required style="background:#181818;color:#F2EDE8;border:1.5px solid rgba(242,237,232,0.1);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='rgba(242,237,232,0.1)'" class="input-field" placeholder="Adresse email">
-                <input type="password" id="password" required minlength="6" style="background:#181818;color:#F2EDE8;border:1.5px solid rgba(242,237,232,0.1);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='rgba(242,237,232,0.1)'" class="input-field" placeholder="Mot de passe">
+                <input type="email" id="email" required style="background:#FFFFFF;color:#111;border:1.5px solid #E0E0E0;border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F';this.style.boxShadow='0 0 0 3px rgba(255,90,31,0.12)'" onblur="this.style.borderColor='#E0E0E0';this.style.boxShadow='none'" class="input-field" placeholder="Adresse email">
+                <input type="password" id="password" required minlength="6" style="background:#FFFFFF;color:#111;border:1.5px solid #E0E0E0;border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F';this.style.boxShadow='0 0 0 3px rgba(255,90,31,0.12)'" onblur="this.style.borderColor='#E0E0E0';this.style.boxShadow='none'" class="input-field" placeholder="Mot de passe">
                 <!-- CGU visible en mode inscription -->
                 <div id="legal-check" style="display:none;padding:12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px">
                     <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
@@ -1402,7 +1509,7 @@ function LoginPage(type) {
                     <span id="toggle-text">Pas de compte ? S'inscrire</span>
                 </button>
                 <br>
-                <button onclick="forgotPassword()" id="forgot-pwd-btn" class="text-sm mt-3 inline-block" style="color:rgba(242,237,232,0.4)">
+                <button onclick="forgotPassword()" id="forgot-pwd-btn" class="text-sm mt-3 inline-block" style="color:var(--db-text2)">
                     Mot de passe oublié ?
                 </button>
             </div>
@@ -1422,7 +1529,7 @@ function StudentDashboard() {
     // Onglet actif pour l'élève
     const tab = currentTab || 'home';
 
-    return `<div class="min-h-screen" style="background:#080808">
+    return `<div class="min-h-screen" style="background:var(--db-bg)">
         <div class="db-grain"></div>
 
         <!-- HERO — LANDING STYLE -->
@@ -1431,30 +1538,30 @@ function StudentDashboard() {
             <div class="flex justify-between items-start mb-8">
                 <div>
                     <p class="db-section-title" style="margin-bottom:8px">Bonjour</p>
-                    <h1 style="color:#F2EDE8;font-size:28px;font-weight:800;margin:0 0 6px;font-family:'Syne',sans-serif;letter-spacing:-0.5px">${firstName} 👋</h1>
-                    <p style="color:rgba(242,237,232,0.35);font-size:14px;font-weight:300">Prêt pour votre prochain cours ?</p>
+                    <h1 style="color:var(--db-text);font-size:28px;font-weight:800;margin:0 0 6px;font-family:'Syne',sans-serif;letter-spacing:-0.5px">${firstName} 👋</h1>
+                    <p style="color:var(--db-text3);font-size:14px;font-weight:300">Prêt pour votre prochain cours ?</p>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
-                    <button onclick="toggleDark()" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(242,237,232,0.08);color:rgba(242,237,232,0.45);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .2s" id="dark-btn" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">🌙</button>
+                    <button onclick="toggleDark()" style="width:38px;height:38px;border-radius:50%;background:var(--db-pill-bg);border:1px solid var(--db-border);color:var(--db-text2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .2s" id="dark-btn" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">${isDark?'☀️':'🌙'}</button>
                     <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px;flex-shrink:0;box-shadow:0 4px 20px rgba(255,90,31,0.35);border:2px solid rgba(255,90,31,0.3)">
-                        ${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
+                        ${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                     </div>
                 </div>
             </div>
             <!-- Stats pills -->
             <div class="db-stat-row">
                 <div class="db-stat-pill">
-                    <p style="color:rgba(242,237,232,0.28);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">COURS</p>
-                    <p style="color:#F2EDE8;font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${confirmed}</p>
+                    <p style="color:var(--db-text3);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">COURS</p>
+                    <p style="color:var(--db-text);font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${confirmed}</p>
                 </div>
                 <div class="db-stat-pill">
-                    <p style="color:rgba(242,237,232,0.28);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">DÉPENSÉ</p>
+                    <p style="color:var(--db-text3);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">DÉPENSÉ</p>
                     <p style="color:#FF5A1F;font-size:20px;font-weight:800;font-family:'Syne',sans-serif">${totalSpent.toLocaleString()}</p>
-                    <p style="color:rgba(242,237,232,0.2);font-size:10px;margin-top:2px">XPF</p>
+                    <p style="color:var(--db-text3);font-size:10px;margin-top:2px">XPF</p>
                 </div>
                 <div class="db-stat-pill">
-                    <p style="color:rgba(242,237,232,0.28);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">MONITEURS</p>
-                    <p style="color:#F2EDE8;font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${instructors.length}</p>
+                    <p style="color:var(--db-text3);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">MONITEURS</p>
+                    <p style="color:var(--db-text);font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${instructors.length}</p>
                 </div>
             </div>
             </div>
@@ -1465,41 +1572,8 @@ function StudentDashboard() {
 
         ${tab==='home' ? `
             <!-- Carte -->
-            <div class="fade-in db-surface-card" style="overflow:hidden;margin-bottom:28px">
-                <div style="padding:18px 20px 12px;display:flex;justify-content:space-between;align-items:center">
-                    <p class="db-section-title" style="margin:0">Moniteurs à proximité</p>
-                    <span class="badge badge-online" style="font-size:11px">● Temps réel</span>
-                </div>
-                <div style="display:flex;gap:8px;padding:0 20px 14px">
-                    <span class="badge badge-online" style="font-size:11px"><span style="color:#16A34A">●</span> Disponible</span>
-                    <span class="badge badge-gray" style="font-size:11px">○ Hors ligne</span>
-                </div>
-                <div id="map" style="height:clamp(220px,36vh,320px);border-radius:0"></div>
-            </div>
-
-            <!-- Actions rapides -->
-            <p class="db-section-title">Actions rapides</p>
-            <div class="stagger db-action-grid">
-                <button class="db-action-btn" onclick="switchTab('bookings')">
-                    <div class="db-action-icon" style="background:#FFF7ED">📋</div>
-                    <span style="font-size:12px;font-weight:700;color:#F2EDE8">Mes cours</span>
-                </button>
-                <button class="db-action-btn" onclick="switchTab('map')">
-                    <div class="db-action-icon" style="background:#EFF6FF">🗺️</div>
-                    <span style="font-size:12px;font-weight:700;color:#F2EDE8">Carte</span>
-                </button>
-                <button class="db-action-btn" onclick="switchTab('profile')">
-                    <div class="db-action-icon" style="background:#F3F4F6">⚙️</div>
-                    <span style="font-size:12px;font-weight:700;color:#F2EDE8">Paramètres</span>
-                </button>
-                <button class="db-action-btn" onclick="openHelpCenter()">
-                    <div class="db-action-icon" style="background:#EEF2FF">❓</div>
-                    <span style="font-size:12px;font-weight:700;color:#F2EDE8">Aide</span>
-                </button>
-                <button class="db-action-btn logout" onclick="logout()">
-                    <div class="db-action-icon" style="background:#FEE2E2">🚪</div>
-                    <span style="font-size:12px;font-weight:700;color:#B91C1C">Se déconnecter</span>
-                </button>
+            <div class="fade-in db-surface-card" style="overflow:hidden;margin-bottom:28px;position:relative">
+                <div id="map" style="height:clamp(240px,38vh,340px);border-radius:0"></div>
             </div>
 
             <!-- Prochain cours -->
@@ -1507,58 +1581,115 @@ function StudentDashboard() {
                 const next = myBookings.filter(b=>b.status==='confirmed'&&new Date(b.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date))[0];
                 if (!next) return '';
                 const daysLeft = Math.ceil((new Date(next.date)-new Date())/(1000*60*60*24));
+                const countdownText = daysLeft<=0?"Aujourd'hui":daysLeft===1?'Demain':'Dans '+daysLeft+'j';
                 return `<p class="db-section-title" style="margin-top:4px">Prochain cours</p>
-                <div class="db-booking-card fade-in" style="border-left:4px solid #FF5A1F;margin-bottom:28px">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div class="fade-in" style="background:linear-gradient(135deg,#FF5A1F 0%,#FF8C42 50%,#FFB347 100%);border-radius:22px;padding:24px;margin-bottom:28px;position:relative;overflow:hidden">
+                    <!-- Decorative circles -->
+                    <div style="position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,0.12);pointer-events:none"></div>
+                    <div style="position:absolute;top:20px;right:20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08);pointer-events:none"></div>
+
+                    <!-- Countdown badge -->
+                    <div style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.25);border-radius:12px;padding:6px 14px;z-index:2">
+                        <span style="color:#fff;font-size:13px;font-weight:800;font-family:'Syne',sans-serif">${countdownText}</span>
+                    </div>
+
+                    <!-- Instructor info -->
+                    <p style="font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.65);font-family:'Syne',sans-serif;margin:0 0 4px">AVEC</p>
+                    <p style="font-size:22px;font-weight:900;color:#fff;margin:0 0 18px;font-family:'Syne',sans-serif">${next.instructor_name||'Moniteur'}</p>
+
+                    <!-- Details row -->
+                    <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
                         <div>
-                            <p style="font-weight:800;font-size:17px;color:#F2EDE8">${next.instructor_name||'Moniteur'}</p>
-                            <p style="color:rgba(242,237,232,0.4);font-size:13px;margin:5px 0">📅 ${next.date} · ${next.time} · ${next.duration}h</p>
-                            <p style="color:#FF5A1F;font-weight:900;font-size:16px;margin:8px 0 0">${next.amount.toLocaleString()} XPF</p>
+                            <p style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.5);font-family:'Syne',sans-serif;margin:0 0 3px">DATE</p>
+                            <p style="font-size:15px;font-weight:800;color:#fff;margin:0">${next.date}</p>
                         </div>
-                        <div style="text-align:right">
-                            <div style="background:#FF5A1F;color:#fff;border-radius:10px;padding:4px 10px;font-size:11px;font-weight:700;margin-bottom:8px">${daysLeft<=0?"Aujourd\'hui":daysLeft===1?'Demain':'J-'+daysLeft}</div>
-                            ${next.status==='confirmed'?`<button onclick="openChat('${next.id}','${next.instructor_id}','${next.instructor_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">💬 Chat</button>`:''}
+                        <div>
+                            <p style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.5);font-family:'Syne',sans-serif;margin:0 0 3px">HEURE</p>
+                            <p style="font-size:15px;font-weight:800;color:#fff;margin:0">${next.time}</p>
+                        </div>
+                        <div>
+                            <p style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.5);font-family:'Syne',sans-serif;margin:0 0 3px">DURÉE</p>
+                            <p style="font-size:15px;font-weight:800;color:#fff;margin:0">${next.duration}h</p>
+                        </div>
+                        <div>
+                            <p style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.5);font-family:'Syne',sans-serif;margin:0 0 3px">PRIX</p>
+                            <p style="font-size:15px;font-weight:800;color:#fff;margin:0">${next.amount.toLocaleString()} XPF</p>
                         </div>
                     </div>
-                    ${next.completion_code?`<div style="margin-top:12px;padding:10px 14px;background:#FFF7ED;border-radius:12px;display:flex;align-items:center;gap:10px">
-                        <span style="font-family:monospace;font-weight:900;font-size:18px;color:#FF5A1F;letter-spacing:4px">${next.completion_code}</span>
-                        <span style="font-size:11px;color:#9CA3AF">🔑 Code de validation</span>
+
+                    <!-- Code de validation -->
+                    ${next.completion_code?`<div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:14px;padding:14px 18px;margin-bottom:14px">
+                        <p style="font-size:9px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.6);font-family:'Syne',sans-serif;margin:0 0 6px">🔑 CODE DE VALIDATION</p>
+                        <p style="font-family:monospace;font-weight:900;font-size:22px;color:#fff;letter-spacing:6px;margin:0">${next.completion_code}</p>
                     </div>`:''}
+
+                    <!-- Contact button -->
+                    ${next.status==='confirmed'?`<button onclick="openChat('${next.id}','${next.instructor_id}','${next.instructor_name}')" style="background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.25);color:#fff;border-radius:14px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">💬 Contacter le moniteur</button>`:''}
                 </div>`;
             })()}
 
+            <!-- Actions rapides -->
+            <p class="db-section-title">Actions rapides</p>
+            <div class="stagger db-action-grid">
+                <button class="db-action-btn" onclick="switchTab('bookings')">
+                    <div class="db-action-icon">📋</div>
+                    <span style="font-size:12px;font-weight:700;color:var(--db-text)">Mes cours</span>
+                </button>
+                <button class="db-action-btn" onclick="switchTab('map')">
+                    <div class="db-action-icon">🗺️</div>
+                    <span style="font-size:12px;font-weight:700;color:var(--db-text)">Carte</span>
+                </button>
+                <button class="db-action-btn" onclick="switchTab('profile')">
+                    <div class="db-action-icon">⚙️</div>
+                    <span style="font-size:12px;font-weight:700;color:var(--db-text)">Paramètres</span>
+                </button>
+                <button class="db-action-btn" onclick="openHelpCenter()">
+                    <div class="db-action-icon">❓</div>
+                    <span style="font-size:12px;font-weight:700;color:var(--db-text)">Aide</span>
+                </button>
+                <button class="db-action-btn logout" onclick="logout()">
+                    <div class="db-action-icon" style="background:rgba(220,38,38,0.08)">🚪</div>
+                    <span style="font-size:12px;font-weight:700;color:#B91C1C">Déconnexion</span>
+                </button>
+            </div>
+
             <!-- Moniteurs dispo -->
-            <p class="db-section-title">Moniteurs disponibles <span style="background:#F0F0F0;color:#6B7280;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">${instructors.length}</span>${instructors.length!==allInstructors.length?` <span style="font-size:11px;color:#9CA3AF">/ ${allInstructors.length} total</span>`:''}</p>
-            <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:12px">
+            <p class="db-section-title">Moniteurs disponibles <span style="background:rgba(255,255,255,0.05);color:var(--db-text2);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,0.05)">${instructors.length}</span></p>
+            <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:10px">
                 ${instructors.slice(0,5).map((i,idx)=>{
                     const slots = DB.slots.filter(s=>s.instructor_id===i.id).length;
                     const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+                    const stars = i.rating ? Math.round(i.rating) : 0;
                     return `<div class="db-instructor-chip" onclick="showInstructorProfile('${i.id}')">
-                        <div style="width:48px;height:48px;border-radius:14px;overflow:hidden;flex-shrink:0;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px">
-                            ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`${initials}`}
+                        <div style="width:48px;height:48px;border-radius:14px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#FF5A1F,#FF7340);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:16px;border:${i.is_online?'2px solid #22c55e':'2px solid #333'}">
+                            ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                         </div>
                         <div style="flex:1;min-width:0">
-                            <div style="display:flex;align-items:center;gap:6px">
-                                <p style="font-weight:800;font-size:15px;color:#F2EDE8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.name}</p>
-                                <div style="width:7px;height:7px;border-radius:50%;background:${i.is_online?'#22C55E':'#D1D5DB'};flex-shrink:0"></div>
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                                <p style="font-weight:800;font-size:14px;color:var(--db-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.name}</p>
+                                ${i.verified?'<span style="color:#4ADE80;font-size:10px;flex-shrink:0">✓</span>':''}
                             </div>
-                            <p style="font-size:12px;color:rgba(242,237,232,0.4);margin:2px 0">📍 ${i.location||'Nouméa'} · ${slots} créneau${slots>1?'x':''}</p>
-                            ${i.rating?`<p style="font-size:12px;color:#F59E0B">★ ${i.rating.toFixed(1)}</p>`:''}
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span style="font-size:11px;color:${i.is_online?'#4ADE80':'rgba(242,237,232,0.28)'};display:flex;align-items:center;gap:3px"><span style="width:5px;height:5px;border-radius:50%;background:${i.is_online?'#22C55E':'#444'}"></span>${i.is_online?'En ligne':'Hors ligne'}</span>
+                                <span style="color:rgba(242,237,232,0.12)">·</span>
+                                <span style="font-size:11px;color:var(--db-text3)">${slots} créneau${slots>1?'x':''}</span>
+                                ${i.rating?`<span style="color:rgba(242,237,232,0.12)">·</span><span style="font-size:11px;color:#F59E0B">★ ${i.rating.toFixed(1)}</span>`:''}
+                            </div>
                         </div>
                         <div style="text-align:right;flex-shrink:0">
-                            <p style="font-weight:900;font-size:16px;color:#F2EDE8">${i.hourly_rate||0}</p>
-                            <p style="font-size:11px;color:rgba(242,237,232,0.4)">XPF/h</p>
+                            <p style="font-weight:800;font-size:17px;color:var(--db-text);font-family:'Instrument Serif',serif">${i.hourly_rate||0}</p>
+                            <p style="font-size:9px;color:var(--db-text3);font-family:'Syne',sans-serif;letter-spacing:0.8px">XPF/H</p>
                         </div>
                     </div>`;
                 }).join('')}
-                ${instructors.length===0?`<div style="text-align:center;padding:40px;color:rgba(242,237,232,0.4)"><p style="font-size:40px">🚗</p><p>Aucun moniteur disponible</p></div>`:''}
-                ${instructors.length>5?`<button onclick="switchTab('map')" style="width:100%;padding:14px;border-radius:16px;border:1.5px dashed #E5E7EB;background:none;color:rgba(242,237,232,0.4);font-weight:600;cursor:pointer;font-size:14px">Voir tous les moniteurs →</button>`:''}
+                ${instructors.length===0?`<div style="text-align:center;padding:40px;color:var(--db-text2)"><p style="font-size:40px">🚗</p><p>Aucun moniteur disponible</p></div>`:''}
+                ${instructors.length>5?`<button onclick="switchTab('map')" style="width:100%;padding:14px;border-radius:16px;border:1.5px dashed var(--db-border2);background:none;color:var(--db-text2);font-weight:600;cursor:pointer;font-size:14px">Voir tous les moniteurs →</button>`:''}
             </div>
         ` : ''}
 
         ${tab==='bookings' ? `
             <p class="db-section-title">Mes réservations</p>
-            ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:rgba(242,237,232,0.4)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:#F2EDE8">Aucune réservation</p><p style="font-size:14px;margin-top:6px">Réservez un créneau avec un moniteur !</p></div>`:''}
+            ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:var(--db-text2)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:var(--db-text)">Aucune réservation</p><p style="font-size:14px;margin-top:6px">Réservez un créneau avec un moniteur !</p></div>`:''}
             <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:14px">
             ${myBookings.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
                 const isPast = new Date(b.date) < new Date();
@@ -1569,8 +1700,8 @@ function StudentDashboard() {
                 return `<div class="db-booking-card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
                         <div>
-                            <p style="font-weight:800;font-size:15px;color:#F2EDE8">${b.instructor_name||'Moniteur'}</p>
-                            <p style="color:rgba(242,237,232,0.4);font-size:13px;margin:3px 0">📅 ${b.date} · ${b.time} · ${b.duration}h</p>
+                            <p style="font-weight:800;font-size:15px;color:var(--db-text)">${b.instructor_name||'Moniteur'}</p>
+                            <p style="color:var(--db-text2);font-size:13px;margin:3px 0">📅 ${b.date} · ${b.time} · ${b.duration}h</p>
                         </div>
                         <span style="background:${statusBg};color:${statusColor};border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700">${statusLabel}</span>
                     </div>
@@ -1602,7 +1733,7 @@ function StudentDashboard() {
             </div>
             <div class="db-surface-card" style="padding:16px;margin-bottom:12px">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
-                    <p style="font-size:12px;font-weight:800;letter-spacing:1px;color:rgba(242,237,232,0.4);text-transform:uppercase">Filtres recherche</p>
+                    <p style="font-size:12px;font-weight:800;letter-spacing:1px;color:var(--db-text2);text-transform:uppercase">Filtres recherche</p>
                     <button onclick="resetStudentFilters()" style="border:none;background:none;color:#FF5A1F;font-weight:700;font-size:12px;cursor:pointer">Réinitialiser</button>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -1629,14 +1760,14 @@ function StudentDashboard() {
                 const initials = (i.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
                 return `<div class="db-instructor-chip" onclick="showInstructorProfile('${i.id}')">
                     <div style="width:48px;height:48px;border-radius:14px;overflow:hidden;flex-shrink:0;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:17px">
-                        ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`${initials}`}
+                        ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                     </div>
                     <div style="flex:1;min-width:0">
                         <div style="display:flex;align-items:center;gap:6px">
-                            <p style="font-weight:800;font-size:15px;color:#F2EDE8">${i.name}</p>
+                            <p style="font-weight:800;font-size:15px;color:var(--db-text)">${i.name}</p>
                             <div style="width:7px;height:7px;border-radius:50%;background:${i.is_online?'#22C55E':'#D1D5DB'};flex-shrink:0"></div>
                         </div>
-                        <p style="font-size:12px;color:rgba(242,237,232,0.4)">📍 ${i.location||'Nouméa'} · ${slots} créneau${slots>1?'x':''}</p>
+                        <p style="font-size:12px;color:var(--db-text2)">📍 ${i.location||'Nouméa'} · ${slots} créneau${slots>1?'x':''}</p>
                     </div>
                     <div>
                         <button onclick="event.stopPropagation();showSlots('${i.id}')" style="background:#FF5A1F;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer">Réserver</button>
@@ -1644,46 +1775,46 @@ function StudentDashboard() {
                 </div>`;
             }).join('')}
             </div>
-            ${instructors.length===0?`<div style="text-align:center;padding:28px;color:rgba(242,237,232,0.4)"><p style="font-size:34px;margin-bottom:8px">🔎</p><p>Aucun moniteur pour ces filtres</p></div>`:''}
+            ${instructors.length===0?`<div style="text-align:center;padding:28px;color:var(--db-text2)"><p style="font-size:34px;margin-bottom:8px">🔎</p><p>Aucun moniteur pour ces filtres</p></div>`:''}
         ` : ''}
 
         ${tab==='suivi' ? `
             <p class="db-section-title">📖 Ma fiche de suivi</p>
             ${(DB.progressNotes||[]).length === 0 ? `
-                <div style="text-align:center;padding:60px 20px;color:rgba(242,237,232,0.4)">
+                <div style="text-align:center;padding:60px 20px;color:var(--db-text2)">
                     <p style="font-size:50px;margin-bottom:12px">📖</p>
-                    <p style="font-weight:700;font-size:17px;color:#F2EDE8">Aucune note pour le moment</p>
+                    <p style="font-weight:700;font-size:17px;color:var(--db-text)">Aucune note pour le moment</p>
                     <p style="font-size:14px;margin-top:4px">Votre moniteur remplira votre fiche après chaque cours</p>
                 </div>
             ` : `
-                <div style="background:#111;border-radius:20px;padding:18px;border:1px solid rgba(242,237,232,0.07);margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                <div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border);margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
                         <span style="font-size:20px">📊</span>
                         <div>
-                            <p style="font-weight:800;font-size:15px;color:#F2EDE8">${(DB.progressNotes||[]).length} note${(DB.progressNotes||[]).length>1?'s':''} de suivi</p>
-                            <p style="font-size:12px;color:rgba(242,237,232,0.4)">${[...new Set((DB.progressNotes||[]).map(n=>n.instructor_name))].length} moniteur(s) différent(s)</p>
+                            <p style="font-weight:800;font-size:15px;color:var(--db-text)">${(DB.progressNotes||[]).length} note${(DB.progressNotes||[]).length>1?'s':''} de suivi</p>
+                            <p style="font-size:12px;color:var(--db-text2)">${[...new Set((DB.progressNotes||[]).map(n=>n.instructor_name))].length} moniteur(s) différent(s)</p>
                         </div>
                     </div>
                 </div>
                 ${(()=>{
                     const lastLevel = (DB.progressNotes||[]).find(n=>n.level);
-                    return lastLevel ? '<div style="background:linear-gradient(135deg,#080808,#181818);border-radius:20px;padding:18px;margin-bottom:14px;text-align:center;border:1px solid #252525">' +
-                        '<p style="color:#9CA3AF;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:8px">VOTRE NIVEAU ACTUEL</p>' +
-                        '<p style="font-size:24px;font-weight:900;color:#fff">' + (lastLevel.level==='Débutant'?'🟡':lastLevel.level==='En progression'?'🟠':lastLevel.level==='Bon niveau'?'🟢':'🔵') + ' ' + lastLevel.level + '</p>' +
-                        '<p style="color:#4B5563;font-size:12px;margin-top:4px">Évalué par ' + lastLevel.instructor_name + ' le ' + lastLevel.lesson_date + '</p>' +
+                    return lastLevel ? '<div style="background:var(--db-bg2);border-radius:20px;padding:18px;margin-bottom:14px;text-align:center;border:1px solid var(--db-border)">' +
+                        '<p style="color:var(--db-text3);font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:8px">VOTRE NIVEAU ACTUEL</p>' +
+                        '<p style="font-size:24px;font-weight:900;color:var(--db-text)">' + (lastLevel.level==='Débutant'?'🟡':lastLevel.level==='En progression'?'🟠':lastLevel.level==='Bon niveau'?'🟢':'🔵') + ' ' + lastLevel.level + '</p>' +
+                        '<p style="color:var(--db-text2);font-size:12px;margin-top:4px">Évalué par ' + lastLevel.instructor_name + ' le ' + lastLevel.lesson_date + '</p>' +
                     '</div>' : '';
                 })()}
                 <div style="display:flex;flex-direction:column;gap:12px">
                 ${(DB.progressNotes||[]).map(note => `
-                    <div style="background:#111;border-radius:20px;padding:18px;border:1px solid rgba(242,237,232,0.07);box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                    <div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border);box-shadow:0 2px 8px rgba(0,0,0,0.05)">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
                             <div style="display:flex;align-items:center;gap:10px">
                                 <div style="width:40px;height:40px;border-radius:12px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:16px;flex-shrink:0">
-                                    ${(note.instructor_name||'?').charAt(0).toUpperCase()}
+                                    <img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">
                                 </div>
                                 <div>
-                                    <p style="font-weight:800;font-size:14px;color:#F2EDE8">${note.instructor_name||'Moniteur'}</p>
-                                    <p style="font-size:11px;color:rgba(242,237,232,0.4)">📅 Cours du ${note.lesson_date||note.created_at?.split('T')[0]||''}</p>
+                                    <p style="font-weight:800;font-size:14px;color:var(--db-text)">${note.instructor_name||'Moniteur'}</p>
+                                    <p style="font-size:11px;color:var(--db-text2)">📅 Cours du ${note.lesson_date||note.created_at?.split('T')[0]||''}</p>
                                 </div>
                             </div>
                             ${note.level ? `<span style="padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${note.level==='Débutant'?'#FFFBEB;color:#D97706':note.level==='En progression'?'#FFF7ED;color:#EA580C':note.level==='Bon niveau'?'#ECFDF5;color:#059669':'#EFF6FF;color:#2563EB'}">${note.level==='Débutant'?'🟡':note.level==='En progression'?'🟠':note.level==='Bon niveau'?'🟢':'🔵'} ${note.level}</span>` : ''}
@@ -1693,10 +1824,10 @@ function StudentDashboard() {
                                 ${note.skills.map(s => `<span style="padding:3px 10px;border-radius:12px;background:#FFF7ED;color:#EA580C;font-size:11px;font-weight:700">${s}</span>`).join('')}
                             </div>
                         ` : ''}
-                        <div style="background:#181818;border-radius:14px;padding:14px;border-left:3px solid #FF5A1F">
-                            <p style="font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap">${(note.note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+                        <div style="background:var(--db-bg);border-radius:14px;padding:14px;border-left:3px solid #FF5A1F">
+                            <p style="font-size:14px;color:var(--db-text);line-height:1.6;white-space:pre-wrap">${(note.note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
                         </div>
-                        <p style="font-size:10px;color:#D1D5DB;margin-top:8px;text-align:right">Rédigé le ${new Date(note.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+                        <p style="font-size:10px;color:var(--db-text3);margin-top:8px;text-align:right">Rédigé le ${new Date(note.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
                     </div>
                 `).join('')}
                 </div>
@@ -1707,13 +1838,13 @@ function StudentDashboard() {
             <p class="db-section-title">Mon profil</p>
 
             <!-- Photo de profil -->
-            <div style="background:#111;border-radius:20px;padding:20px;border:1px solid rgba(242,237,232,0.07);margin-bottom:14px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+            <div style="background:var(--db-bg2);border-radius:20px;padding:20px;border:1px solid var(--db-border);margin-bottom:14px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
                 <div id="student-avatar-preview" style="width:72px;height:72px;border-radius:20px;overflow:hidden;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:28px;flex-shrink:0">
-                    ${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
+                    ${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                 </div>
                 <div style="flex:1">
-                    <p style="font-weight:700;font-size:15px;color:#F2EDE8;margin-bottom:4px">Photo de profil</p>
-                    <p style="font-size:12px;color:rgba(242,237,232,0.4);margin-bottom:10px">${currentUser.avatar_url?'✅ Photo ajoutée':'Ajoutez une photo pour être reconnaissable'}</p>
+                    <p style="font-weight:700;font-size:15px;color:var(--db-text);margin-bottom:4px">Photo de profil</p>
+                    <p style="font-size:12px;color:var(--db-text2);margin-bottom:10px">${currentUser.avatar_url?'✅ Photo ajoutée':'Ajoutez une photo pour être reconnaissable'}</p>
                     <label style="background:#FF5A1F;color:#fff;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;display:inline-block">
                         📷 ${currentUser.avatar_url?'Changer':'Ajouter'}
                         <input type="file" accept="image/*" style="display:none" onchange="uploadStudentAvatar(this.files[0])">
@@ -1722,24 +1853,24 @@ function StudentDashboard() {
             </div>
 
             <!-- Carte identité -->
-            <div style="background:#111;border-radius:20px;padding:20px;border:1px solid rgba(242,237,232,0.07);margin-bottom:14px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+            <div style="background:var(--db-bg2);border-radius:20px;padding:20px;border:1px solid var(--db-border);margin-bottom:14px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
                 <div style="width:52px;height:52px;border-radius:16px;overflow:hidden;background:#EFF6FF;display:flex;align-items:center;justify-content:center;font-weight:900;color:#1D4ED8;font-size:20px;flex-shrink:0">
                     👨‍🎓
                 </div>
                 <div>
-                    <p style="font-weight:900;font-size:17px;color:#F2EDE8">${currentUser.name||''}</p>
-                    <p style="font-size:13px;color:rgba(242,237,232,0.4);margin-top:2px">${currentUser.email||''}</p>
+                    <p style="font-weight:900;font-size:17px;color:var(--db-text)">${currentUser.name||''}</p>
+                    <p style="font-size:13px;color:var(--db-text2);margin-top:2px">${currentUser.email||''}</p>
                     <span style="background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;margin-top:6px;display:inline-block">Élève</span>
                 </div>
             </div>
 
             <!-- Téléphone avec vérification -->
-            <div style="background:#111;border-radius:20px;padding:20px;border:1px solid rgba(242,237,232,0.07);margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+            <div style="background:var(--db-bg2);border-radius:20px;padding:20px;border:1px solid var(--db-border);margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
                     <div style="width:40px;height:40px;background:#FFF7ED;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px">📱</div>
                     <div>
-                        <p style="font-weight:800;font-size:15px;color:#F2EDE8">Numéro de téléphone</p>
-                        <p style="font-size:12px;color:rgba(242,237,232,0.4)">Utilisé par vos moniteurs pour vous contacter</p>
+                        <p style="font-weight:800;font-size:15px;color:var(--db-text)">Numéro de téléphone</p>
+                        <p style="font-size:12px;color:var(--db-text2)">Utilisé par vos moniteurs pour vous contacter</p>
                     </div>
                 </div>
                 ${currentUser.phone_number && currentUser.phone_verified ?
@@ -1758,7 +1889,7 @@ function StudentDashboard() {
                         </div>
                         <button onclick="showPhoneVerification('verify','${currentUser.phone_number}')" style="background:#F59E0B;color:#fff;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">Vérifier</button>
                     </div>` :
-                    `<p style="font-size:13px;color:rgba(242,237,232,0.4);margin-bottom:12px">Aucun numéro ajouté — les moniteurs ne pourront pas vous appeler.</p>`
+                    `<p style="font-size:13px;color:var(--db-text2);margin-bottom:12px">Aucun numéro ajouté — les moniteurs ne pourront pas vous appeler.</p>`
                 }
                 <button onclick="showPhoneVerification('add')" style="width:100%;padding:14px;background:#FF5A1F;color:#fff;border:none;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;display:${currentUser.phone_number&&currentUser.phone_verified?'none':'block'}">
                     📱 ${currentUser.phone_number ? 'Renvoyer le code SMS' : 'Ajouter un numéro'}
@@ -1785,23 +1916,23 @@ function StudentDashboard() {
         <!-- BARRE DE NAVIGATION BAS (Uber style) -->
         <div class="db-tab-bar">
             <button class="db-tab ${tab==='home'?'active':''}" onclick="switchTab('home')">
-                <span class="tab-icon">🏠</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
                 <span class="tab-label">Accueil</span>
             </button>
             <button class="db-tab ${tab==='bookings'?'active':''}" onclick="switchTab('bookings')">
-                <span class="tab-icon">📋</span>
-                <span class="tab-label">Mes cours</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+                <span class="tab-label">Cours</span>
             </button>
             <button class="db-tab ${tab==='suivi'?'active':''}" onclick="switchTab('suivi')">
-                <span class="tab-icon">📖</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg></span>
                 <span class="tab-label">Suivi</span>
             </button>
             <button class="db-tab ${tab==='map'?'active':''}" onclick="switchTab('map')">
-                <span class="tab-icon">🗺️</span>
-                <span class="tab-label">Moniteurs</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span>
+                <span class="tab-label">Carte</span>
             </button>
             <button class="db-tab ${tab==='profile'?'active':''}" onclick="switchTab('profile')">
-                <span class="tab-icon">👤</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
                 <span class="tab-label">Profil</span>
             </button>
         </div>
@@ -2052,7 +2183,7 @@ function InstructorDashboard() {
     const tab = currentTab || 'home';
     const firstName = (currentUser.name||'').split(' ')[0];
 
-    return `<div class="min-h-screen" style="background:#080808">
+    return `<div class="min-h-screen" style="background:var(--db-bg)">
         <div class="db-grain"></div>
 
         <!-- HERO — LANDING STYLE -->
@@ -2061,43 +2192,43 @@ function InstructorDashboard() {
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
                 <div>
                     <p class="db-section-title" style="margin-bottom:8px">Tableau de bord</p>
-                    <h1 style="color:#F2EDE8;font-size:26px;font-weight:800;margin:0 0 10px;font-family:'Syne',sans-serif;letter-spacing:-0.5px">${firstName} 👋</h1>
+                    <h1 style="color:var(--db-text);font-size:26px;font-weight:800;margin:0 0 10px;font-family:'Syne',sans-serif;letter-spacing:-0.5px">${firstName} 👋</h1>
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <button onclick="toggleOnline()" style="display:flex;align-items:center;gap:6px;background:${profile.is_online?'rgba(34,197,94,0.1)':'rgba(255,255,255,0.05)'};border:1px solid ${profile.is_online?'rgba(34,197,94,0.28)':'rgba(242,237,232,0.1)'};border-radius:100px;padding:6px 14px;cursor:pointer;color:${profile.is_online?'#4ADE80':'rgba(242,237,232,0.4)'};font-size:12px;font-weight:700;font-family:'Syne',sans-serif;transition:all .2s" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
                             <span style="width:7px;height:7px;border-radius:50%;background:${profile.is_online?'#22C55E':'#4B5563'};${profile.is_online?'box-shadow:0 0 8px rgba(34,197,94,0.6)':''}"></span>
                             ${profile.is_online?'En ligne':'Hors ligne'}
                         </button>
-                        ${pending>0?`<span style="background:rgba(239,68,68,0.12);color:#FCA5A5;border-radius:100px;padding:6px 14px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif">${pending} en attente</span>`:''}
+                        ${pending>0?`<span style="background:rgba(239,68,68,0.12);color:#EF4444;border-radius:100px;padding:6px 14px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif">${pending} en attente</span>`:''}
                     </div>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center">
-                    <button onclick="toggleDark()" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(242,237,232,0.08);color:rgba(242,237,232,0.45);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">🌙</button>
+                    <button onclick="toggleDark()" style="width:38px;height:38px;border-radius:50%;background:var(--db-pill-bg);border:1px solid var(--db-border);color:var(--db-text2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">${isDark?'☀️':'🌙'}</button>
                     <div style="width:48px;height:48px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,90,31,0.3);flex-shrink:0;background:linear-gradient(135deg,#FF5A1F,#FF8C42);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:19px;box-shadow:0 4px 20px rgba(255,90,31,0.35)">
-                        ${profile.avatar_url?`<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
+                        ${profile.avatar_url?`<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                     </div>
                 </div>
             </div>
 
             <!-- Revenue card — Instrument Serif number -->
-            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,90,31,0.14);border-radius:22px;padding:22px;margin-bottom:12px;position:relative;overflow:hidden">
+            <div style="background:var(--db-pill-bg);border:1px solid rgba(255,90,31,0.14);border-radius:22px;padding:22px;margin-bottom:12px;position:relative;overflow:hidden">
                 <div style="position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(255,90,31,0.1),transparent 70%);pointer-events:none"></div>
-                <p style="color:rgba(242,237,232,0.28);font-size:10px;font-weight:700;letter-spacing:2px;margin-bottom:10px;font-family:'Syne',sans-serif">REVENUS NETS TOTAUX</p>
-                <p style="color:#F2EDE8;font-size:36px;font-weight:800;line-height:1;font-family:'Instrument Serif',serif;letter-spacing:-1px">${totalNet.toLocaleString()} <span style="font-size:16px;color:rgba(242,237,232,0.28);font-weight:400;font-family:'DM Sans',sans-serif">XPF</span></p>
-                <p style="color:rgba(242,237,232,0.28);font-size:12px;margin-top:8px;font-weight:300">${paidBookings.length} cours complétés</p>
+                <p style="color:var(--db-text3);font-size:10px;font-weight:700;letter-spacing:2px;margin-bottom:10px;font-family:'Syne',sans-serif">REVENUS NETS TOTAUX</p>
+                <p style="color:var(--db-text);font-size:36px;font-weight:800;line-height:1;font-family:'Instrument Serif',serif;letter-spacing:-1px">${totalNet.toLocaleString()} <span style="font-size:16px;color:var(--db-text3);font-weight:400;font-family:'DM Sans',sans-serif">XPF</span></p>
+                <p style="color:var(--db-text3);font-size:12px;margin-top:8px;font-weight:300">${paidBookings.length} cours complétés</p>
             </div>
 
             <!-- Mini stats -->
             <div class="db-stat-row">
                 <div class="db-stat-pill" style="flex:1">
-                    <p style="color:rgba(242,237,232,0.28);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">CONFIRMÉS</p>
-                    <p style="color:#F2EDE8;font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${myBookings.filter(b=>b.status==='confirmed').length}</p>
+                    <p style="color:var(--db-text3);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">CONFIRMÉS</p>
+                    <p style="color:var(--db-text);font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${myBookings.filter(b=>b.status==='confirmed').length}</p>
                 </div>
                 <div class="db-stat-pill" style="flex:1">
-                    <p style="color:rgba(242,237,232,0.28);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">CRÉNEAUX</p>
-                    <p style="color:#F2EDE8;font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${mySlots.length}</p>
+                    <p style="color:var(--db-text3);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">CRÉNEAUX</p>
+                    <p style="color:var(--db-text);font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${mySlots.length}</p>
                 </div>
                 <div class="db-stat-pill" style="flex:1">
-                    <p style="color:rgba(242,237,232,0.28);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">NOTE</p>
+                    <p style="color:var(--db-text3);font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;font-family:'Syne',sans-serif">NOTE</p>
                     <p style="color:#FF5A1F;font-size:24px;font-weight:800;font-family:'Syne',sans-serif">${profile.rating?profile.rating.toFixed(1):'—'}</p>
                 </div>
             </div>
@@ -2113,27 +2244,27 @@ function InstructorDashboard() {
             <div class="stagger db-action-grid">
                 <button class="db-action-btn" onclick="showAddSlot()">
                     <div class="db-action-icon" style="background:#FFF7ED">➕</div>
-                    <span style="font-size:12px;font-weight:700;color:#F2EDE8">Créneau</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--db-text)">Créneau</span>
                 </button>
                 <button class="db-action-btn" onclick="switchTab('bookings')" style="position:relative">
                     <div class="db-action-icon" style="background:#ECFDF5">📋</div>
-                    <span style="font-size:12px;font-weight:700;color:#F2EDE8">Réservations</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--db-text)">Réservations</span>
                     ${pending>0?`<span style="position:absolute;top:10px;right:10px;background:#EF4444;color:#fff;border-radius:50%;width:20px;height:20px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(239,68,68,0.4)">${pending}</span>`:''}
                 </button>
                 <button class="db-action-btn" onclick="watchId?stopTracking():startTracking()" id="gps-action-btn">
                     <div class="db-action-icon" style="background:#EFF6FF" id="gps-icon">📍</div>
-                    <span style="font-size:12px;font-weight:700;color:#F2EDE8" id="gps-btn-label">GPS</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--db-text)" id="gps-btn-label">GPS</span>
                 </button>
                 <button class="db-action-btn" onclick="switchTab('earnings')">
                     <div class="db-action-icon" style="background:#F0FDF4">💰</div>
-                    <span style="font-size:12px;font-weight:700;color:#F2EDE8">Revenus</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--db-text)">Revenus</span>
                 </button>
             </div>
 
             <!-- Prochains cours -->
             ${(()=>{
                 const upcoming = myBookings.filter(b=>b.status==='confirmed'&&new Date(b.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
-                if (!upcoming.length) return '<div style="text-align:center;padding:30px;background:#fff;border-radius:20px;border:1px solid #F0F0F0"><p style="font-size:36px;margin-bottom:8px">📅</p><p style="font-weight:700;color:#F2EDE8">Aucun cours à venir</p><p style="font-size:13px;color:rgba(242,237,232,0.4);margin-top:4px">Ajoutez des créneaux pour être réservé</p></div>';
+                if (!upcoming.length) return '<div style="text-align:center;padding:30px;background:var(--db-bg2);border-radius:20px;border:1px solid var(--db-border)"><p style="font-size:36px;margin-bottom:8px">📅</p><p style="font-weight:700;color:var(--db-text)">Aucun cours à venir</p><p style="font-size:13px;color:var(--db-text2);margin-top:4px">Ajoutez des créneaux pour être réservé</p></div>';
                 return `<p class="db-section-title">Prochains cours</p>
                 <div class="db-responsive-list" style="display:flex;flex-direction:column;gap:10px">
                 ${upcoming.slice(0,3).map(b=>{
@@ -2142,12 +2273,12 @@ function InstructorDashboard() {
                         <div style="display:flex;align-items:center;gap:12px">
                             <div style="width:44px;height:44px;background:#0D0D0D;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👨‍🎓</div>
                             <div style="flex:1">
-                                <p style="font-weight:800;color:#F2EDE8;font-size:15px">${b.student_name||'Élève'}</p>
-                                <p style="color:rgba(242,237,232,0.4);font-size:13px">📅 ${b.date} · ${b.time} · ${b.duration}h</p>
+                                <p style="font-weight:800;color:var(--db-text);font-size:15px">${b.student_name||'Élève'}</p>
+                                <p style="color:var(--db-text2);font-size:13px">📅 ${b.date} · ${b.time} · ${b.duration}h</p>
                             </div>
                             <div style="text-align:right">
                                 <p style="font-weight:900;color:#FF5A1F;font-size:15px">${(b.net||0).toLocaleString()} XPF</p>
-                                <p style="font-size:11px;color:rgba(242,237,232,0.4)">${daysLeft<=0?"Aujourd\'hui":daysLeft===1?'Demain':'J-'+daysLeft}</p>
+                                <p style="font-size:11px;color:var(--db-text2)">${daysLeft<=0?"Aujourd\'hui":daysLeft===1?'Demain':'J-'+daysLeft}</p>
                                 <button onclick="openChat('${b.id}','${b.student_id}','${b.student_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-top:4px">💬</button>
                             </div>
                         </div>
@@ -2160,7 +2291,7 @@ function InstructorDashboard() {
             <p class="db-section-title" style="margin-top:20px">Ma position en direct</p>
             <div class="db-surface-card" style="overflow:hidden;margin-bottom:8px">
                 <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
-                    <p id="gps-status" style="font-size:12px;color:rgba(242,237,232,0.35);margin:0">GPS non actif</p>
+                    <p id="gps-status" style="font-size:12px;color:var(--db-text3);margin:0">GPS non actif</p>
                     <button onclick="watchId?stopTracking():startTracking()" style="background:#FF5A1F;color:#fff;border:none;border-radius:10px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer" id="gps-toggle-btn">▶ Activer</button>
                 </div>
                 <div id="map" style="height:clamp(210px,34vh,300px);border-radius:0"></div>
@@ -2172,7 +2303,7 @@ function InstructorDashboard() {
                 <p class="db-section-title" style="margin:0">Mes créneaux</p>
                 <button onclick="showAddSlot()" style="background:#FF5A1F;color:#fff;border:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer">+ Ajouter</button>
             </div>
-            ${mySlots.length===0?`<div style="text-align:center;padding:60px 20px;color:rgba(242,237,232,0.4)"><p style="font-size:50px;margin-bottom:12px">📅</p><p style="font-weight:700;font-size:17px;color:#F2EDE8">Aucun créneau</p><p style="font-size:14px;margin-top:4px">Créez un créneau pour être réservé</p><button onclick="showAddSlot()" style="margin-top:16px;background:#FF5A1F;color:#fff;border:none;border-radius:14px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer">➕ Créer mon premier créneau</button></div>`:
+            ${mySlots.length===0?`<div style="text-align:center;padding:60px 20px;color:var(--db-text2)"><p style="font-size:50px;margin-bottom:12px">📅</p><p style="font-weight:700;font-size:17px;color:var(--db-text)">Aucun créneau</p><p style="font-size:14px;margin-top:4px">Créez un créneau pour être réservé</p><button onclick="showAddSlot()" style="margin-top:16px;background:#FF5A1F;color:#fff;border:none;border-radius:14px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer">➕ Créer mon premier créneau</button></div>`:
             `<div style="display:flex;flex-direction:column;gap:10px">
             ${mySlots.map(s=>{
                 const booking=DB.bookings.find(b=>b.slot_id===s.id&&b.status!=='cancelled');
@@ -2182,8 +2313,8 @@ function InstructorDashboard() {
                             ${booking?'🔒':'📅'}
                         </div>
                         <div>
-                            <p style="font-weight:800;color:#F2EDE8;font-size:15px">${s.date} à ${s.time}</p>
-                            <p style="color:rgba(242,237,232,0.4);font-size:13px">⏱ ${s.duration}h · ${s.price} XPF${s.license_type ? ` · Permis ${s.license_type}` : ''}${s.is_aac ? ' · 🚗 AAC' : ''}${s.is_refresh ? ' · 🔄 Remise à niveau' : ''}</p>
+                            <p style="font-weight:800;color:var(--db-text);font-size:15px">${s.date} à ${s.time}</p>
+                            <p style="color:var(--db-text2);font-size:13px">⏱ ${s.duration}h · ${s.price} XPF${s.license_type ? ` · Permis ${s.license_type}` : ''}${s.is_aac ? ' · 🚗 AAC' : ''}${s.is_refresh ? ' · 🔄 Remise à niveau' : ''}</p>
                             ${booking?`<p style="font-size:12px;color:#2563EB;font-weight:600;margin-top:2px">👨‍🎓 ${booking.student_name}</p>`:''}
                         </div>
                     </div>
@@ -2199,7 +2330,7 @@ function InstructorDashboard() {
 
         ${tab==='bookings' ? `
             <p class="db-section-title">Toutes les réservations</p>
-            ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:rgba(242,237,232,0.4)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:#F2EDE8">Aucune réservation</p></div>`:''}
+            ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:80px 20px;color:var(--db-text2)"><p style="font-size:56px;margin-bottom:16px">📋</p><p style="font-weight:800;font-size:18px;color:var(--db-text)">Aucune réservation</p></div>`:''}
             <div class="stagger db-responsive-list" style="display:flex;flex-direction:column;gap:14px">
             ${[...myBookings].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>{
                 const statusColor = b.status==='confirmed'?'#059669':b.status==='cancelled'?'#DC2626':b.status==='completed'?'#059669':b.status==='pending'?'#D97706':b.status==='dispute'?'#9333EA':'#6B7280';
@@ -2208,8 +2339,8 @@ function InstructorDashboard() {
                 return `<div class="db-booking-card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
                         <div>
-                            <p style="font-weight:800;font-size:15px;color:#F2EDE8">👨‍🎓 ${b.student_name||'Élève'}</p>
-                            <p style="color:rgba(242,237,232,0.4);font-size:13px;margin-top:3px">📅 ${b.date} · ${b.time} · ${b.duration}h</p>
+                            <p style="font-weight:800;font-size:15px;color:var(--db-text)">👨‍🎓 ${b.student_name||'Élève'}</p>
+                            <p style="color:var(--db-text2);font-size:13px;margin-top:3px">📅 ${b.date} · ${b.time} · ${b.duration}h</p>
                         </div>
                         <span style="background:${statusBg};color:${statusColor};border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0">${statusLabel}</span>
                     </div>
@@ -2254,14 +2385,14 @@ function InstructorDashboard() {
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
                 <div style="background:#111;border-radius:18px;padding:18px;border:1px solid rgba(242,237,232,0.07)">
-                    <p style="color:rgba(242,237,232,0.4);font-size:12px;margin-bottom:6px">Moy. par cours</p>
+                    <p style="color:var(--db-text2);font-size:12px;margin-bottom:6px">Moy. par cours</p>
                     <p style="font-size:22px;font-weight:900;color:#FF5A1F">${paidBookings.length>0?Math.round(totalNet/paidBookings.length).toLocaleString():0}</p>
-                    <p style="color:rgba(242,237,232,0.4);font-size:11px">XPF nets</p>
+                    <p style="color:var(--db-text2);font-size:11px">XPF nets</p>
                 </div>
                 <div style="background:#111;border-radius:18px;padding:18px;border:1px solid rgba(242,237,232,0.07)">
-                    <p style="color:rgba(242,237,232,0.4);font-size:12px;margin-bottom:6px">Taux complétion</p>
+                    <p style="color:var(--db-text2);font-size:12px;margin-bottom:6px">Taux complétion</p>
                     <p style="font-size:22px;font-weight:900;color:${myBookings.length>0&&paidBookings.length/myBookings.length>=0.8?'#059669':myBookings.length>0&&paidBookings.length/myBookings.length>=0.5?'#D97706':'#DC2626'}">${myBookings.length>0?Math.round(paidBookings.length/myBookings.length*100):0}%</p>
-                    <p style="color:rgba(242,237,232,0.4);font-size:11px">${myBookings.filter(b=>b.status==='cancelled').length} annulation(s)</p>
+                    <p style="color:var(--db-text2);font-size:11px">${myBookings.filter(b=>b.status==='cancelled').length} annulation(s)</p>
                 </div>
             </div>
             <p class="db-section-title">Par mois</p>
@@ -2270,12 +2401,12 @@ function InstructorDashboard() {
                 paidBookings.forEach(b=>{const m=b.date.substr(0,7);months[m]=(months[m]||0)+(b.net||0);});
                 const entries=Object.entries(months).sort((a,b)=>b[0].localeCompare(a[0]));
                 const maxVal=entries.length>0?Math.max(...entries.map(e=>e[1])):1;
-                if(!entries.length) return '<p style="text-align:center;color:rgba(242,237,232,0.4);padding:30px">Aucun revenu</p>';
+                if(!entries.length) return '<p style="text-align:center;color:var(--db-text2);padding:30px">Aucun revenu</p>';
                 return '<div style="display:flex;flex-direction:column;gap:8px">'+entries.map(([m,v])=>{
                     const pct=Math.min(100,Math.round(v/maxVal*100));
                     return `<div style="background:#111;border-radius:16px;padding:14px 16px;border:1px solid rgba(242,237,232,0.07)">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                            <p style="font-weight:700;color:#F2EDE8">${m}</p>
+                            <p style="font-weight:700;color:var(--db-text)">${m}</p>
                             <p style="font-weight:900;color:#FF5A1F">${v.toLocaleString()} XPF</p>
                         </div>
                         <div style="background:#222;border-radius:99px;height:4px"><div style="background:#FF5A1F;height:4px;border-radius:99px;width:${pct}%"></div></div>
@@ -2287,13 +2418,13 @@ function InstructorDashboard() {
         ${tab==='settings' ? `
             <p class="db-section-title">Paramètres</p>
             <!-- Photo de profil -->
-            <div style="background:#111;border-radius:20px;padding:20px;border:1px solid rgba(242,237,232,0.07);margin-bottom:14px;display:flex;align-items:center;gap:16px">
+            <div style="background:var(--db-bg2);border-radius:20px;padding:20px;border:1px solid var(--db-border);margin-bottom:14px;display:flex;align-items:center;gap:16px">
                 <div id="avatar-preview" style="width:72px;height:72px;border-radius:20px;overflow:hidden;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:24px;flex-shrink:0">
-                    ${profile.avatar_url?`<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:(currentUser.name||'?').charAt(0).toUpperCase()}
+                    ${profile.avatar_url?`<img src="${profile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                 </div>
                 <div style="flex:1">
-                    <p style="font-weight:700;font-size:15px;color:#F2EDE8;margin-bottom:4px">Photo de profil</p>
-                    <p style="font-size:12px;color:rgba(242,237,232,0.4);margin-bottom:10px">${profile.avatar_url?'✅ Photo ajoutée':'⚠️ Requise pour être visible'}</p>
+                    <p style="font-weight:700;font-size:15px;color:var(--db-text);margin-bottom:4px">Photo de profil</p>
+                    <p style="font-size:12px;color:var(--db-text2);margin-bottom:10px">${profile.avatar_url?'✅ Photo ajoutée':'⚠️ Requise pour être visible'}</p>
                     <label style="background:#FF5A1F;color:#fff;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;display:inline-block">
                         📷 Changer
                         <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="previewAvatar(event)">
@@ -2301,15 +2432,15 @@ function InstructorDashboard() {
                 </div>
             </div>
             <!-- Formulaire -->
-            <div style="background:#111;border-radius:20px;padding:20px;border:1px solid rgba(242,237,232,0.07);margin-bottom:14px">
+            <div style="background:var(--db-bg2);border-radius:20px;padding:20px;border:1px solid var(--db-border);margin-bottom:14px">
                 <form id="settings-form" style="display:flex;flex-direction:column;gap:14px">
                     <div>
-                        <label style="display:block;font-size:12px;font-weight:700;color:rgba(242,237,232,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Localisation</label>
-                        <input type="text" id="s-loc" value="${profile.location||''}" style="background:#181818;color:#F2EDE8;border:1.5px solid rgba(242,237,232,0.1);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='rgba(242,237,232,0.1)'" class="input-field" placeholder="Quartier / Ville">
+                        <label style="display:block;font-size:12px;font-weight:700;color:var(--db-text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Localisation</label>
+                        <input type="text" id="s-loc" value="${profile.location||''}" style="background:var(--db-bg3);color:var(--db-text);border:1.5px solid var(--db-border);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F';this.style.boxShadow='0 0 0 3px rgba(255,90,31,0.12)'" onblur="this.style.borderColor='rgba(242,237,232,0.1)';this.style.boxShadow='none'" class="input-field" placeholder="Quartier / Ville">
                     </div>
                     <!-- Téléphone avec vérification SMS -->
                     <div>
-                        <label style="display:block;font-size:12px;font-weight:700;color:rgba(242,237,232,0.4);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Téléphone</label>
+                        <label style="display:block;font-size:12px;font-weight:700;color:var(--db-text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Téléphone</label>
                         ${profile.phone_number && profile.phone_verified ?
                             `<div style="background:#ECFDF5;border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
                                 <div>
@@ -2326,35 +2457,35 @@ function InstructorDashboard() {
                                 </div>
                                 <button type="button" onclick="showPhoneVerification('verify','${profile.phone_number}')" style="background:#F59E0B;color:#fff;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">Vérifier</button>
                             </div>
-                            <button type="button" onclick="showPhoneVerification('add')" style="width:100%;padding:12px;background:#181818;color:#F2EDE8;border:1.5px dashed rgba(242,237,232,0.12);border-radius:12px;font-weight:700;font-size:14px;cursor:pointer">📱 Ajouter / Changer le numéro</button>` :
+                            <button type="button" onclick="showPhoneVerification('add')" style="width:100%;padding:12px;background:var(--db-bg3);color:var(--db-text);border:1.5px dashed rgba(242,237,232,0.12);border-radius:12px;font-weight:700;font-size:14px;cursor:pointer">📱 Ajouter / Changer le numéro</button>` :
                             `<button type="button" onclick="showPhoneVerification('add')" style="width:100%;padding:14px;background:#FF5A1F;color:#fff;border:none;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer">📱 Ajouter mon numéro</button>`
                         }
                     </div>
                     <div>
-                        <label style="display:block;font-size:12px;font-weight:700;color:rgba(242,237,232,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Tarif horaire (XPF)</label>
-                        <input type="number" id="s-rate" value="${profile.hourly_rate||4500}" style="background:#181818;color:#F2EDE8;border:1.5px solid rgba(242,237,232,0.1);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='rgba(242,237,232,0.1)'" class="input-field">
+                        <label style="display:block;font-size:12px;font-weight:700;color:var(--db-text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Tarif horaire (XPF)</label>
+                        <input type="number" id="s-rate" value="${profile.hourly_rate||4500}" style="background:var(--db-bg3);color:var(--db-text);border:1.5px solid var(--db-border);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F';this.style.boxShadow='0 0 0 3px rgba(255,90,31,0.12)'" onblur="this.style.borderColor='rgba(242,237,232,0.1)';this.style.boxShadow='none'" class="input-field">
                     </div>
                     <div>
-                        <label style="display:block;font-size:12px;font-weight:700;color:rgba(242,237,232,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Années d'expérience</label>
-                        <input type="number" id="s-exp" value="${profile.experience||0}" style="background:#181818;color:#F2EDE8;border:1.5px solid rgba(242,237,232,0.1);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F'" onblur="this.style.borderColor='rgba(242,237,232,0.1)'" class="input-field">
+                        <label style="display:block;font-size:12px;font-weight:700;color:var(--db-text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Années d'expérience</label>
+                        <input type="number" id="s-exp" value="${profile.experience||0}" style="background:var(--db-bg3);color:var(--db-text);border:1.5px solid var(--db-border);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F';this.style.boxShadow='0 0 0 3px rgba(255,90,31,0.12)'" onblur="this.style.borderColor='rgba(242,237,232,0.1)';this.style.boxShadow='none'" class="input-field">
                     </div>
                     <button type="submit" class="btn-primary w-full" style="font-size:15px;padding:14px">Sauvegarder les modifications</button>
                 </form>
             </div>
             <!-- Parrainage -->
-            <div style="background:#111;border-radius:20px;padding:20px;border:1px solid rgba(242,237,232,0.07);margin-bottom:14px">
-                <h3 style="font-weight:800;font-size:16px;margin-bottom:4px;color:#F2EDE8">🎁 Parrainage</h3>
-                <p style="font-size:13px;color:rgba(242,237,232,0.4);margin-bottom:4px">Parrainez moniteurs ET élèves avec votre lien → <strong>1% de commission en moins</strong> sur 1 cours validé (non cumulable).</p>
-                <p style="font-size:12px;color:rgba(242,237,232,0.4);margin-bottom:16px">⚠️ Maximum <strong>10 parrainages</strong> aboutis, puis votre code se désactive automatiquement.</p>
+            <div style="background:var(--db-bg2);border-radius:20px;padding:20px;border:1px solid var(--db-border);margin-bottom:14px">
+                <h3 style="font-weight:800;font-size:16px;margin-bottom:4px;color:var(--db-text)">🎁 Parrainage</h3>
+                <p style="font-size:13px;color:var(--db-text2);margin-bottom:4px">Parrainez moniteurs ET élèves avec votre lien → <strong>1% de commission en moins</strong> sur 1 cours validé (non cumulable).</p>
+                <p style="font-size:12px;color:var(--db-text2);margin-bottom:16px">⚠️ Maximum <strong>10 parrainages</strong> aboutis, puis votre code se désactive automatiquement.</p>
                 <div id="referral-code-display" style="background:rgba(255,90,31,0.08);border:2px dashed #FF5A1F;border-radius:14px;padding:14px;text-align:center;font-family:monospace;font-size:22px;font-weight:900;color:#FF5A1F;letter-spacing:6px;margin-bottom:8px">${profile.referral_code||'...'}</div>
-                <p id="referral-status" style="text-align:center;font-size:12px;font-weight:700;margin-bottom:12px;color:rgba(242,237,232,0.4)">Chargement...</p>
+                <p id="referral-status" style="text-align:center;font-size:12px;font-weight:700;margin-bottom:12px;color:var(--db-text2)">Chargement...</p>
                 <div style="display:flex;gap:8px;margin-bottom:12px">
-                    <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:#F3F4F6;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:#F2EDE8;transition:all 0.15s" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">📋 Copier</button>
+                    <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:#F3F4F6;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:var(--db-text);transition:all 0.15s" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">📋 Copier</button>
                     <button onclick="shareReferralLink()" style="flex:1;padding:12px;background:linear-gradient(135deg,#FF5A1F,#FF7340);border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:#fff;transition:all 0.15s" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">🔗 Partager le lien</button>
                 </div>
                 <div style="background:#181818;border-radius:12px;padding:14px;text-align:center;margin-bottom:12px">
-                    <p id="referral-count" style="font-size:24px;font-weight:900;color:#F2EDE8">0/10</p>
-                    <p style="font-size:12px;color:rgba(242,237,232,0.4);margin-top:2px">Parrainages aboutis (max 10)</p>
+                    <p id="referral-count" style="font-size:24px;font-weight:900;color:var(--db-text)">0/10</p>
+                    <p style="font-size:12px;color:var(--db-text2);margin-top:2px">Parrainages aboutis (max 10)</p>
                 </div>
                 <div id="referral-list"></div>
             </div>
@@ -2373,25 +2504,25 @@ function InstructorDashboard() {
         <!-- BARRE DE NAVIGATION BAS (Uber style) -->
         <div class="db-tab-bar">
             <button class="db-tab ${tab==='home'?'active':''}" onclick="switchTab('home')">
-                <span class="tab-icon">🏠</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
                 <span class="tab-label">Accueil</span>
             </button>
             <button class="db-tab ${tab==='slots'?'active':''}" onclick="switchTab('slots')">
-                <span class="tab-icon">📅</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
                 <span class="tab-label">Créneaux</span>
             </button>
             <button class="db-tab ${tab==='bookings'?'active':''}" onclick="switchTab('bookings')" style="position:relative">
-                <span class="tab-icon">📋</span>
-                <span class="tab-label">Réservations</span>
-                ${pending>0?`<span style="position:absolute;top:6px;right:calc(50% - 22px);background:#EF4444;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center">${pending}</span>`:''}
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+                <span class="tab-label">Réserv.</span>
+                ${pending>0?`<span style="position:absolute;top:4px;right:calc(50% - 22px);background:#EF4444;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(239,68,68,0.5)">${pending}</span>`:''}
             </button>
             <button class="db-tab ${tab==='earnings'?'active':''}" onclick="switchTab('earnings')">
-                <span class="tab-icon">💰</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>
                 <span class="tab-label">Revenus</span>
             </button>
             <button class="db-tab ${tab==='settings'?'active':''}" onclick="switchTab('settings')">
-                <span class="tab-icon">⚙️</span>
-                <span class="tab-label">Paramètres</span>
+                <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
+                <span class="tab-label">Réglages</span>
             </button>
         </div>
 
@@ -3384,7 +3515,7 @@ function _buildInstructorIcon(i) {
         <div style="position:absolute;inset:-6px;border-radius:50%;border:2.5px solid rgba(34,197,94,0.2);animation:pulse-ring 2s ease-out infinite 0.5s"></div>` : '';
     const avatarHtml = i.avatar_url
         ? `<img src="${i.avatar_url}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:3px solid ${borderColor};${shadow};display:block">`
-        : `<div style="background:${color};width:46px;height:46px;border-radius:50%;border:3px solid ${borderColor};${shadow};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:white;letter-spacing:-0.5px">${(i.name||'?').charAt(0).toUpperCase()}</div>`;
+        : `<img src="${DEFAULT_AVATAR}" style="width:46px;height:46px;border-radius:50%;border:3px solid ${borderColor};${shadow};object-fit:cover;display:block">`;
     const statusDot = `<div style="position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid #fff;z-index:2"></div>`;
     return L.divIcon({
         html: `<div style="position:relative;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15))">${pulse}${avatarHtml}${statusDot}</div>`,
@@ -3395,29 +3526,35 @@ function _buildInstructorIcon(i) {
 function _buildInstructorPopup(i) {
     const slots = DB.slots.filter(s => s.instructor_id === i.id).length;
     const stars = i.rating ? Math.round(i.rating) : 0;
-    const onlineColor = i.is_online ? '#22c55e' : '#9ca3af';
-    return `<div style="font-family:'DM Sans',sans-serif;width:220px;overflow:hidden">
-        <div style="background:linear-gradient(135deg,#1A1A1A,#2D2D2D);padding:16px;text-align:center">
-            <div style="width:52px;height:52px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:2.5px solid ${i.is_online?'#22c55e':'#555'};">
-                ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff">${(i.name||'?').charAt(0).toUpperCase()}</div>`}
+    const rateXPF = (i.hourly_rate||0).toLocaleString();
+    return `<div style="font-family:'DM Sans',sans-serif;width:240px;overflow:hidden;background:var(--db-bg2)">
+        <div style="padding:16px 16px 12px;display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:14px;overflow:hidden;flex-shrink:0;border:2px solid ${i.is_online?'#22c55e':'#333'}">
+                ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : `<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
             </div>
-            <p style="font-weight:900;font-size:15px;color:#fff;margin:0 0 2px">${i.name}</p>
-            ${i.verified ? '<span style="background:rgba(34,197,94,0.15);color:#4ADE80;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block">✓ Vérifié</span>' : ''}
-        </div>
-        <div style="padding:14px;background:#fff">
-            ${i.rating ? `<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px"><span style="color:#F59E0B;font-size:13px">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</span><span style="color:#111;font-size:12px;font-weight:700">${i.rating.toFixed(1)}</span></div>` : ''}
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                <div style="display:flex;align-items:center;gap:5px">
-                    <div style="width:8px;height:8px;border-radius:50%;background:${onlineColor}"></div>
-                    <span style="font-size:11px;color:#6B7280;font-weight:600">${i.is_online?'En ligne':'Hors ligne'}</span>
+            <div style="flex:1;min-width:0">
+                <p style="font-weight:800;font-size:14px;color:var(--db-text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.name}</p>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:3px">
+                    ${i.verified ? '<span style="background:rgba(34,197,94,0.1);color:#4ADE80;font-size:9px;font-weight:700;padding:2px 7px;border-radius:100px;border:1px solid rgba(34,197,94,0.15)">✓ Vérifié</span>' : ''}
+                    <span style="font-size:10px;color:${i.is_online?'#4ADE80':'rgba(242,237,232,0.3)'};display:flex;align-items:center;gap:3px"><span style="width:5px;height:5px;border-radius:50%;background:${i.is_online?'#22c55e':'#555'}"></span>${i.is_online?'En ligne':'Hors ligne'}</span>
                 </div>
-                <span style="font-size:11px;color:#9CA3AF">📅 ${slots} créneau${slots>1?'x':''}</span>
             </div>
-            <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:12px">
-                <span style="font-weight:900;color:#FF5A1F;font-size:22px">${(i.hourly_rate||0).toLocaleString()}</span>
-                <span style="font-size:11px;color:#9CA3AF">XPF/h</span>
+        </div>
+        <div style="padding:0 16px 14px">
+            <div style="display:flex;gap:6px;margin-bottom:12px">
+                <div style="flex:1;background:var(--db-pill-bg);border-radius:10px;padding:8px;text-align:center;border:1px solid var(--db-border)">
+                    <p style="font-size:16px;font-weight:800;color:#FF5A1F;font-family:'Instrument Serif',serif;margin:0">${rateXPF}</p>
+                    <p style="font-size:8px;color:rgba(242,237,232,0.25);margin:2px 0 0;font-family:'Syne',sans-serif;letter-spacing:1px">XPF/H</p>
+                </div>
+                <div style="flex:1;background:var(--db-pill-bg);border-radius:10px;padding:8px;text-align:center;border:1px solid var(--db-border)">
+                    ${i.rating ? `<p style="font-size:13px;color:#F59E0B;margin:0">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</p><p style="font-size:8px;color:rgba(242,237,232,0.25);margin:2px 0 0">${i.rating.toFixed(1)}/5</p>` : `<p style="font-size:13px;color:rgba(242,237,232,0.15);margin:0">☆☆☆☆☆</p><p style="font-size:8px;color:rgba(242,237,232,0.15);margin:2px 0 0">Nouveau</p>`}
+                </div>
+                <div style="flex:1;background:var(--db-pill-bg);border-radius:10px;padding:8px;text-align:center;border:1px solid var(--db-border)">
+                    <p style="font-size:16px;font-weight:800;color:var(--db-text);margin:0">${slots}</p>
+                    <p style="font-size:8px;color:rgba(242,237,232,0.25);margin:2px 0 0;font-family:'Syne',sans-serif;letter-spacing:1px">${slots>1?'CRÉNEAUX':'CRÉNEAU'}</p>
+                </div>
             </div>
-            <button onclick="showSlots('${i.id}')" style="background:linear-gradient(135deg,#FF5A1F,#FF7340);color:white;border:none;padding:10px;border-radius:12px;font-weight:700;cursor:pointer;width:100%;font-size:13px;font-family:inherit;box-shadow:0 4px 14px rgba(255,90,31,0.3)">
+            <button onclick="showSlots('${i.id}')" style="background:linear-gradient(135deg,#FF5A1F,#FF7340);color:white;border:none;padding:10px;border-radius:12px;font-weight:700;cursor:pointer;width:100%;font-size:13px;font-family:'DM Sans',sans-serif;box-shadow:0 4px 18px rgba(255,90,31,0.3);transition:all .15s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 24px rgba(255,90,31,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 18px rgba(255,90,31,0.3)'">
                 Voir les créneaux →
             </button>
         </div>
@@ -3499,18 +3636,20 @@ function initMap() {
         tap: true
     }).setView([NOUMEA.lat, NOUMEA.lng], 13);
 
-    // Détection mode sombre
-    const useDark = isDark;
-
-    if (useDark) {
-        // CartoDB Dark Matter — design sombre premium
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // ── Tiles: choix selon mode sombre/clair ──
+    if (isDark) {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
             subdomains: 'abcd', maxZoom: 20, maxNativeZoom: 18
         }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd', maxZoom: 20, maxNativeZoom: 18, pane: 'overlayPane'
+        }).addTo(map);
     } else {
-        // Stadia Maps Alidade Smooth — clé API dans l'URL
-        L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=fd17811c-eb49-495f-b414-101cb5f1308c', {
-            maxZoom: 20, maxNativeZoom: 18
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd', maxZoom: 20, maxNativeZoom: 18
+        }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd', maxZoom: 20, maxNativeZoom: 18, pane: 'overlayPane'
         }).addTo(map);
     }
 
@@ -3518,78 +3657,36 @@ function initMap() {
     if (!document.getElementById('map-pulse-style')) {
         const st = document.createElement('style');
         st.id = 'map-pulse-style';
-        st.textContent = `
-            @keyframes pulse-ring { 0% { transform:scale(1); opacity:0.6; } 100% { transform:scale(2.2); opacity:0; } }
-            .leaflet-marker-icon { transition: transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94) !important; }
-            .leaflet-popup-content-wrapper {
-                border-radius:20px !important;
-                box-shadow:0 12px 40px rgba(0,0,0,0.18) !important;
-                border:none !important;
-                padding:0 !important;
-                overflow:hidden !important;
-            }
-            .leaflet-popup-content { margin:0 !important; }
-            .leaflet-popup-tip-container { display:none !important; }
-            .leaflet-popup-close-button {
-                top:10px !important; right:10px !important;
-                width:28px !important; height:28px !important;
-                background:rgba(0,0,0,0.08) !important;
-                border-radius:50% !important;
-                font-size:16px !important;
-                color:#666 !important;
-                display:flex !important;
-                align-items:center !important;
-                justify-content:center !important;
-            }
-            .map-zoom-btn {
-                width:40px; height:40px; border-radius:12px;
-                background:${useDark?'rgba(20,20,20,0.95)':'rgba(255,255,255,0.97)'};
-                border:1px solid ${useDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)'};
-                color:${useDark?'#fff':'#111'};
-                display:flex; align-items:center; justify-content:center;
-                cursor:pointer; font-size:20px; font-weight:300;
-                box-shadow:0 2px 12px rgba(0,0,0,0.15);
-                transition:all 0.15s; line-height:1;
-            }
-            .map-zoom-btn:hover { transform:scale(1.08); box-shadow:0 4px 16px rgba(0,0,0,0.2); }
-            .map-ctrl-btn {
-                padding:8px 14px; border-radius:12px;
-                background:${useDark?'rgba(20,20,20,0.95)':'rgba(255,255,255,0.97)'};
-                border:1px solid ${useDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)'};
-                color:${useDark?'#fff':'#111'};
-                cursor:pointer; font-size:12px; font-weight:700;
-                box-shadow:0 2px 12px rgba(0,0,0,0.15);
-                transition:all 0.15s; white-space:nowrap;
-            }
-            .map-ctrl-btn:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(0,0,0,0.2); }
-        `;
+        st.textContent = `@keyframes pulse-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}.leaflet-marker-icon{transition:transform .4s cubic-bezier(.25,.46,.45,.94)!important}`;
         document.head.appendChild(st);
     }
 
-    // ── Contrôles zoom custom (en bas à droite) ──
-    const zoomDiv = document.createElement('div');
-    zoomDiv.style.cssText = 'position:absolute;bottom:16px;right:12px;z-index:1000;display:flex;flex-direction:column;gap:6px';
-    zoomDiv.innerHTML = `
-        <button class="map-zoom-btn" onclick="window._mapZoomIn()" title="Zoom avant">+</button>
-        <button class="map-zoom-btn" onclick="window._mapZoomOut()" title="Zoom arrière">−</button>
-    `;
     mapEl.style.position = 'relative';
+
+    // ── Vignette overlay ──
+    if (!mapEl.querySelector('.map-vignette')) {
+        const vig = document.createElement('div');
+        vig.className = 'map-vignette';
+        mapEl.appendChild(vig);
+    }
+
+    // ── Contrôles glassmorphism (bas droite) — SVG icons ──
+    const zoomDiv = document.createElement('div');
+    zoomDiv.className = 'map-glass-ctrl';
+    zoomDiv.style.cssText = 'bottom:14px;right:12px';
+    zoomDiv.innerHTML = `
+        <button class="map-glass-btn" onclick="map.zoomIn()" title="Zoom +"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button class="map-glass-btn" onclick="map.zoomOut()" title="Zoom −"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button class="map-glass-btn locate" onclick="window._mapCenter()" title="Recentrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+    `;
     mapEl.appendChild(zoomDiv);
 
-    window._mapZoomIn  = () => { if(map) map.zoomIn(); };
-    window._mapZoomOut = () => { if(map) map.zoomOut(); };
-
-    // ── Bouton recentrer + badge "Temps réel" en haut à gauche ──
+    // ── Tags haut gauche ──
     const topDiv = document.createElement('div');
-    topDiv.style.cssText = 'position:absolute;top:12px;left:12px;z-index:1000;display:flex;gap:8px;align-items:center';
+    topDiv.style.cssText = 'position:absolute;top:12px;left:12px;z-index:1000;display:flex;gap:7px;align-items:center';
     topDiv.innerHTML = `
-        <button class="map-ctrl-btn" onclick="window._mapCenter()" title="Recentrer">
-            🎯 Nouméa
-        </button>
-        <div style="padding:6px 12px;border-radius:20px;background:rgba(34,197,94,0.9);color:#fff;font-size:11px;font-weight:700;box-shadow:0 2px 10px rgba(34,197,94,0.35);display:flex;align-items:center;gap:5px">
-            <span style="width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.5s infinite"></span>
-            Live
-        </div>
+        <button class="map-glass-tag" onclick="window._mapCenter()">🎯 Nouméa</button>
+        <div class="map-glass-tag" style="cursor:default;border-color:rgba(74,222,128,0.12)"><span style="width:5px;height:5px;border-radius:50%;background:#4ADE80;box-shadow:0 0 8px rgba(74,222,128,0.6);animation:pulse 1.5s infinite"></span><span style="color:#4ADE80">LIVE</span></div>
     `;
     mapEl.appendChild(topDiv);
     window._mapCenter = () => { if(map) map.flyTo([NOUMEA.lat, NOUMEA.lng], 13, { animate: true, duration: 0.8 }); };
@@ -4557,7 +4654,7 @@ function getAdminTabContent(tab, stats) {
                     adminData.instructors.filter(i => i.is_online).map(i => `
                     <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#1A1A1A;border-radius:12px;margin-bottom:8px">
                         <div style="width:36px;height:36px;border-radius:10px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0">
-                            ${(i.name||'?').charAt(0)}
+                            ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                         </div>
                         <div style="flex:1">
                             <p style="font-weight:700;font-size:13px">${i.name||'?'}</p>
@@ -4685,8 +4782,8 @@ GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
                 const spent = myBookings.filter(b => b.payment_status === 'paid').reduce((s,b) => s+(b.amount||0), 0);
                 return `
                 <div style="background:#1A1A1A;border-radius:14px;padding:16px;display:flex;align-items:center;gap:14px">
-                    <div style="width:44px;height:44px;border-radius:12px;background:#1D4ED8;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;flex-shrink:0;color:#fff">
-                        ${(u.name||'?').charAt(0).toUpperCase()}
+                    <div style="width:44px;height:44px;border-radius:12px;background:#1D4ED8;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;flex-shrink:0;color:#fff;overflow:hidden">
+                        ${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                     </div>
                     <div style="flex:1;min-width:0">
                         <p style="font-weight:800;font-size:14px">${u.name||'?'} ${u.phone_verified?'📱':''}${u.is_admin?'🛡️':''}</p>
@@ -4722,7 +4819,7 @@ GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
                 <div style="background:#1A1A1A;border-radius:16px;padding:16px;border:1px solid ${penalised?'rgba(239,68,68,0.3)':i.is_online?'rgba(34,197,94,0.15)':'#222'}">
                     <div style="display:flex;align-items:flex-start;gap:14px">
                         <div style="width:50px;height:50px;border-radius:14px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex-shrink:0;color:#fff;overflow:hidden">
-                            ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : (i.name||'?').charAt(0).toUpperCase()}
+                            ${i.avatar_url ? `<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : `<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                         </div>
                         <div style="flex:1;min-width:0">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
@@ -5905,7 +6002,7 @@ function toggleDark() {
     isDark = !isDark;
     localStorage.setItem('darkMode', isDark);
     applyDark();
-    document.querySelectorAll('#dark-btn').forEach(b => b.textContent = isDark ? '☀️' : '🌙');
+    render(); // Re-render pour appliquer le thème sur la carte et les composants
 }
 applyDark();
 
@@ -6499,7 +6596,10 @@ window.showInstructorProfile = function(instructorId) {
         img.alt = inst.name;
         avatarDiv.appendChild(img);
     } else {
-        avatarDiv.textContent = initials;
+        const img = document.createElement('img');
+        img.src = DEFAULT_AVATAR;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:inherit';
+        avatarDiv.appendChild(img);
     }
 
     const infoDiv = document.createElement('div');
@@ -6525,26 +6625,26 @@ window.showInstructorProfile = function(instructorId) {
     statsData.forEach((s, i) => {
         const cell = document.createElement('div');
         cell.style.cssText = 'text-align:center' + (i > 0 ? ';border-left:1px solid var(--border)' : '');
-        cell.innerHTML = '<p style="font-size:22px;font-weight:700;color:' + (i === 0 ? 'var(--primary)' : 'var(--text)') + '">' + s.val + '</p><p style="font-size:12px;color:rgba(242,237,232,0.4);margin-top:4px">' + s.label + '</p>';
+        cell.innerHTML = '<p style="font-size:22px;font-weight:700;color:' + (i === 0 ? 'var(--primary)' : 'var(--text)') + '">' + s.val + '</p><p style="font-size:12px;color:var(--db-text2);margin-top:4px">' + s.label + '</p>';
         statsBar.appendChild(cell);
     });
 
     // Statut en ligne
     const statusBar = document.createElement('div');
     statusBar.style.cssText = 'padding:12px 20px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)';
-    statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:' + (inst.is_online ? '#22C55E' : '#9CA3AF') + '"></div><p style="font-size:14px;font-weight:500;color:#F2EDE8">' + (inst.is_online ? 'En ligne maintenant' : 'Hors ligne') + '</p>';
+    statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:' + (inst.is_online ? '#22C55E' : '#9CA3AF') + '"></div><p style="font-size:14px;font-weight:500;color:var(--db-text)">' + (inst.is_online ? 'En ligne maintenant' : 'Hors ligne') + '</p>';
 
     // Créneaux
     const slotsSection = document.createElement('div');
     slotsSection.style.cssText = 'padding:20px';
     const slotsTitle = document.createElement('h3');
-    slotsTitle.style.cssText = 'font-weight:700;font-size:16px;color:#F2EDE8;margin-bottom:16px';
+    slotsTitle.style.cssText = 'font-weight:700;font-size:16px;color:var(--db-text);margin-bottom:16px';
     slotsTitle.textContent = 'Créneaux disponibles';
     slotsSection.appendChild(slotsTitle);
 
     if (slots.length === 0) {
         const empty = document.createElement('p');
-        empty.style.cssText = 'text-align:center;color:rgba(242,237,232,0.4);font-size:14px;padding:32px 0';
+        empty.style.cssText = 'text-align:center;color:var(--db-text2);font-size:14px;padding:32px 0';
         empty.textContent = 'Aucun créneau disponible pour le moment';
         slotsSection.appendChild(empty);
     } else {
@@ -6552,7 +6652,7 @@ window.showInstructorProfile = function(instructorId) {
             const slotCard = document.createElement('div');
             slotCard.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px;border-radius:16px;margin-bottom:8px;background:#181818;border:1px solid rgba(242,237,232,0.08)';
             const slotInfo = document.createElement('div');
-            slotInfo.innerHTML = '<p style="font-weight:600;font-size:14px;color:#F2EDE8">' + s.date + ' à ' + s.time + '</p><p style="font-size:12px;color:rgba(242,237,232,0.4);margin-top:2px">Durée : ' + s.duration + 'h</p>';
+            slotInfo.innerHTML = '<p style="font-weight:600;font-size:14px;color:var(--db-text)">' + s.date + ' à ' + s.time + '</p><p style="font-size:12px;color:var(--db-text2);margin-top:2px">Durée : ' + s.duration + 'h</p>';
             const slotRight = document.createElement('div');
             slotRight.style.cssText = 'display:flex;align-items:center;gap:12px';
             const price = document.createElement('p');
