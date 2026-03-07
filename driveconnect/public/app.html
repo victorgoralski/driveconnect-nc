@@ -6569,19 +6569,11 @@ window.uploadStudentAvatar = async function(file) {
         const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
         const avatarUrl = urlData.publicUrl + '?t=' + Date.now();
 
-        // 3. Mettre à jour la table users
-        const { error: updateErr } = await sb.from('users').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
+        // 3. Mettre à jour via RPC (bypass RLS)
+        const { error: updateErr } = await sb.rpc('update_user_avatar', { user_id: currentUser.id, new_avatar_url: avatarUrl });
         if (updateErr) {
-            console.error('[AVATAR] Update users error:', updateErr);
-            notif('⚠️ Photo uploadée mais profil non mis à jour', 'Vérifiez les policies Supabase (table users)', 'red');
-            return;
-        }
-
-        // 4. Vérifier que la mise à jour a bien pris
-        const { data: check } = await sb.from('users').select('avatar_url').eq('id', currentUser.id).maybeSingle();
-        if (!check || !check.avatar_url) {
-            console.warn('[AVATAR] Verification failed - avatar_url not persisted. RLS may be blocking.');
-            notif('⚠️ Photo non sauvegardée', 'La policy RLS de la table users bloque la mise à jour. Exécutez le SQL fourni dans Supabase.', 'red');
+            console.error('[AVATAR] RPC error:', updateErr);
+            notif('❌ Erreur mise à jour profil', updateErr.message, 'red');
             return;
         }
 
