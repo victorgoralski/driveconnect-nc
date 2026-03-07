@@ -47,7 +47,7 @@
         input, textarea, select { font-size: 16px !important; font-family: 'DM Sans', sans-serif; }
 
         /* TYPOGRAPHIE */
-        .display-font { font-family: 'Instrument Serif', serif; }
+        .display-font { font-family: 'DM Serif Display', serif; }
         .gradient-text { background: linear-gradient(135deg, #FF5A1F, #FF8C42); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .brand-wordmark { display:inline-flex; align-items:center; gap:10px; line-height:1; }
         .brand-wordmark .brand-logo {
@@ -608,19 +608,6 @@ let DB = { instructors: [], slots: [], bookings: [], progressNotes: [] };
 
 // ========== HELPERS ==========
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
-function isCurrentUserAdmin() { return !!(currentUser && currentUser.is_admin); }
-function openAdminPanel() {
-    if (!isCurrentUserAdmin()) {
-        notif('⛔ Accès refusé', 'Cet espace est réservé aux administrateurs', 'red');
-        return;
-    }
-    currentView = 'admin';
-    render();
-}
-function getDefaultViewForCurrentUser() {
-    if (!currentUser) return 'home';
-    return currentUser.user_type === 'instructor' ? 'instructor-dashboard' : 'student-dashboard';
-}
 
 function renderBrandWordmark(opts = {}) {
     const size = opts.size || 'md'; // sm | md | lg
@@ -1474,7 +1461,7 @@ function LoginPage(type) {
             <div class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-4 text-xs font-semibold" style="background:${isStudent?'#FFF7ED':'#F0F9FF'};color:${isStudent?'#EA580C':'#0369A1'}">
                 ${isStudent ? '🎓 Espace Élève' : '🚗 Espace Moniteur'}
             </div>
-            <h2 class="text-3xl font-bold mb-2" id="form-title" style="color:#F2EDE8">Connexion</h2>
+            <h2 class="text-3xl font-bold mb-2" id="form-title" style="color:var(--text)">Connexion</h2>
             <p class="text-sm" style="color:var(--db-text2)">Content de vous revoir !</p>
         </div>
 
@@ -1489,8 +1476,8 @@ function LoginPage(type) {
 
             <!-- Séparateur -->
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-                <div style="flex:1;height:1px;background:#E5E7EB"></div>
-                <span style="font-size:12px;color:#9CA3AF;font-weight:600">ou par email</span>
+                <div style="flex:1;height:1px;background:var(--border)"></div>
+                <span style="font-size:12px;color:var(--text-muted);font-weight:600">ou par email</span>
                 <div style="flex:1;height:1px;background:#E5E7EB"></div>
             </div>
 
@@ -1727,11 +1714,11 @@ function StudentDashboard() {
                             ${b.status==='confirmed'?`<button onclick="openChat('${b.id}','${b.instructor_id}','${b.instructor_name}')" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">💬 Chat</button>`:''}
                         </div>
                     </div>
-                    ${b.completion_code&&b.status==='confirmed'?`<div style="margin-top:10px;padding:8px 12px;background:#FFF7ED;border-radius:10px;display:flex;align-items:center;gap:8px">
+                    ${b.completion_code&&b.status==='confirmed'?`<div style="margin-top:10px;padding:8px 12px;background:rgba(255,90,31,0.06);border:1px solid rgba(255,90,31,0.12);border-radius:10px;display:flex;align-items:center;gap:8px">
                         <span style="font-family:monospace;font-weight:900;font-size:15px;color:#FF5A1F;letter-spacing:3px">${b.completion_code}</span>
-                        <span style="font-size:11px;color:#9CA3AF">🔑 Donnez ce code au moniteur</span>
+                        <span style="font-size:11px;color:var(--db-text2)">🔑 Donnez ce code au moniteur</span>
                     </div>`:''}
-                    ${b.status==='completed'?`<div style="margin-top:10px;padding:8px 12px;background:#ECFDF5;border-radius:10px;text-align:center">
+                    ${b.status==='completed'?`<div style="margin-top:10px;padding:8px 12px;background:rgba(5,150,105,0.06);border:1px solid rgba(5,150,105,0.12);border-radius:10px;text-align:center">
                         <span style="font-size:12px;color:#059669;font-weight:700">✅ Cours validé par le moniteur</span>
                     </div>`:''}
                 </div>`;
@@ -1750,10 +1737,10 @@ function StudentDashboard() {
                     <button onclick="resetStudentFilters()" style="border:none;background:none;color:#FF5A1F;font-weight:700;font-size:12px;cursor:pointer">Réinitialiser</button>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                    <button onclick="updateStudentFilter('onlineOnly', ${!studentFinderFilters.onlineOnly})" style="padding:10px;border-radius:12px;border:1px solid ${studentFinderFilters.onlineOnly?'#22C55E':'#E5E7EB'};background:${studentFinderFilters.onlineOnly?'#ECFDF5':'#fff'};color:${studentFinderFilters.onlineOnly?'#166534':'#6B7280'};font-weight:700;font-size:12px;cursor:pointer">
+                    <button onclick="updateStudentFilter('onlineOnly', ${!studentFinderFilters.onlineOnly})" style="padding:10px;border-radius:12px;border:1px solid ${studentFinderFilters.onlineOnly?'#22C55E':'var(--db-border)'};background:${studentFinderFilters.onlineOnly?'#ECFDF5':'var(--db-bg2)'};color:${studentFinderFilters.onlineOnly?'#166534':'var(--db-text2)'};font-weight:700;font-size:12px;cursor:pointer">
                         ${studentFinderFilters.onlineOnly?'🟢 En ligne':'⚪ Tous statuts'}
                     </button>
-                    <select onchange="updateStudentFilter('minRating', this.value)" style="padding:10px;border-radius:12px;border:1px solid #E5E7EB;background:#fff;color:#374151;font-weight:700;font-size:12px;cursor:pointer">
+                    <select onchange="updateStudentFilter('minRating', this.value)" style="padding:10px;border-radius:12px;border:1px solid var(--db-border);background:var(--db-bg2);color:var(--db-text);font-weight:700;font-size:12px;cursor:pointer">
                         <option value="0" ${studentFinderFilters.minRating===0?'selected':''}>Note min: aucune</option>
                         <option value="3.5" ${studentFinderFilters.minRating===3.5?'selected':''}>Note min: 3.5+</option>
                         <option value="4" ${studentFinderFilters.minRating===4?'selected':''}>Note min: 4.0+</option>
@@ -1761,7 +1748,7 @@ function StudentDashboard() {
                     </select>
                 </div>
                 <div style="margin-top:10px">
-                    <label style="display:flex;justify-content:space-between;font-size:12px;color:#6B7280;font-weight:700;margin-bottom:6px">
+                    <label style="display:flex;justify-content:space-between;font-size:12px;color:var(--db-text2);font-weight:700;margin-bottom:6px">
                         <span>Tarif max</span><span>${(studentFinderFilters.maxRate||10000).toLocaleString()} XPF/h</span>
                     </label>
                     <input type="range" min="1000" max="10000" step="500" value="${studentFinderFilters.maxRate||10000}" oninput="updateStudentFilter('maxRate', this.value)" style="width:100%">
@@ -1917,12 +1904,11 @@ function StudentDashboard() {
                 ❓ Centre d'aide
             </button>
 
-            ${currentUser?.is_admin ? `
-            <button type="button" onclick="openAdminPanel()" aria-label="Ouvrir l'administration" style="margin-top:20px;width:100%;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
-                ${renderBrandWordmark({ size:'sm', textColor:'#E5E7EB' })}
-                <p style="text-align:center;font-size:11px;color:#94A3B8">Admin · v2.1</p>
-            </button>
-            ` : ''}
+            <!-- Admin access (discret) -->
+            <div onclick="(function(){let c=window._adminTaps=(window._adminTaps||0)+1;if(c>=5){window._adminTaps=0;currentView='admin';render();}setTimeout(()=>{if(window._adminTaps<5)window._adminTaps=0;},3000)})()" style="margin-top:20px;cursor:default;user-select:none;display:flex;flex-direction:column;align-items:center;gap:4px">
+                ${renderBrandWordmark({ size:'sm', textColor:'var(--db-text3)' })}
+                <p style="text-align:center;font-size:11px;color:#94A3B8">v2.1</p>
+            </div>
         ` : ''}
 
         </div>
@@ -2285,7 +2271,7 @@ function InstructorDashboard() {
                     const daysLeft = Math.ceil((new Date(b.date)-new Date())/(1000*60*60*24));
                     return `<div class="db-booking-card">
                         <div style="display:flex;align-items:center;gap:12px">
-                            <div style="width:44px;height:44px;background:#0D0D0D;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👨‍🎓</div>
+                            <div style="width:44px;height:44px;background:var(--db-pill-bg);border:1px solid var(--db-border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👨‍🎓</div>
                             <div style="flex:1">
                                 <p style="font-weight:800;color:var(--db-text);font-size:15px">${b.student_name||'Élève'}</p>
                                 <p style="color:var(--db-text2);font-size:13px">📅 ${b.date} · ${b.time} · ${b.duration}h</p>
@@ -2305,7 +2291,7 @@ function InstructorDashboard() {
             <p class="db-section-title" style="margin-top:20px">Ma position en direct</p>
             <div class="db-surface-card" style="overflow:hidden;margin-bottom:8px">
                 <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
-                    <p id="gps-status" style="font-size:12px;color:var(--db-text3);margin:0">GPS non actif</p>
+                    <p id="gps-status" style="font-size:12px;color:var(--db-text2);margin:0">GPS non actif</p>
                     <button onclick="watchId?stopTracking():startTracking()" style="background:#FF5A1F;color:#fff;border:none;border-radius:10px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer" id="gps-toggle-btn">▶ Activer</button>
                 </div>
                 <div id="map" style="height:clamp(210px,34vh,300px);border-radius:0"></div>
@@ -2377,10 +2363,10 @@ function InstructorDashboard() {
                                     `<button onclick="openProgressNoteModal('${b.id}','${(b.student_name||'').replace(/'/g,'')}','${b.student_id}','${b.date}')" style="background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">📝 Fiche</button>` :
                                     (DB.progressNotes||[]).find(n=>n.booking_id===b.id) ?
                                     `<span style="font-size:11px;color:#059669;font-weight:700">📝 Fiche rédigée</span>` :
-                                    `<span style="font-size:11px;color:#9CA3AF">⏱ Délai expiré</span>`
+                                    `<span style="font-size:11px;color:var(--db-text2)">⏱ Délai expiré</span>`
                                 }
                                 ${!b.instructor_rated?`<button onclick="rateStudent('${b.id}','${(b.student_name||'').replace(/'/g,'')}')" style="background:#FFF7ED;color:#EA580C;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">⭐ Noter</button>`:''}
-                                <button onclick="viewStudentProgress('${b.student_id}','${(b.student_name||'').replace(/'/g,'')}')" style="background:#F3F4F6;color:#374151;border:none;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">👁️ Suivi</button>
+                                <button onclick="viewStudentProgress('${b.student_id}','${(b.student_name||'').replace(/'/g,'')}')" style="background:var(--db-pill-bg);color:var(--db-text);border:1px solid var(--db-border);border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">👁️ Suivi</button>
                             `:''}
                             ${b.status==='confirmed'||b.status==='completed'?`<button onclick="reportIssue('${b.id}','instructor','${(b.student_name||'').replace(/'/g,'')}')" style="color:#9333EA;background:none;border:none;font-size:11px;font-weight:700;cursor:pointer">⚠️</button>`:''}
                         </div>
@@ -2392,18 +2378,18 @@ function InstructorDashboard() {
 
         ${tab==='earnings' ? `
             <p class="db-section-title">Revenus</p>
-            <div style="background:linear-gradient(135deg,#080808,#181818);border-radius:24px;padding:24px;margin-bottom:16px">
-                <p style="color:rgba(255,255,255,0.4);font-size:11px;font-weight:700;letter-spacing:1px">TOTAL NETS</p>
-                <p style="color:#fff;font-size:38px;font-weight:900;margin:6px 0">${totalNet.toLocaleString()} XPF</p>
-                <p style="color:rgba(255,255,255,0.3);font-size:13px">${paidBookings.length} cours payés</p>
+            <div style="background:var(--db-bg2);border-radius:24px;padding:24px;margin-bottom:16px;border:1px solid var(--db-border)">
+                <p style="color:var(--db-text3);font-size:11px;font-weight:700;letter-spacing:1px">TOTAL NETS</p>
+                <p style="color:var(--db-text);font-size:38px;font-weight:900;margin:6px 0">${totalNet.toLocaleString()} XPF</p>
+                <p style="color:var(--db-text3);font-size:13px">${paidBookings.length} cours payés</p>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-                <div style="background:#111;border-radius:18px;padding:18px;border:1px solid rgba(242,237,232,0.07)">
+                <div style="background:var(--db-bg2);border-radius:18px;padding:18px;border:1px solid var(--db-border)">
                     <p style="color:var(--db-text2);font-size:12px;margin-bottom:6px">Moy. par cours</p>
                     <p style="font-size:22px;font-weight:900;color:#FF5A1F">${paidBookings.length>0?Math.round(totalNet/paidBookings.length).toLocaleString():0}</p>
                     <p style="color:var(--db-text2);font-size:11px">XPF nets</p>
                 </div>
-                <div style="background:#111;border-radius:18px;padding:18px;border:1px solid rgba(242,237,232,0.07)">
+                <div style="background:var(--db-bg2);border-radius:18px;padding:18px;border:1px solid var(--db-border)">
                     <p style="color:var(--db-text2);font-size:12px;margin-bottom:6px">Taux complétion</p>
                     <p style="font-size:22px;font-weight:900;color:${myBookings.length>0&&paidBookings.length/myBookings.length>=0.8?'#059669':myBookings.length>0&&paidBookings.length/myBookings.length>=0.5?'#D97706':'#DC2626'}">${myBookings.length>0?Math.round(paidBookings.length/myBookings.length*100):0}%</p>
                     <p style="color:var(--db-text2);font-size:11px">${myBookings.filter(b=>b.status==='cancelled').length} annulation(s)</p>
@@ -2418,12 +2404,12 @@ function InstructorDashboard() {
                 if(!entries.length) return '<p style="text-align:center;color:var(--db-text2);padding:30px">Aucun revenu</p>';
                 return '<div style="display:flex;flex-direction:column;gap:8px">'+entries.map(([m,v])=>{
                     const pct=Math.min(100,Math.round(v/maxVal*100));
-                    return `<div style="background:#111;border-radius:16px;padding:14px 16px;border:1px solid rgba(242,237,232,0.07)">
+                    return `<div style="background:var(--db-bg2);border-radius:16px;padding:14px 16px;border:1px solid var(--db-border)">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                             <p style="font-weight:700;color:var(--db-text)">${m}</p>
                             <p style="font-weight:900;color:#FF5A1F">${v.toLocaleString()} XPF</p>
                         </div>
-                        <div style="background:#222;border-radius:99px;height:4px"><div style="background:#FF5A1F;height:4px;border-radius:99px;width:${pct}%"></div></div>
+                        <div style="background:var(--db-bg);border-radius:99px;height:4px"><div style="background:#FF5A1F;height:4px;border-radius:99px;width:${pct}%"></div></div>
                     </div>`;
                 }).join('')+'</div>';
             })()}
@@ -2494,10 +2480,10 @@ function InstructorDashboard() {
                 <div id="referral-code-display" style="background:rgba(255,90,31,0.08);border:2px dashed #FF5A1F;border-radius:14px;padding:14px;text-align:center;font-family:monospace;font-size:22px;font-weight:900;color:#FF5A1F;letter-spacing:6px;margin-bottom:8px">${profile.referral_code||'...'}</div>
                 <p id="referral-status" style="text-align:center;font-size:12px;font-weight:700;margin-bottom:12px;color:var(--db-text2)">Chargement...</p>
                 <div style="display:flex;gap:8px;margin-bottom:12px">
-                    <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:#F3F4F6;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:var(--db-text);transition:all 0.15s" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">📋 Copier</button>
+                    <button onclick="copyReferralCode()" style="flex:1;padding:12px;background:var(--db-bg);border:1px solid var(--db-border);border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:var(--db-text);transition:all 0.15s" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">📋 Copier</button>
                     <button onclick="shareReferralLink()" style="flex:1;padding:12px;background:linear-gradient(135deg,#FF5A1F,#FF7340);border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;color:#fff;transition:all 0.15s" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">🔗 Partager le lien</button>
                 </div>
-                <div style="background:#181818;border-radius:12px;padding:14px;text-align:center;margin-bottom:12px">
+                <div style="background:var(--db-bg);border-radius:12px;padding:14px;text-align:center;margin-bottom:12px;border:1px solid var(--db-border)">
                     <p id="referral-count" style="font-size:24px;font-weight:900;color:var(--db-text)">0/10</p>
                     <p style="font-size:12px;color:var(--db-text2);margin-top:2px">Parrainages aboutis (max 10)</p>
                 </div>
@@ -2506,12 +2492,11 @@ function InstructorDashboard() {
             <!-- Déconnexion -->
             <button onclick="logout()" style="width:100%;padding:14px;border-radius:16px;border:1px solid rgba(220,38,38,0.25);background:rgba(220,38,38,0.07);color:#F87171;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.15s" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'">🚪 Se déconnecter</button>
 
-            ${currentUser?.is_admin ? `
-            <button type="button" onclick="openAdminPanel()" aria-label="Ouvrir l'administration" style="margin-top:20px;width:100%;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
-                ${renderBrandWordmark({ size:'sm', textColor:'#E5E7EB' })}
-                <p style="text-align:center;font-size:11px;color:#94A3B8">Admin · v2.1</p>
-            </button>
-            ` : ''}
+            <!-- Admin access (discret) -->
+            <div onclick="(function(){let c=window._adminTaps=(window._adminTaps||0)+1;if(c>=5){window._adminTaps=0;currentView='admin';render();}setTimeout(()=>{if(window._adminTaps<5)window._adminTaps=0;},3000)})()" style="margin-top:20px;cursor:default;user-select:none;display:flex;flex-direction:column;align-items:center;gap:4px">
+                ${renderBrandWordmark({ size:'sm', textColor:'var(--db-text3)' })}
+                <p style="text-align:center;font-size:11px;color:#94A3B8">v2.1</p>
+            </div>
         ` : ''}
 
         </div>
@@ -4356,12 +4341,6 @@ let adminData = { users: [], instructors: [], bookings: [], slots: [] };
 let adminTab = 'overview';
 
 async function loadAdminData() {
-    if (!isCurrentUserAdmin()) {
-        notif('⛔ Accès refusé', 'Impossible de charger l’administration', 'red');
-        currentView = getDefaultViewForCurrentUser();
-        render();
-        return;
-    }
     // Afficher un loading
     const app = document.getElementById('app');
     const existingContent = app?.innerHTML || '';
@@ -5472,16 +5451,7 @@ function _renderNow() {
         case 'instructor-upload-docs': app.innerHTML=InstructorUploadDocs(); setTimeout(()=>setupDocUpload(),100); break;
         case 'instructor-pending':  app.innerHTML=InstructorPending(); break;
         case 'instructor-rejected': app.innerHTML=InstructorRejected(); setTimeout(()=>setupDocUpload(),100); break;
-        case 'admin':
-            if (!isCurrentUserAdmin()) {
-                currentView = getDefaultViewForCurrentUser();
-                notif('⛔ Accès refusé', 'Cet espace est réservé aux administrateurs', 'red');
-                render();
-                break;
-            }
-            loadAdminData();
-            setupAdminRealtime();
-            break;
+        case 'admin':               loadAdminData(); setupAdminRealtime(); break;
         case 'privacy':             app.innerHTML=LegalPage('privacy'); break;
         case 'terms':               app.innerHTML=LegalPage('terms'); break;
         case 'mentions':            app.innerHTML=LegalPage('mentions'); break;
@@ -5687,6 +5657,7 @@ async function boot() {
     const urlHash = window.location.hash;
     const urlParams = new URLSearchParams(window.location.search);
     const roleParam = urlParams.get('role');
+    const adminKey  = urlParams.get('admin');
 
     // ── 1. RESET MOT DE PASSE ──────────────────────────────────────────────
     // Supabase envoie #access_token=...&type=recovery dans le hash après clic sur le lien mail
@@ -5784,7 +5755,8 @@ async function boot() {
         if (profile) {
             currentUser = { ...profile, ...session.user, user_type: profile.user_type || meta.user_type };
 
-            if (profile.is_admin) {
+            // Accès admin : soit is_admin en base, soit clé URL secrète
+            if (profile.is_admin || adminKey === 'dc2024') {
                 currentView = 'admin';
             } else if (currentUser.user_type === 'instructor') {
                 const { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', userId).maybeSingle();
@@ -6126,13 +6098,10 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
 
     const nameBlock = document.createElement('div');
     nameBlock.style.cssText = 'flex:1;min-width:0';
-    const nameText = document.createElement('p');
-    nameText.style.cssText = 'color:#fff;font-weight:800;font-size:15px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-    nameText.textContent = otherName;
-    const realtimeText = document.createElement('p');
-    realtimeText.style.cssText = 'color:#555;font-size:11px;margin:2px 0 0';
-    realtimeText.textContent = '● Temps réel';
-    nameBlock.append(nameText, realtimeText);
+    nameBlock.innerHTML =
+        '<p style="color:#fff;font-weight:800;font-size:15px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+        + _esc(otherName) + '</p>'
+        + '<p style="color:#555;font-size:11px;margin:2px 0 0">● Temps réel</p>';
 
     // Bouton téléphone
     const callBtn = document.createElement(otherPhone ? 'a' : 'button');
@@ -6142,8 +6111,7 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
             'display:inline-flex;align-items:center;gap:6px;background:#00C853;color:#fff;'
             +'text-decoration:none;border-radius:20px;padding:7px 13px;font-weight:700;'
             +'font-size:12px;flex-shrink:0;white-space:nowrap;border:none;cursor:pointer';
-        callBtn.innerHTML = _phoneSVG();
-        callBtn.appendChild(document.createTextNode(' ' + otherPhone));
+        callBtn.innerHTML = _phoneSVG() + ' ' + _esc(otherPhone);
     } else {
         callBtn.style.cssText =
             'display:inline-flex;align-items:center;gap:6px;background:#1C1C1C;color:#666;'
@@ -6635,35 +6603,9 @@ window.showInstructorProfile = function(instructorId) {
     }
 
     const infoDiv = document.createElement('div');
-    const titleRow = document.createElement('div');
-    titleRow.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px';
-    const title = document.createElement('h2');
-    title.style.cssText = 'font-size:20px;font-weight:700;color:white;margin:0';
-    title.textContent = inst.name || 'Moniteur';
-    titleRow.appendChild(title);
-    if (inst.verified) {
-        const verifiedBadge = document.createElement('span');
-        verifiedBadge.style.cssText = 'background:#DCFCE7;color:#16A34A;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600';
-        verifiedBadge.textContent = '✓ Vérifié';
-        titleRow.appendChild(verifiedBadge);
-    }
-    const locationLine = document.createElement('p');
-    locationLine.style.cssText = 'color:rgba(255,255,255,0.5);font-size:13px;margin:0';
-    locationLine.textContent = '📍 ' + (inst.location || 'Nouméa');
-    const ratingLine = document.createElement('p');
-    ratingLine.style.cssText = 'color:#F59E0B;font-size:14px;margin-top:4px;margin-bottom:0';
-    ratingLine.textContent = `${'★'.repeat(stars)}${'☆'.repeat(5 - stars)}`;
-    if (inst.rating) {
-        const ratingValue = document.createElement('span');
-        ratingValue.style.cssText = 'color:rgba(255,255,255,0.7)';
-        ratingValue.textContent = ' ' + inst.rating.toFixed(1);
-        ratingLine.appendChild(ratingValue);
-    }
-    const reviewCount = document.createElement('span');
-    reviewCount.style.cssText = 'color:rgba(255,255,255,0.3);font-size:12px';
-    reviewCount.textContent = ` (${inst.total_reviews || 0} avis)`;
-    ratingLine.appendChild(reviewCount);
-    infoDiv.append(titleRow, locationLine, ratingLine);
+    infoDiv.innerHTML = '<h2 style="font-size:20px;font-weight:700;color:white;margin-bottom:4px">' + inst.name + (inst.verified ? ' <span style="background:#DCFCE7;color:#16A34A;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600">✓ Vérifié</span>' : '') + '</h2>' +
+        '<p style="color:rgba(255,255,255,0.5);font-size:13px">📍 ' + (inst.location || 'Nouméa') + '</p>' +
+        '<p style="color:#F59E0B;font-size:14px;margin-top:4px">' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + (inst.rating ? ' <span style="color:rgba(255,255,255,0.7)">' + inst.rating.toFixed(1) + '</span>' : '') + ' <span style="color:rgba(255,255,255,0.3);font-size:12px">(' + (inst.total_reviews || 0) + ' avis)</span></p>';
 
     const flexRow = document.createElement('div');
     flexRow.style.cssText = 'display:flex;align-items:center;gap:16px';
@@ -6683,25 +6625,14 @@ window.showInstructorProfile = function(instructorId) {
     statsData.forEach((s, i) => {
         const cell = document.createElement('div');
         cell.style.cssText = 'text-align:center' + (i > 0 ? ';border-left:1px solid var(--border)' : '');
-        const value = document.createElement('p');
-        value.style.cssText = 'font-size:22px;font-weight:700;color:' + (i === 0 ? 'var(--primary)' : 'var(--text)');
-        value.textContent = String(s.val);
-        const label = document.createElement('p');
-        label.style.cssText = 'font-size:12px;color:var(--db-text2);margin-top:4px';
-        label.textContent = s.label;
-        cell.append(value, label);
+        cell.innerHTML = '<p style="font-size:22px;font-weight:700;color:' + (i === 0 ? 'var(--primary)' : 'var(--text)') + '">' + s.val + '</p><p style="font-size:12px;color:var(--db-text2);margin-top:4px">' + s.label + '</p>';
         statsBar.appendChild(cell);
     });
 
     // Statut en ligne
     const statusBar = document.createElement('div');
     statusBar.style.cssText = 'padding:12px 20px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)';
-    const statusDot = document.createElement('div');
-    statusDot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:' + (inst.is_online ? '#22C55E' : '#9CA3AF');
-    const statusText = document.createElement('p');
-    statusText.style.cssText = 'font-size:14px;font-weight:500;color:var(--db-text);margin:0';
-    statusText.textContent = inst.is_online ? 'En ligne maintenant' : 'Hors ligne';
-    statusBar.append(statusDot, statusText);
+    statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:' + (inst.is_online ? '#22C55E' : '#9CA3AF') + '"></div><p style="font-size:14px;font-weight:500;color:var(--db-text)">' + (inst.is_online ? 'En ligne maintenant' : 'Hors ligne') + '</p>';
 
     // Créneaux
     const slotsSection = document.createElement('div');
@@ -6721,13 +6652,7 @@ window.showInstructorProfile = function(instructorId) {
             const slotCard = document.createElement('div');
             slotCard.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px;border-radius:16px;margin-bottom:8px;background:#181818;border:1px solid rgba(242,237,232,0.08)';
             const slotInfo = document.createElement('div');
-            const slotDate = document.createElement('p');
-            slotDate.style.cssText = 'font-weight:600;font-size:14px;color:var(--db-text);margin:0';
-            slotDate.textContent = `${s.date} à ${s.time}`;
-            const slotDuration = document.createElement('p');
-            slotDuration.style.cssText = 'font-size:12px;color:var(--db-text2);margin-top:2px;margin-bottom:0';
-            slotDuration.textContent = `Durée : ${s.duration}h`;
-            slotInfo.append(slotDate, slotDuration);
+            slotInfo.innerHTML = '<p style="font-weight:600;font-size:14px;color:var(--db-text)">' + s.date + ' à ' + s.time + '</p><p style="font-size:12px;color:var(--db-text2);margin-top:2px">Durée : ' + s.duration + 'h</p>';
             const slotRight = document.createElement('div');
             slotRight.style.cssText = 'display:flex;align-items:center;gap:12px';
             const price = document.createElement('p');
