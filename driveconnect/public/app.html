@@ -455,6 +455,13 @@
         /* dashboard body background */
         body:has(.db-hero) { background:var(--db-bg) !important; }
 
+        /* Admin responsive */
+        @media (max-width: 768px) {
+            [style*="grid-template-columns:1fr 1fr;gap:20px"],
+            [style*="grid-template-columns:1fr 1fr;gap:16px"] { grid-template-columns: 1fr !important; }
+            [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: 1fr !important; }
+        }
+
         @media (max-width: 520px) {
             .db-main { padding: 18px 14px 112px; }
             .db-action-grid { gap: 8px; }
@@ -4469,22 +4476,26 @@ function AdminDashboard() {
     return `<div style="min-height:100vh;background:#0A0A0A;color:#fff;font-family:'DM Sans',sans-serif">
 
         <!-- Header Admin -->
-        <div style="background:linear-gradient(135deg,#0D0D0D,#1A0A00);border-bottom:1px solid rgba(255,90,31,0.2);padding:0 24px;position:sticky;top:0;z-index:50">
+        <div style="background:linear-gradient(135deg,#0D0D0D 0%,#1A0A00 100%);border-bottom:1px solid rgba(255,90,31,0.15);padding:0 24px;position:sticky;top:0;z-index:50;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)">
             <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px">
-                <div style="display:flex;align-items:center;gap:12px">
-                    <div style="width:36px;height:36px;background:#FF5A1F;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px">🛡️</div>
+                <div style="display:flex;align-items:center;gap:14px">
+                    <div style="width:38px;height:38px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 4px 14px rgba(255,90,31,0.3)">🛡️</div>
                     <div>
-                        <p style="font-weight:900;font-size:16px;color:#fff">DriveConnect Admin</p>
-                        <p style="font-size:11px;color:#FF5A1F;font-weight:600">Accès restreint — Victor Goralski</p>
+                        <p style="font-weight:900;font-size:16px;color:#fff;letter-spacing:-0.3px">Admin <span style="color:#FF5A1F">DriveConnect</span></p>
+                        <p style="font-size:11px;color:rgba(255,255,255,0.35);font-weight:500">${currentUser?.name||'Administrateur'} · <span id="admin-sync-time">${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span></p>
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:12px">
-                    <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:6px">
-                        <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;animation:pulse-ring 2s infinite"></div>
-                        <span style="font-size:12px;font-weight:700;color:#22C55E">${onlineInst} moniteur${onlineInst>1?'s':''} en ligne</span>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:100px;padding:5px 14px;display:flex;align-items:center;gap:6px">
+                        <div style="width:6px;height:6px;border-radius:50%;background:#22C55E;box-shadow:0 0 8px rgba(34,197,94,0.5)"></div>
+                        <span style="font-size:11px;font-weight:700;color:#4ADE80">${onlineInst} en ligne</span>
                     </div>
-                    <button onclick="this.textContent='⏳ Chargement...';this.disabled=true;loadAdminData()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">🔄 Actualiser</button>
-                    <button onclick="logout()" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">Déconnexion</button>
+                    ${pendingApprovals>0?`<div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:100px;padding:5px 14px;display:flex;align-items:center;gap:5px">
+                        <span style="font-size:11px;font-weight:700;color:#FBBF24">${pendingApprovals} approbation${pendingApprovals>1?'s':''}</span>
+                    </div>`:''}
+                    <button onclick="this.innerHTML='⏳';this.disabled=true;loadAdminData()" style="width:38px;height:38px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);border-radius:12px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">🔄</button>
+                    <button onclick="currentView=currentUser?.user_type==='instructor'?'instructor-dashboard':'student-dashboard';render()" style="width:38px;height:38px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);border-radius:12px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">🏠</button>
+                    <button onclick="logout()" style="width:38px;height:38px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);color:#EF4444;border-radius:12px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s" onmouseover="this.style.background='rgba(239,68,68,0.12)'" onmouseout="this.style.background='rgba(239,68,68,0.06)'">⏻</button>
                 </div>
             </div>
         </div>
@@ -4492,30 +4503,35 @@ function AdminDashboard() {
         <div style="max-width:1200px;margin:0 auto;padding:24px">
 
             <!-- KPIs top -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:28px">
                 ${[
-                    { icon:'👥', val: totalUsers,       label:'Utilisateurs',    sub:`+${recentUsers} cette semaine`,  color:'#60A5FA' },
-                    { icon:'👨‍🎓', val: totalStudents,   label:'Élèves',          sub:`${totalStudents} inscrits`,      color:'#818CF8' },
-                    { icon:'🚗', val: totalInstructors, label:'Moniteurs',       sub:`${onlineInst} en ligne`,         color:'#FF5A1F' },
-                    { icon:'📋', val: totalBookings,    label:'Réservations',    sub:`${confirmedBook} confirmées`,    color:'#34D399' },
-                    { icon:'💰', val: totalRevenue.toLocaleString()+' XPF', label:'Chiffre d\'affaires', sub:`${totalCommission.toLocaleString()} XPF commission`, color:'#FBBF24' },
-                    { icon:'📅', val: availableSlots,   label:'Créneaux dispo',  sub:`${todayBookings} cours aujourd\'hui`, color:'#F472B6' },
+                    { icon:'👥', val: totalUsers,       label:'Utilisateurs',    sub:`+${recentUsers} cette semaine`,  color:'#60A5FA', bg:'rgba(96,165,250,0.06)',  border:'rgba(96,165,250,0.12)' },
+                    { icon:'👨‍🎓', val: totalStudents,   label:'Élèves',          sub:`${totalStudents} inscrits`,      color:'#818CF8', bg:'rgba(129,140,248,0.06)', border:'rgba(129,140,248,0.12)' },
+                    { icon:'🚗', val: totalInstructors, label:'Moniteurs',       sub:`${verifiedInst} vérifiés`,       color:'#FF5A1F', bg:'rgba(255,90,31,0.06)',   border:'rgba(255,90,31,0.12)' },
+                    { icon:'📋', val: totalBookings,    label:'Réservations',    sub:`${confirmedBook} confirmées`,    color:'#34D399', bg:'rgba(52,211,153,0.06)',  border:'rgba(52,211,153,0.12)' },
+                    { icon:'💰', val: totalCommission.toLocaleString(), label:'Commission',   sub:`sur ${totalRevenue.toLocaleString()} XPF CA`, color:'#FBBF24', bg:'rgba(251,191,36,0.06)', border:'rgba(251,191,36,0.12)' },
+                    { icon:'📅', val: todayBookings,    label:'Aujourd\'hui',    sub:`${availableSlots} créneaux dispo`, color:'#F472B6', bg:'rgba(244,114,182,0.06)', border:'rgba(244,114,182,0.12)' },
                 ].map(k => `
-                <div style="background:#111;border:1px solid #1F1F1F;border-radius:18px;padding:18px;position:relative;overflow:hidden">
-                    <div style="position:absolute;top:-10px;right:-10px;font-size:48px;opacity:0.06">${k.icon}</div>
-                    <p style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${k.label}</p>
-                    <p style="font-size:26px;font-weight:900;color:${k.color};margin-bottom:4px">${k.val}</p>
-                    <p style="font-size:11px;color:#4B5563">${k.sub}</p>
+                <div style="background:${k.bg};border:1px solid ${k.border};border-radius:16px;padding:16px;position:relative;overflow:hidden;transition:all .2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                        <p style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:700;text-transform:uppercase;letter-spacing:0.8px">${k.label}</p>
+                        <span style="font-size:18px;opacity:0.7">${k.icon}</span>
+                    </div>
+                    <p style="font-size:24px;font-weight:900;color:${k.color};letter-spacing:-0.5px;margin-bottom:3px">${k.val}</p>
+                    <p style="font-size:10px;color:rgba(255,255,255,0.25)">${k.sub}</p>
                 </div>`).join('')}
             </div>
 
             <!-- Onglets -->
-            <div style="display:flex;gap:4px;background:#111;border-radius:16px;padding:6px;margin-bottom:24px;overflow-x:auto;border:1px solid #1F1F1F">
+            <div style="display:flex;gap:3px;background:rgba(255,255,255,0.03);border-radius:14px;padding:4px;margin-bottom:24px;overflow-x:auto;border:1px solid rgba(255,255,255,0.05);scrollbar-width:none;-webkit-overflow-scrolling:touch">
                 ${tabs.map(t => `
-                <button onclick="switchAdminTab('${t.id}')"
-                    style="white-space:nowrap;padding:10px 18px;border-radius:12px;border:none;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;
-                    background:${adminTab===t.id?'#FF5A1F':'transparent'};
-                    color:${adminTab===t.id?'#fff':'#6B7280'}">
+                <button onclick="switchAdminTab('${t.id}')" data-tab="${t.id}"
+                    style="white-space:nowrap;padding:9px 16px;border-radius:11px;border:none;font-weight:700;font-size:12px;cursor:pointer;transition:all 0.2s;
+                    background:${adminTab===t.id?'linear-gradient(135deg,#FF5A1F,#FF7340)':'transparent'};
+                    color:${adminTab===t.id?'#fff':'rgba(255,255,255,0.35)'};
+                    ${adminTab===t.id?'box-shadow:0 4px 14px rgba(255,90,31,0.3);':''}"
+                    onmouseover="if('${adminTab}'!=='${t.id}')this.style.color='rgba(255,255,255,0.6)';this.style.background='${adminTab===t.id?'linear-gradient(135deg,#FF5A1F,#FF7340)':'rgba(255,255,255,0.04)'}'"
+                    onmouseout="if('${adminTab}'!=='${t.id}')this.style.color='rgba(255,255,255,0.35)';this.style.background='${adminTab===t.id?'linear-gradient(135deg,#FF5A1F,#FF7340)':'transparent'}'">
                     ${t.icon} ${t.label}
                 </button>`).join('')}
             </div>
@@ -4615,69 +4631,69 @@ function getAdminTabContent(tab, stats) {
 
         return `
         ${alerts.length > 0 ? `
-        <div style="margin-bottom:24px;display:flex;flex-direction:column;gap:8px">
-            <p style="font-weight:800;font-size:15px;color:#fff;margin-bottom:8px">🚨 Alertes (${alerts.length})</p>
-            ${alerts.map(a => `
-            <div style="background:${a.type==='danger'?'rgba(239,68,68,0.08)':a.type==='warn'?'rgba(251,191,36,0.08)':'rgba(96,165,250,0.08)'};border:1px solid ${a.type==='danger'?'rgba(239,68,68,0.2)':a.type==='warn'?'rgba(251,191,36,0.2)':'rgba(96,165,250,0.2)'};border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px">
-                <span>${a.type==='danger'?'🔴':a.type==='warn'?'🟡':'🔵'}</span>
-                <span style="font-size:13px;color:#E5E7EB">${a.msg}</span>
+        <div style="margin-bottom:24px;display:flex;flex-direction:column;gap:6px">
+            <p style="font-weight:800;font-size:14px;color:rgba(255,255,255,0.5);margin-bottom:6px;display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:#EF4444;animation:pulse 1.5s infinite"></span> ${alerts.length} Alerte${alerts.length>1?'s':''}</p>
+            ${alerts.slice(0,5).map(a => `
+            <div style="background:${a.type==='danger'?'rgba(239,68,68,0.06)':a.type==='warn'?'rgba(251,191,36,0.06)':'rgba(96,165,250,0.06)'};border:1px solid ${a.type==='danger'?'rgba(239,68,68,0.12)':a.type==='warn'?'rgba(251,191,36,0.12)':'rgba(96,165,250,0.12)'};border-radius:12px;padding:11px 16px;display:flex;align-items:center;gap:10px">
+                <span style="font-size:14px">${a.type==='danger'?'🔴':a.type==='warn'?'🟡':'🔵'}</span>
+                <span style="font-size:12px;color:rgba(255,255,255,0.6);flex:1">${a.msg}</span>
             </div>`).join('')}
+            ${alerts.length>5?`<p style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center">+${alerts.length-5} autres alertes</p>`:''}
         </div>` : ''}
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-            <!-- Dernières réservations -->
-            <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
-                <p style="font-weight:800;font-size:15px;margin-bottom:16px">📋 Dernières réservations</p>
-                <div style="display:flex;flex-direction:column;gap:8px">
-                ${recent.length === 0 ? '<p style="color:#4B5563;text-align:center;padding:20px">Aucune réservation</p>' :
-                recent.map(b => `
-                <div style="background:#1A1A1A;border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center">
-                    <div>
-                        <p style="font-weight:700;font-size:13px">${b.student_name||'?'} → ${b.instructor_name||'?'}</p>
-                        <p style="font-size:11px;color:#6B7280;margin-top:2px">📅 ${b.date} · ${(b.amount||0).toLocaleString()} XPF</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <!-- Activité récente (timeline) -->
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:18px;padding:20px">
+                <p style="font-weight:800;font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.7)"><span style="font-size:16px">📋</span> Activité récente</p>
+                <div style="display:flex;flex-direction:column;gap:0;position:relative">
+                ${recent.length === 0 ? '<p style="color:rgba(255,255,255,0.2);text-align:center;padding:24px">Aucune réservation</p>' :
+                recent.map((b,idx) => `
+                <div style="display:flex;gap:14px;padding:10px 0;${idx<recent.length-1?'border-bottom:1px solid rgba(255,255,255,0.04)':''}">
+                    <div style="width:34px;height:34px;border-radius:10px;background:${b.status==='confirmed'?'rgba(52,211,153,0.1)':b.status==='cancelled'?'rgba(239,68,68,0.1)':'rgba(251,191,36,0.1)'};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${b.status==='confirmed'?'✅':b.status==='cancelled'?'❌':'⏳'}</div>
+                    <div style="flex:1;min-width:0">
+                        <p style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.student_name||'?'} → <span style="color:#FF5A1F">${b.instructor_name||'?'}</span></p>
+                        <p style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:2px">${b.date} · ${(b.amount||0).toLocaleString()} XPF</p>
                     </div>
-                    <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;
-                        background:${b.status==='confirmed'?'rgba(52,211,153,0.1)':b.status==='cancelled'?'rgba(239,68,68,0.1)':'rgba(251,191,36,0.1)'};
-                        color:${b.status==='confirmed'?'#34D399':b.status==='cancelled'?'#EF4444':'#FBBF24'}">
-                        ${b.status==='confirmed'?'✅ Confirmé':b.status==='cancelled'?'❌ Annulé':'⏳ En attente'}
-                    </span>
+                    <span style="font-size:12px;font-weight:700;color:${b.status==='confirmed'?'#34D399':b.status==='cancelled'?'#EF4444':'#FBBF24'};flex-shrink:0">${b.status==='confirmed'?'Confirmé':b.status==='cancelled'?'Annulé':'Attente'}</span>
                 </div>`).join('')}
                 </div>
             </div>
 
-            <!-- Moniteurs actifs + Stats -->
+            <!-- Colonne droite : moniteurs + stats -->
             <div style="display:flex;flex-direction:column;gap:16px">
-                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
-                    <p style="font-weight:800;font-size:15px;margin-bottom:16px">🚗 Moniteurs en ligne maintenant</p>
+                <!-- Moniteurs en ligne -->
+                <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:18px;padding:20px">
+                    <p style="font-weight:800;font-size:14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.7)"><span style="font-size:16px">🚗</span> Moniteurs en ligne</p>
                     ${adminData.instructors.filter(i => i.is_online).length === 0 ?
-                    '<p style="color:#4B5563;text-align:center;padding:16px">Aucun moniteur en ligne</p>' :
-                    adminData.instructors.filter(i => i.is_online).map(i => `
-                    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#1A1A1A;border-radius:12px;margin-bottom:8px">
-                        <div style="width:36px;height:36px;border-radius:10px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0">
+                    '<p style="color:rgba(255,255,255,0.2);text-align:center;padding:16px;font-size:13px">Aucun moniteur en ligne</p>' :
+                    `<div style="display:flex;flex-direction:column;gap:6px">${adminData.instructors.filter(i => i.is_online).map(i => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.08);border-radius:10px">
+                        <div style="width:32px;height:32px;border-radius:8px;overflow:hidden;background:#FF5A1F;display:flex;align-items:center;justify-content:center;flex-shrink:0">
                             ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                         </div>
-                        <div style="flex:1">
-                            <p style="font-weight:700;font-size:13px">${i.name||'?'}</p>
-                            <p style="font-size:11px;color:#6B7280">📍 ${i.location||'?'} · ⭐ ${i.rating||0}</p>
+                        <div style="flex:1;min-width:0">
+                            <p style="font-weight:700;font-size:12px;color:rgba(255,255,255,0.8)">${i.name||'?'}</p>
+                            <p style="font-size:10px;color:rgba(255,255,255,0.25)">📍 ${i.location||'?'} · ⭐ ${i.rating||0}</p>
                         </div>
-                        <div style="width:8px;height:8px;border-radius:50%;background:#22C55E"></div>
-                    </div>`).join('')}
+                        <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;box-shadow:0 0 6px rgba(34,197,94,0.4)"></div>
+                    </div>`).join('')}</div>`}
                 </div>
 
-                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
-                    <p style="font-weight:800;font-size:15px;margin-bottom:16px">📊 Statuts réservations</p>
+                <!-- Barres de statut -->
+                <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:18px;padding:20px">
+                    <p style="font-weight:800;font-size:14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.7)"><span style="font-size:16px">📊</span> Répartition</p>
                     ${[
                         { label: 'Confirmées', val: stats.confirmedBook, color: '#34D399', pct: Math.round(stats.confirmedBook / Math.max(adminData.bookings.length,1) * 100) },
                         { label: 'En attente', val: stats.pendingBook,   color: '#FBBF24', pct: Math.round(stats.pendingBook / Math.max(adminData.bookings.length,1) * 100) },
                         { label: 'Annulées',   val: stats.cancelledBook, color: '#EF4444', pct: Math.round(stats.cancelledBook / Math.max(adminData.bookings.length,1) * 100) },
                     ].map(s => `
                     <div style="margin-bottom:12px">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                            <span style="font-size:12px;color:#9CA3AF">${s.label}</span>
-                            <span style="font-size:12px;font-weight:700;color:${s.color}">${s.val} (${s.pct}%)</span>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                            <span style="font-size:12px;color:rgba(255,255,255,0.4)">${s.label}</span>
+                            <span style="font-size:12px;font-weight:800;color:${s.color}">${s.val} <span style="color:rgba(255,255,255,0.2)">(${s.pct}%)</span></span>
                         </div>
-                        <div style="background:#1F1F1F;border-radius:4px;height:6px">
-                            <div style="background:${s.color};height:6px;border-radius:4px;width:${s.pct}%;transition:width 0.5s"></div>
+                        <div style="background:rgba(255,255,255,0.04);border-radius:6px;height:6px;overflow:hidden">
+                            <div style="background:${s.color};height:6px;border-radius:6px;width:${s.pct}%;transition:width 0.5s;box-shadow:0 0 8px ${s.color}40"></div>
                         </div>
                     </div>`).join('')}
                 </div>
