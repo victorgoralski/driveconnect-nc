@@ -902,15 +902,6 @@ async function loadData() {
         DB.slots = slotsRes.data || [];
 
         if (currentUser) {
-            // Rafraîchir le profil utilisateur (avatar_url, etc.)
-            const { data: freshProfile } = await sb.from('users').select('*').eq('id', currentUser.id).maybeSingle();
-            if (freshProfile) {
-                currentUser.avatar_url = freshProfile.avatar_url || currentUser.avatar_url;
-                currentUser.name = freshProfile.name || currentUser.name;
-                currentUser.phone_number = freshProfile.phone_number || currentUser.phone_number;
-                currentUser.phone_verified = freshProfile.phone_verified ?? currentUser.phone_verified;
-            }
-
             const field = currentUser.user_type === 'student' ? 'student_id' : 'instructor_id';
             const { data, error: bErr } = await sb.from('bookings').select('*').eq(field, currentUser.id).order('created_at', { ascending: false });
             if (bErr) throw bErr;
@@ -6565,62 +6556,29 @@ window.uploadStudentAvatar = async function(file) {
         const path = currentUser.id + '/avatar.' + ext;
 
         // 1. Upload vers le bucket storage
-        console.log('[AVATAR] Step 1: Uploading to storage bucket avatars/', path);
         const { data, error } = await sb.storage.from('avatars').upload(path, file, {
             upsert: true, contentType: file.type
         });
         if (error) { 
-            console.error('[AVATAR] Step 1 FAILED:', error);
-            notif('❌ Erreur upload storage', error.message, 'red'); 
+            console.error('[AVATAR] Upload error:', error);
+            notif('❌ Erreur upload', error.message, 'red'); 
             return; 
         }
-        console.log('[AVATAR] Step 1 OK: File uploaded');
 
         // 2. Récupérer l'URL publique
         const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
         const avatarUrl = urlData.publicUrl + '?t=' + Date.now();
-        console.log('[AVATAR] Step 2: Public URL =', avatarUrl);
 
-        // 3. Tenter RPC d'abord
-        console.log('[AVATAR] Step 3a: Trying RPC update_user_avatar...');
-        const { error: rpcErr } = await sb.rpc('update_user_avatar', { user_id: currentUser.id, new_avatar_url: avatarUrl });
-        
-        if (rpcErr) {
-            console.warn('[AVATAR] Step 3a RPC failed:', rpcErr.message, '— trying direct UPDATE...');
-            // Fallback: UPDATE direct
-            const { error: updateErr } = await sb.from('users').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
-            if (updateErr) {
-                console.error('[AVATAR] Step 3b direct UPDATE also failed:', updateErr);
-            } else {
-                console.log('[AVATAR] Step 3b direct UPDATE OK');
-            }
-        } else {
-            console.log('[AVATAR] Step 3a RPC OK');
+        // 3. Mettre à jour via RPC (bypass RLS)
+        const { error: updateErr } = await sb.rpc('update_user_avatar', { user_id: currentUser.id, new_avatar_url: avatarUrl });
+        if (updateErr) {
+            console.error('[AVATAR] RPC error:', updateErr);
+            notif('❌ Erreur mise à jour profil', updateErr.message, 'red');
+            return;
         }
 
-        // 4. Vérifier en relisant la base
-        console.log('[AVATAR] Step 4: Verifying by re-reading profile...');
-        const { data: check, error: checkErr } = await sb.from('users').select('avatar_url').eq('id', currentUser.id).maybeSingle();
-        console.log('[AVATAR] Step 4 result:', check, 'error:', checkErr);
-        
-        if (check && check.avatar_url && check.avatar_url.includes('avatar')) {
-            console.log('[AVATAR] ✅ VERIFIED: avatar_url persisted in DB =', check.avatar_url);
-            currentUser.avatar_url = check.avatar_url;
-            notif('✅ Photo sauvegardée !', 'Visible par les moniteurs', 'green');
-        } else {
-            console.error('[AVATAR] ❌ NOT PERSISTED. DB returned:', check);
-            // Dernier recours: stocker localement
-            currentUser.avatar_url = avatarUrl;
-            notif('⚠️ Photo visible maintenant mais risque de ne pas persister', 'Le RPC et UPDATE échouent tous les deux', 'red');
-        }
-
-        await loadData();
-        render();
-    } catch(e) {
-        console.error('[AVATAR] Exception:', e);
-        notif('❌ Erreur inattendue', e.message, 'red');
-    }
-};
+        currentUser.avatar_url = avatarUrl;
+        notif('✅ Photo mise à jour !', 'Visible par les moniteurs', 'green');
         await loadData();
         render();
     } catch(e) {
