@@ -1036,7 +1036,7 @@ async function handleGoogleCallback(session) {
             return;
         }
 
-        currentUser = { ...profile, ...session.user, user_type: profile.user_type || userType };
+        currentUser = { ...session.user, ...profile, user_type: profile.user_type || userType, avatar_url: profile.avatar_url || session.user?.user_metadata?.avatar_url || null };
 
         if (profile.is_admin) {
             currentView = 'admin';
@@ -1127,7 +1127,7 @@ async function login(email, password, userType) {
         profile = { id: userId, email: data.user.email, name: meta.name || email.split('@')[0], user_type: userType };
     }
 
-    currentUser = { ...profile, ...data.user, user_type: actualType };
+    currentUser = { ...data.user, ...profile, user_type: actualType, avatar_url: profile.avatar_url || data.user?.user_metadata?.avatar_url || null };
 
     if (actualType === 'instructor') {
         let { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', userId).maybeSingle();
@@ -1363,7 +1363,7 @@ async function finalizeSignup(email, name, userType) {
 
     // Construire currentUser même si le profil n'existe pas encore en DB
     if (profile) {
-        currentUser = { ...profile, ...session.user, user_type: userType };
+        currentUser = { ...session.user, ...profile, user_type: userType, avatar_url: profile.avatar_url || session.user?.user_metadata?.avatar_url || null };
     } else {
         // Fallback : utiliser les données en mémoire
         console.warn('[SIGNUP] Profile not found in DB, using memory fallback');
@@ -5769,7 +5769,7 @@ async function boot() {
         }
 
         if (profile) {
-            currentUser = { ...profile, ...session.user, user_type: profile.user_type || meta.user_type };
+            currentUser = { ...session.user, ...profile, user_type: profile.user_type || meta.user_type, avatar_url: profile.avatar_url || session.user?.user_metadata?.avatar_url || null };
 
             // Accès admin : soit is_admin en base, soit clé URL secrète
             if (profile.is_admin || adminKey === 'dc2024') {
