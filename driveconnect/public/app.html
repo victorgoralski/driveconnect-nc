@@ -594,6 +594,12 @@ const SOS_DRIVECONNECT_TEL = '+687844022';
 const SOS_DRIVECONNECT_LABEL = '+687 84 40 22';
 
 let currentUser = null;
+function _recoverAvatar() {
+    if (currentUser && !currentUser.avatar_url) {
+        const saved = localStorage.getItem('student_avatar_' + currentUser.id);
+        if (saved) currentUser.avatar_url = saved;
+    }
+}
 let currentView = 'home';
 let currentTab = 'home';
 let map = null, userMarker = null, iMarkers = [], watchId = null;
@@ -898,6 +904,7 @@ async function loadData() {
             // Rafraîchir avatar_url depuis la base
             const { data: freshProfile } = await sb.from('users').select('avatar_url,name,phone_number,phone_verified').eq('id', currentUser.id).maybeSingle();
             if (freshProfile && freshProfile.avatar_url) currentUser.avatar_url = freshProfile.avatar_url;
+            _recoverAvatar();
 
             const field = currentUser.user_type === 'student' ? 'student_id' : 'instructor_id';
             const { data, error: bErr } = await sb.from('bookings').select('*').eq(field, currentUser.id).order('created_at', { ascending: false });
@@ -1034,6 +1041,7 @@ async function handleGoogleCallback(session) {
         }
 
         currentUser = { ...session.user, ...profile, user_type: profile.user_type || userType };
+        _recoverAvatar();
 
         if (profile.is_admin) {
             currentView = 'admin';
@@ -1125,6 +1133,7 @@ async function login(email, password, userType) {
     }
 
     currentUser = { ...data.user, ...profile, user_type: actualType };
+    _recoverAvatar();
 
     if (actualType === 'instructor') {
         let { data: instProfile } = await sb.from('instructors').select('approval_status').eq('id', userId).maybeSingle();
@@ -1366,6 +1375,7 @@ async function finalizeSignup(email, name, userType) {
         console.warn('[SIGNUP] Profile not found in DB, using memory fallback');
         currentUser = { id: userId, email, name, user_type: userType, ...session.user };
     }
+    _recoverAvatar();
 
     if (userType === 'instructor') {
         currentView = 'instructor-upload-docs';
@@ -5758,6 +5768,7 @@ async function boot() {
 
         if (profile) {
             currentUser = { ...session.user, ...profile, user_type: profile.user_type || meta.user_type };
+            _recoverAvatar();
 
             // Accès admin : soit is_admin en base, soit clé URL secrète
             if (profile.is_admin || adminKey === 'dc2024') {
@@ -6538,21 +6549,24 @@ window.uploadStudentAvatar = async function(file) {
 
     notif('⏳ Upload en cours...', '', 'orange');
 
+    // Même bucket que les moniteurs (fonctionne déjà)
     const ext = file.name.split('.').pop();
     const path = currentUser.id + '/avatar.' + ext;
 
-    const { error } = await sb.storage.from('student-avatars').upload(path, file, { upsert: true, contentType: file.type });
+    const { data, error } = await sb.storage.from('avatars').upload(path, file, {
+        upsert: true, contentType: file.type
+    });
     if (error) { notif('❌ Erreur upload', error.message, 'red'); return; }
 
-    const { data: urlData } = sb.storage.from('student-avatars').getPublicUrl(path);
+    const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
     const avatarUrl = urlData.publicUrl + '?t=' + Date.now();
 
-    // Sauvegarder via RPC (bypass RLS)
-    const { error: rpcErr } = await sb.rpc('update_user_avatar', { user_id: currentUser.id, new_avatar_url: avatarUrl });
-    if (rpcErr) {
-        // Fallback direct
-        await sb.from('users').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
-    }
+    // Sauvegarder partout pour être sûr
+    await sb.rpc('update_user_avatar', { user_id: currentUser.id, new_avatar_url: avatarUrl }).catch(()=>{});
+    await sb.from('users').update({ avatar_url: avatarUrl }).eq('id', currentUser.id).catch(()=>{});
+
+    // Backup localStorage (garanti de persister)
+    localStorage.setItem('student_avatar_' + currentUser.id, avatarUrl);
 
     currentUser.avatar_url = avatarUrl;
     notif('✅ Photo mise à jour !', 'Visible par les moniteurs', 'green');
