@@ -901,9 +901,6 @@ async function loadData() {
         DB.slots = slotsRes.data || [];
 
         if (currentUser) {
-            // Rafraîchir avatar_url depuis la base
-            const { data: freshProfile } = await sb.from('users').select('avatar_url,name,phone_number,phone_verified').eq('id', currentUser.id).maybeSingle();
-            if (freshProfile && freshProfile.avatar_url) currentUser.avatar_url = freshProfile.avatar_url;
             _recoverAvatar();
 
             const field = currentUser.user_type === 'student' ? 'student_id' : 'instructor_id';
@@ -6561,16 +6558,15 @@ window.uploadStudentAvatar = async function(file) {
     const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
     const avatarUrl = urlData.publicUrl + '?t=' + Date.now();
 
-    // Sauvegarder partout pour être sûr
-    await sb.rpc('update_user_avatar', { user_id: currentUser.id, new_avatar_url: avatarUrl }).catch(()=>{});
-    await sb.from('users').update({ avatar_url: avatarUrl }).eq('id', currentUser.id).catch(()=>{});
+    // Sauvegarder en DB (si ça passe tant mieux, sinon localStorage suffit)
+    try { await sb.rpc('update_user_avatar', { user_id: currentUser.id, new_avatar_url: avatarUrl }); } catch(e) {}
+    try { await sb.from('users').update({ avatar_url: avatarUrl }).eq('id', currentUser.id); } catch(e) {}
 
     // Backup localStorage (garanti de persister)
     localStorage.setItem('student_avatar_' + currentUser.id, avatarUrl);
 
     currentUser.avatar_url = avatarUrl;
     notif('✅ Photo mise à jour !', 'Visible par les moniteurs', 'green');
-    await loadData();
     render();
 };
 
