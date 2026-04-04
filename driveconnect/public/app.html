@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC</title>
+    <title>DriveConnect NC — app 86</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -6214,10 +6214,64 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
     });
     sendBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>';
 
-    inputBar.append(photoLabel, textInput, sendBtn);
-    panel.append(header, previewZone, msgsZone, inputBar);
+    // ── BOUTON MIC ──
+    const micBtn = document.createElement('button');
+    micBtn.id = 'chat-mic-btn';
+    micBtn.title = 'Envoyer un vocal';
+    Object.assign(micBtn.style, {
+        width:'42px', height:'42px', borderRadius:'12px', background:'#F3F4F6',
+        border:'1.5px solid #E5E7EB', display:'flex', alignItems:'center',
+        justifyContent:'center', cursor:'pointer', flexShrink:'0', transition:'all 0.2s'
+    });
+    micBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/></svg>';
+
+    // ── ZONE ENREGISTREMENT EN COURS ──
+    const recZone = document.createElement('div');
+    recZone.id = 'chat-rec-zone';
+    Object.assign(recZone.style, {
+        display:'none', padding:'12px 16px', background:'#FFF1F2',
+        borderBottom:'1px solid #FECDD3', flexShrink:'0',
+        alignItems:'center', gap:'12px'
+    });
+    recZone.innerHTML =
+        '<div style="width:12px;height:12px;border-radius:50%;background:#EF4444;animation:pulse 1s infinite;flex-shrink:0"></div>'
+        +'<div style="flex:1">'
+        +'<p style="font-size:13px;font-weight:700;color:#BE123C;margin:0">Enregistrement en cours…</p>'
+        +'<p id="chat-rec-timer" style="font-size:11px;color:#FB7185;margin:2px 0 0">0:00</p>'
+        +'</div>'
+        +'<div id="chat-rec-wave" style="display:flex;align-items:center;gap:2px">'
+        +[1,1.4,0.8,1.6,1.2,0.9,1.5].map((h,i)=>`<div style="width:3px;border-radius:2px;background:#EF4444;height:${Math.round(h*14)}px;animation:chatWave 0.8s ease-in-out ${i*0.1}s infinite alternate"></div>`).join('')
+        +'</div>'
+        +'<button id="chat-rec-cancel" style="width:32px;height:32px;border-radius:50%;background:#FEE2E2;border:none;color:#DC2626;font-size:18px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">&times;</button>'
+        +'<button id="chat-rec-stop" style="background:#EF4444;color:#fff;border:none;border-radius:20px;padding:7px 16px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">✓ Terminer</button>';
+
+    // ── ZONE PREVIEW AUDIO ──
+    const audioPreviewZone = document.createElement('div');
+    audioPreviewZone.id = 'chat-audio-preview';
+    Object.assign(audioPreviewZone.style, {
+        display:'none', padding:'10px 16px', background:'#F0FDF4',
+        borderBottom:'1px solid #BBF7D0', flexShrink:'0'
+    });
+    audioPreviewZone.innerHTML =
+        '<p style="font-size:12px;font-weight:700;color:#15803D;margin:0 0 8px">🎤 Vocal prêt à envoyer</p>'
+        +'<div style="display:flex;align-items:center;gap:10px">'
+        +'<audio id="chat-audio-preview-player" controls style="flex:1;height:36px;border-radius:8px;min-width:0"></audio>'
+        +'<button id="chat-audio-preview-cancel" style="width:32px;height:32px;border-radius:50%;background:#DCFCE7;border:none;color:#DC2626;font-size:18px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">&times;</button>'
+        +'<button id="chat-audio-preview-send" style="background:#22C55E;color:#fff;border:none;border-radius:20px;padding:7px 16px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap">📤 Envoyer</button>'
+        +'</div>';
+
+    inputBar.append(photoLabel, micBtn, textInput, sendBtn);
+    panel.append(header, previewZone, recZone, audioPreviewZone, msgsZone, inputBar);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
+
+    // Ajouter keyframes pour l'animation onde
+    if (!document.getElementById('chat-wave-style')) {
+        const sty = document.createElement('style');
+        sty.id = 'chat-wave-style';
+        sty.textContent = '@keyframes chatWave{from{transform:scaleY(0.4)}to{transform:scaleY(1)}}';
+        document.head.appendChild(sty);
+    }
 
     // ── Event listeners (tous en addEventListener) ──
     overlay.addEventListener('click', e => { if (e.target === overlay) window.closeChat(); });
@@ -6226,6 +6280,13 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
     fileInput.addEventListener('change', () => _chatPreviewImg(fileInput));
     document.getElementById('chat-preview-cancel').addEventListener('click', _chatCancelPreview);
     document.getElementById('chat-preview-send').addEventListener('click', () => _chatSendImg(bookingId, fileInput));
+
+    // Mic events
+    micBtn.addEventListener('click', () => _chatToggleRecording(bookingId));
+    document.getElementById('chat-rec-stop').addEventListener('click', () => _chatStopRecording(false));
+    document.getElementById('chat-rec-cancel').addEventListener('click', () => _chatStopRecording(true));
+    document.getElementById('chat-audio-preview-cancel').addEventListener('click', _chatCancelAudioPreview);
+    document.getElementById('chat-audio-preview-send').addEventListener('click', () => _chatSendAudio(bookingId));
 
     await _chatLoadMessages(bookingId);
 
@@ -6402,7 +6463,26 @@ function _chatAppend(msg) {
     const radOther = '18px 18px 18px 4px';
     const bgMe = 'linear-gradient(135deg,#3B82F6,#2563EB)';
 
-    if (msg.image_url) {
+    if (msg.audio_url) {
+        // Message vocal
+        const audioWrap = document.createElement('div');
+        Object.assign(audioWrap.style, {
+            background: isMe ? 'linear-gradient(135deg,#3B82F6,#2563EB)' : '#fff',
+            borderRadius: isMe ? radMe : radOther,
+            padding:'10px 12px',
+            boxShadow: isMe ? '0 3px 14px rgba(59,130,246,0.35)' : '0 2px 8px rgba(0,0,0,0.1)',
+            display:'flex', alignItems:'center', gap:'10px', minWidth:'200px'
+        });
+        const micIcon = document.createElement('span');
+        micIcon.textContent = '🎤';
+        micIcon.style.cssText = 'font-size:18px;flex-shrink:0';
+        const audioEl = document.createElement('audio');
+        audioEl.src = msg.audio_url;
+        audioEl.controls = true;
+        audioEl.style.cssText = 'flex:1;height:32px;min-width:0;border-radius:6px';
+        audioWrap.append(micIcon, audioEl);
+        bubbleWrap.appendChild(audioWrap);
+    } else if (msg.image_url) {
         const imgWrap = document.createElement('div');
         Object.assign(imgWrap.style, {
             borderRadius: isMe ? radMe : radOther,
@@ -6482,6 +6562,174 @@ function _chatFullImg(src) {
     dl.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;color:#111;text-decoration:none;padding:10px 24px;border-radius:20px;font-weight:700;font-size:13px';
     lb.append(closeBtn, img, dl);
     document.body.appendChild(lb);
+}
+
+// ── VOCAL ──
+let _mediaRecorder = null;
+let _audioChunks   = [];
+let _recTimerInterval = null;
+let _recSeconds = 0;
+let _audioBlobReady = null;
+
+function _chatToggleRecording(bookingId) {
+    if (_mediaRecorder && _mediaRecorder.state === 'recording') {
+        _chatStopRecording(false);
+    } else {
+        _chatStartRecording(bookingId);
+    }
+}
+
+async function _chatStartRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        notif('❌ Micro non supporté', 'Votre navigateur ne supporte pas l\'enregistrement audio', 'red');
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        _audioChunks = [];
+        _audioBlobReady = null;
+
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : 'audio/ogg';
+        _mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+        _mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) _audioChunks.push(e.data); };
+        _mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            const blob = new Blob(_audioChunks, { type: _mediaRecorder.mimeType });
+            _audioBlobReady = blob;
+            // Masquer zone rec, montrer preview
+            const recZone = document.getElementById('chat-rec-zone');
+            const previewZone = document.getElementById('chat-audio-preview');
+            const micBtn = document.getElementById('chat-mic-btn');
+            if (recZone) recZone.style.display = 'none';
+            if (micBtn) {
+                micBtn.style.background = '#F3F4F6';
+                micBtn.style.borderColor = '#E5E7EB';
+                micBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/></svg>';
+            }
+            if (previewZone && _recSeconds > 0) {
+                const player = document.getElementById('chat-audio-preview-player');
+                if (player) player.src = URL.createObjectURL(blob);
+                previewZone.style.display = 'block';
+            }
+            clearInterval(_recTimerInterval);
+            _recSeconds = 0;
+        };
+
+        _mediaRecorder.start(200);
+
+        // UI
+        const recZone = document.getElementById('chat-rec-zone');
+        const micBtn = document.getElementById('chat-mic-btn');
+        if (recZone) recZone.style.display = 'flex';
+        if (micBtn) {
+            micBtn.style.background = '#FEE2E2';
+            micBtn.style.borderColor = '#FCA5A5';
+            micBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="#EF4444" stroke="none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0" fill="none" stroke="#EF4444" stroke-width="2"/><line x1="12" y1="19" x2="12" y2="22" stroke="#EF4444" stroke-width="2"/><line x1="9" y1="22" x2="15" y2="22" stroke="#EF4444" stroke-width="2"/></svg>';
+        }
+
+        // Timer
+        _recSeconds = 0;
+        _recTimerInterval = setInterval(() => {
+            _recSeconds++;
+            const timerEl = document.getElementById('chat-rec-timer');
+            const m = Math.floor(_recSeconds / 60);
+            const s = _recSeconds % 60;
+            if (timerEl) timerEl.textContent = m + ':' + String(s).padStart(2,'0');
+            // Limite 2 min
+            if (_recSeconds >= 120) _chatStopRecording(false);
+        }, 1000);
+
+    } catch(e) {
+        notif('❌ Accès micro refusé', 'Autorisez l\'accès au microphone dans votre navigateur', 'red');
+    }
+}
+
+function _chatStopRecording(cancel) {
+    clearInterval(_recTimerInterval);
+    if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
+        if (cancel) {
+            // Annuler : stopper sans preview
+            _mediaRecorder.onstop = () => {
+                _mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+                _audioBlobReady = null;
+                _audioChunks = [];
+            };
+            _mediaRecorder.stop();
+            const recZone = document.getElementById('chat-rec-zone');
+            const micBtn = document.getElementById('chat-mic-btn');
+            if (recZone) recZone.style.display = 'none';
+            if (micBtn) {
+                micBtn.style.background = '#F3F4F6';
+                micBtn.style.borderColor = '#E5E7EB';
+                micBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/></svg>';
+            }
+            _recSeconds = 0;
+        } else {
+            _mediaRecorder.stop(); // onstop above handles UI
+        }
+    }
+}
+
+function _chatCancelAudioPreview() {
+    _audioBlobReady = null;
+    const pz = document.getElementById('chat-audio-preview');
+    if (pz) pz.style.display = 'none';
+    const player = document.getElementById('chat-audio-preview-player');
+    if (player) { player.pause(); player.src = ''; }
+}
+
+async function _chatSendAudio(bookingId) {
+    if (!_audioBlobReady) { notif('❌ Aucun enregistrement', '', 'red'); return; }
+    const blob = _audioBlobReady;
+    const btn = document.getElementById('chat-audio-preview-send');
+    if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
+
+    // Déterminer extension
+    const ext = blob.type.includes('ogg') ? 'ogg' : 'webm';
+    const path = bookingId + '/vocal_' + Date.now() + '_' + Math.random().toString(36).substr(2,5) + '.' + ext;
+
+    // Afficher localement immédiatement
+    const localUrl = URL.createObjectURL(blob);
+    _chatAppend({
+        booking_id: bookingId,
+        sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: '🎤 Vocal',
+        audio_url: localUrl,
+        created_at: new Date().toISOString()
+    });
+    _chatCancelAudioPreview();
+
+    // Upload Supabase
+    const { error: upErr } = await sb.storage.from('chat-audio').upload(path, blob, { upsert: false, contentType: blob.type });
+    if (upErr) {
+        notif('❌ Erreur upload', upErr.message, 'red');
+        if (btn) { btn.textContent = '📤 Envoyer'; btn.disabled = false; }
+        return;
+    }
+    const { data: urlData } = sb.storage.from('chat-audio').getPublicUrl(path);
+    const audioUrl = urlData?.publicUrl;
+    if (!audioUrl) { notif('❌ URL introuvable', '', 'red'); return; }
+
+    const remoteMsg = {
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: '🎤 Vocal', audio_url: audioUrl,
+        created_at: new Date().toISOString()
+    };
+    try { sb.channel('chat-' + bookingId).send({ type: 'broadcast', event: 'new_message', payload: remoteMsg }); } catch(e){}
+    await sb.from('messages').insert({
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: '🎤 Vocal', audio_url: audioUrl
+    });
+    notif('✅ Vocal envoyé !', '', 'green');
+    _audioBlobReady = null;
 }
 
 // Alias pour compatibilité
