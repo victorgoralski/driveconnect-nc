@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC — app 86</title>
+    <title>DriveConnect NC — app 87</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -6115,6 +6115,15 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
         + _esc(otherName) + '</p>'
         + '<p style="color:#555;font-size:11px;margin:2px 0 0">● Temps réel</p>';
 
+    // ── Récupérer l'email (pour FaceTime) ──
+    let otherEmail = null;
+    if (otherUserId) {
+        try {
+            const { data: usr2 } = await sb.from('users').select('email').eq('id', otherUserId).maybeSingle();
+            if (usr2?.email) otherEmail = String(usr2.email).trim();
+        } catch(e) {}
+    }
+
     // Bouton téléphone
     const callBtn = document.createElement(otherPhone ? 'a' : 'button');
     if (otherPhone) {
@@ -6134,6 +6143,15 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
             notif('📞 Numéro non renseigné', 'Le moniteur doit ajouter son numéro dans ses Paramètres', 'orange'));
     }
 
+    // Bouton appel vidéo WebRTC
+    const videoCallBtn = document.createElement('button');
+    videoCallBtn.style.cssText =
+        'display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;'
+        +'border:none;border-radius:20px;padding:7px 13px;font-weight:700;'
+        +'font-size:12px;flex-shrink:0;white-space:nowrap;cursor:pointer';
+    videoCallBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15 10l4.553-2.277A1 1 0 0121 8.723v6.554a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg> Vidéo';
+    videoCallBtn.addEventListener('click', () => _rtcStartCall(bookingId, otherUserId, otherName));
+
     const closeBtn = document.createElement('button');
     closeBtn.innerHTML = '&times;';
     Object.assign(closeBtn.style, {
@@ -6142,7 +6160,7 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
         display:'flex', alignItems:'center', justifyContent:'center', flexShrink:'0'
     });
     closeBtn.addEventListener('click', window.closeChat);
-    header.append(avatar, nameBlock, callBtn, closeBtn);
+    header.append(avatar, nameBlock, callBtn, videoCallBtn, closeBtn);
 
     // ── PREVIEW IMAGE ──
     const previewZone = document.createElement('div');
@@ -6290,6 +6308,9 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
 
     await _chatLoadMessages(bookingId);
 
+    // ── Abonnement signaux WebRTC ──
+    _rtcSubscribe(bookingId, otherUserId, otherName);
+
     chatSubscription = sb.channel('chat-' + bookingId)
         .on('broadcast', { event: 'new_message' }, payload => {
             if (payload.payload && payload.payload.sender_id !== currentUser.id)
@@ -6309,11 +6330,240 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
 
 window.closeChat = function() {
     if (chatSubscription) { try { chatSubscription.unsubscribe(); } catch(e){} chatSubscription = null; }
+    if (_rtcSignalSub)    { try { _rtcSignalSub.unsubscribe();    } catch(e){} _rtcSignalSub = null; }
+    _rtcHangup(true);
     document.getElementById('chat-modal')?.remove();
     _chatBookingId = null;
 };
 
-// ── Helpers ──
+// ========== WebRTC VIDEO CALL ==========
+let _rtcPeer          = null;
+let _rtcLocalStream   = null;
+let _rtcSignalSub     = null;
+let _rtcCallBookingId = null;
+let _rtcCallOtherUserId = null;
+let _rtcCallOtherName = null;
+let _rtcIncomingOffer = null;
+
+const _STUN = { iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
+]};
+
+async function _rtcSendSignal(bookingId, toUserId, type, payload) {
+    try {
+        await sb.from('webrtc_signals').insert({
+            booking_id:   String(bookingId),
+            from_user_id: currentUser.id,
+            to_user_id:   toUserId,
+            type,
+            payload
+        });
+    } catch(e) { console.error('[RTC] sendSignal error', e); }
+}
+
+function _rtcSubscribe(bookingId, otherUserId, otherName) {
+    if (_rtcSignalSub) { try { _rtcSignalSub.unsubscribe(); } catch(e){} }
+    _rtcSignalSub = sb.channel('rtc-sig-' + bookingId)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'webrtc_signals',
+            filter: 'booking_id=eq.' + bookingId
+        }, payload => {
+            const sig = payload.new;
+            if (sig.to_user_id !== currentUser.id) return;
+            _rtcHandleSignal(sig, otherUserId, otherName);
+        })
+        .subscribe();
+}
+
+async function _rtcStartCall(bookingId, otherUserId, otherName) {
+    if (_rtcPeer) { notif('📹 Appel en cours', 'Terminez l\'appel actuel d\'abord', 'orange'); return; }
+    _rtcCallBookingId   = bookingId;
+    _rtcCallOtherUserId = otherUserId;
+    _rtcCallOtherName   = otherName;
+    try {
+        _rtcLocalStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    } catch(e) {
+        notif('❌ Caméra/Micro refusé', 'Autorisez l\'accès dans votre navigateur', 'red'); return;
+    }
+    _rtcPeer = new RTCPeerConnection(_STUN);
+    _rtcLocalStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _rtcLocalStream));
+    _rtcPeer.onicecandidate = e => { if (e.candidate) _rtcSendSignal(bookingId, otherUserId, 'ice', { candidate: e.candidate }); };
+    _rtcPeer.ontrack = e => {
+        const v = document.getElementById('rtc-remote-video');
+        if (v) { v.srcObject = e.streams[0]; document.getElementById('rtc-waiting-label')?.remove(); }
+    };
+    const offer = await _rtcPeer.createOffer();
+    await _rtcPeer.setLocalDescription(offer);
+    await _rtcSendSignal(bookingId, otherUserId, 'offer', { sdp: offer });
+    _rtcShowCallingUI(otherName);
+}
+
+async function _rtcHandleSignal(sig, otherUserId, otherName) {
+    if (sig.type === 'offer') {
+        _rtcIncomingOffer   = sig;
+        _rtcCallOtherUserId = sig.from_user_id;
+        _rtcCallBookingId   = sig.booking_id;
+        _rtcCallOtherName   = otherName || 'Votre contact';
+        _rtcShowIncomingUI(_rtcCallOtherName);
+    } else if (sig.type === 'answer') {
+        if (_rtcPeer) {
+            await _rtcPeer.setRemoteDescription(new RTCSessionDescription(sig.payload.sdp));
+            _rtcShowVideoUI(_rtcCallOtherName);
+        }
+    } else if (sig.type === 'ice') {
+        if (_rtcPeer && sig.payload?.candidate) {
+            try { await _rtcPeer.addIceCandidate(new RTCIceCandidate(sig.payload.candidate)); } catch(e){}
+        }
+    } else if (sig.type === 'hangup') {
+        _rtcHangup(true);
+        notif('📵 Appel terminé', (_rtcCallOtherName || 'L\'autre personne') + ' a raccroché', 'orange');
+    } else if (sig.type === 'reject') {
+        _rtcHangup(true);
+        notif('📵 Appel refusé', (_rtcCallOtherName || 'L\'autre personne') + ' a refusé l\'appel', 'orange');
+    }
+}
+
+window._rtcAcceptCall = async function() {
+    const sig = _rtcIncomingOffer;
+    if (!sig) return;
+    document.getElementById('rtc-incoming-overlay')?.remove();
+    try {
+        _rtcLocalStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    } catch(e) {
+        notif('❌ Caméra/Micro refusé', 'Autorisez l\'accès dans votre navigateur', 'red'); return;
+    }
+    _rtcPeer = new RTCPeerConnection(_STUN);
+    _rtcLocalStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _rtcLocalStream));
+    _rtcPeer.onicecandidate = e => { if (e.candidate) _rtcSendSignal(_rtcCallBookingId, _rtcCallOtherUserId, 'ice', { candidate: e.candidate }); };
+    _rtcPeer.ontrack = e => {
+        const v = document.getElementById('rtc-remote-video');
+        if (v) { v.srcObject = e.streams[0]; document.getElementById('rtc-waiting-label')?.remove(); }
+    };
+    await _rtcPeer.setRemoteDescription(new RTCSessionDescription(sig.payload.sdp));
+    const answer = await _rtcPeer.createAnswer();
+    await _rtcPeer.setLocalDescription(answer);
+    await _rtcSendSignal(_rtcCallBookingId, _rtcCallOtherUserId, 'answer', { sdp: answer });
+    _rtcShowVideoUI(_rtcCallOtherName);
+};
+
+window._rtcRejectCall = function() {
+    if (_rtcIncomingOffer) _rtcSendSignal(_rtcCallBookingId, _rtcIncomingOffer.from_user_id, 'reject', {});
+    document.getElementById('rtc-incoming-overlay')?.remove();
+    _rtcIncomingOffer = null;
+};
+
+function _rtcHangup(remote) {
+    if (window._rtcCallTimerInterval) { clearInterval(window._rtcCallTimerInterval); window._rtcCallTimerInterval = null; }
+    if (_rtcPeer) {
+        if (!remote && _rtcCallBookingId && _rtcCallOtherUserId)
+            _rtcSendSignal(_rtcCallBookingId, _rtcCallOtherUserId, 'hangup', {});
+        try { _rtcPeer.close(); } catch(e){}
+        _rtcPeer = null;
+    }
+    if (_rtcLocalStream) { _rtcLocalStream.getTracks().forEach(t => t.stop()); _rtcLocalStream = null; }
+    document.getElementById('rtc-video-overlay')?.remove();
+    document.getElementById('rtc-incoming-overlay')?.remove();
+    document.getElementById('rtc-calling-overlay')?.remove();
+    _rtcIncomingOffer = null;
+}
+window._rtcHangup = _rtcHangup;
+
+function _rtcShowCallingUI(otherName) {
+    document.getElementById('rtc-calling-overlay')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'rtc-calling-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:999998;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)';
+    ov.innerHTML =
+        '<div style="text-align:center;color:#fff;padding:32px">'
+        +'<div style="width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#6366F1,#4F46E5);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 24px;box-shadow:0 0 0 12px rgba(99,102,241,0.15);animation:pulse 1.4s infinite">📹</div>'
+        +'<p style="font-size:22px;font-weight:800;margin:0 0 8px">Appel en cours…</p>'
+        +'<p style="color:#888;font-size:15px;margin:0 0 48px">' + _esc(otherName) + '</p>'
+        +'<button onclick="_rtcHangup(false)" style="background:#EF4444;color:#fff;border:none;border-radius:50%;width:68px;height:68px;font-size:30px;cursor:pointer;box-shadow:0 4px 28px rgba(239,68,68,0.5)">📵</button>'
+        +'</div>';
+    document.body.appendChild(ov);
+}
+
+function _rtcShowIncomingUI(otherName) {
+    document.getElementById('rtc-incoming-overlay')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'rtc-incoming-overlay';
+    ov.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1A1A1A;border:1px solid #2A2A2A;border-radius:24px;padding:20px 24px;z-index:999998;width:90%;max-width:360px;box-shadow:0 12px 48px rgba(0,0,0,0.7)';
+    ov.innerHTML =
+        '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">'
+        +'<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#6366F1,#4F46E5);display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 0 0 8px rgba(99,102,241,0.15);animation:pulse 1.2s infinite">📹</div>'
+        +'<div><p style="color:#fff;font-weight:800;font-size:16px;margin:0">Appel vidéo entrant</p>'
+        +'<p style="color:#888;font-size:13px;margin:4px 0 0">' + _esc(otherName) + '</p></div>'
+        +'</div>'
+        +'<div style="display:flex;gap:12px">'
+        +'<button onclick="_rtcRejectCall()" style="flex:1;background:#EF4444;color:#fff;border:none;border-radius:16px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">📵 Refuser</button>'
+        +'<button onclick="_rtcAcceptCall()" style="flex:1;background:#22C55E;color:#fff;border:none;border-radius:16px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">📹 Accepter</button>'
+        +'</div>';
+    document.body.appendChild(ov);
+}
+
+function _rtcShowVideoUI(otherName) {
+    document.getElementById('rtc-calling-overlay')?.remove();
+    document.getElementById('rtc-video-overlay')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'rtc-video-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000;z-index:999997;display:flex;flex-direction:column';
+    ov.innerHTML =
+        '<div style="position:relative;flex:1;background:#111;overflow:hidden">'
+        // Remote video
+        +'<video id="rtc-remote-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>'
+        +'<p id="rtc-waiting-label" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#555;font-size:15px;font-weight:600;pointer-events:none">En attente de la vidéo…</p>'
+        // Local PiP
+        +'<div style="position:absolute;bottom:16px;right:16px;width:110px;height:150px;border-radius:18px;overflow:hidden;border:2px solid #333;box-shadow:0 4px 20px rgba(0,0,0,0.7)">'
+        +'<video id="rtc-local-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>'
+        +'</div>'
+        // Top header
+        +'<div style="position:absolute;top:0;left:0;right:0;padding:env(safe-area-inset-top,16px) 20px 60px;background:linear-gradient(180deg,rgba(0,0,0,0.75) 0%,transparent 100%)">'
+        +'<p style="color:#fff;font-weight:800;font-size:18px;margin:0;padding-top:8px">' + _esc(otherName) + '</p>'
+        +'<p id="rtc-call-timer" style="color:#aaa;font-size:13px;margin:4px 0 0">0:00</p>'
+        +'</div>'
+        +'</div>'
+        // Controls bar
+        +'<div style="background:#111;padding:20px 0 calc(20px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;justify-content:center;gap:28px;border-top:1px solid #1F1F1F">'
+        +'<button id="rtc-btn-mic" onclick="_rtcToggleMic(this)" title="Micro" style="width:56px;height:56px;border-radius:50%;background:#1E1E1E;border:1.5px solid #333;color:#fff;font-size:22px;cursor:pointer;transition:all .2s">🎤</button>'
+        +'<button onclick="_rtcHangup(false)" title="Raccrocher" style="width:70px;height:70px;border-radius:50%;background:#EF4444;border:none;color:#fff;font-size:30px;cursor:pointer;box-shadow:0 4px 28px rgba(239,68,68,0.55)">📵</button>'
+        +'<button id="rtc-btn-cam" onclick="_rtcToggleCam(this)" title="Caméra" style="width:56px;height:56px;border-radius:50%;background:#1E1E1E;border:1.5px solid #333;color:#fff;font-size:22px;cursor:pointer;transition:all .2s">📷</button>'
+        +'</div>';
+    document.body.appendChild(ov);
+
+    // Attach local stream
+    const localVid = document.getElementById('rtc-local-video');
+    if (localVid && _rtcLocalStream) localVid.srcObject = _rtcLocalStream;
+
+    // Call timer
+    if (window._rtcCallTimerInterval) clearInterval(window._rtcCallTimerInterval);
+    let secs = 0;
+    window._rtcCallTimerInterval = setInterval(() => {
+        secs++;
+        const el = document.getElementById('rtc-call-timer');
+        if (el) el.textContent = Math.floor(secs/60) + ':' + String(secs%60).padStart(2,'0');
+    }, 1000);
+}
+
+window._rtcToggleMic = function(btn) {
+    if (!_rtcLocalStream) return;
+    const track = _rtcLocalStream.getAudioTracks()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    btn.textContent = track.enabled ? '🎤' : '🔇';
+    btn.style.background = track.enabled ? '#1E1E1E' : '#374151';
+};
+window._rtcToggleCam = function(btn) {
+    if (!_rtcLocalStream) return;
+    const track = _rtcLocalStream.getVideoTracks()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    btn.textContent = track.enabled ? '📷' : '🚫';
+    btn.style.background = track.enabled ? '#1E1E1E' : '#374151';
+};
+
+
 function _esc(s) {
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
