@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC — app 90</title>
+    <title>DriveConnect NC — app 91</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -1701,7 +1701,10 @@ function StudentDashboard() {
         ` : ''}
 
         ${tab==='bookings' ? `
-            <p class="db-section-title">Mes réservations</p>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                <p class="db-section-title" style="margin:0">Mes réservations</p>
+                ${myBookings.filter(b=>b.status==='confirmed').length>0?`<button onclick="_exportStudentCalendar()" style="background:var(--db-bg2);border:1px solid var(--db-border);border-radius:10px;padding:7px 12px;font-size:11px;font-weight:700;color:var(--db-text2);cursor:pointer;white-space:nowrap" onmouseover="this.style.borderColor='#FF5A1F';this.style.color='#FF5A1F'" onmouseout="this.style.borderColor='var(--db-border)';this.style.color='var(--db-text2)'">📅 Export iCal</button>`:''}
+            </div>
             ${myBookings.length===0?`<div class="fade-in" style="text-align:center;padding:60px 20px;background:var(--db-bg2);border-radius:24px;border:1px solid var(--db-border)">
                 <p style="font-size:52px;margin-bottom:16px">📋</p>
                 <p style="font-weight:800;font-size:18px;color:var(--db-text)">Aucune réservation</p>
@@ -1797,37 +1800,73 @@ function StudentDashboard() {
         ` : ''}
 
         ${tab==='suivi' ? `
-            <p class="db-section-title">📖 Ma fiche de suivi</p>
+            <p class="db-section-title">📖 Ma progression</p>
             ${(DB.progressNotes||[]).length === 0 ? `
-                <div style="text-align:center;padding:60px 20px;color:var(--db-text2)">
+                <div style="text-align:center;padding:60px 20px;background:var(--db-bg2);border-radius:24px;border:1px solid var(--db-border)">
                     <p style="font-size:50px;margin-bottom:12px">📖</p>
                     <p style="font-weight:700;font-size:17px;color:var(--db-text)">Aucune note pour le moment</p>
-                    <p style="font-size:14px;margin-top:4px">Votre moniteur remplira votre fiche après chaque cours</p>
+                    <p style="font-size:14px;color:var(--db-text2);margin-top:4px">Votre moniteur remplira votre fiche après chaque cours</p>
                 </div>
             ` : `
-                <div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border);margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-                        <span style="font-size:20px">📊</span>
-                        <div>
-                            <p style="font-weight:800;font-size:15px;color:var(--db-text)">${(DB.progressNotes||[]).length} note${(DB.progressNotes||[]).length>1?'s':''} de suivi</p>
-                            <p style="font-size:12px;color:var(--db-text2)">${[...new Set((DB.progressNotes||[]).map(n=>n.instructor_name))].length} moniteur(s) différent(s)</p>
-                        </div>
+                <!-- Résumé stats -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+                    <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border);text-align:center">
+                        <p style="font-size:24px;font-weight:900;color:var(--db-text)">${(DB.progressNotes||[]).length}</p>
+                        <p style="font-size:10px;color:var(--db-text3);margin-top:3px;font-weight:700;letter-spacing:0.5px">COURS NOTÉS</p>
+                    </div>
+                    <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border);text-align:center">
+                        <p style="font-size:24px;font-weight:900;color:#FF5A1F">${[...new Set((DB.progressNotes||[]).map(n=>n.instructor_name))].length}</p>
+                        <p style="font-size:10px;color:var(--db-text3);margin-top:3px;font-weight:700;letter-spacing:0.5px">MONITEURS</p>
+                    </div>
+                    <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border);text-align:center">
+                        ${(()=>{
+                            const last=(DB.progressNotes||[]).find(n=>n.level);
+                            const lvlIcon=last?{Débutant:'🟡','En progression':'🟠','Bon niveau':'🟢','Expert':'🔵'}[last.level]||'⭐':'—';
+                            return `<p style="font-size:22px">${lvlIcon}</p><p style="font-size:10px;color:var(--db-text3);margin-top:3px;font-weight:700;letter-spacing:0.5px">NIVEAU</p>`;
+                        })()}
                     </div>
                 </div>
+
+                <!-- Graphe d'évolution du niveau -->
                 ${(()=>{
-                    const lastLevel = (DB.progressNotes||[]).find(n=>n.level);
-                    return lastLevel ? '<div style="background:var(--db-bg2);border-radius:20px;padding:18px;margin-bottom:14px;text-align:center;border:1px solid var(--db-border)">' +
-                        '<p style="color:var(--db-text3);font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:8px">VOTRE NIVEAU ACTUEL</p>' +
-                        '<p style="font-size:24px;font-weight:900;color:var(--db-text)">' + (lastLevel.level==='Débutant'?'🟡':lastLevel.level==='En progression'?'🟠':lastLevel.level==='Bon niveau'?'🟢':'🔵') + ' ' + lastLevel.level + '</p>' +
-                        '<p style="color:var(--db-text2);font-size:12px;margin-top:4px">Évalué par ' + lastLevel.instructor_name + ' le ' + lastLevel.lesson_date + '</p>' +
-                    '</div>' : '';
+                    const lvlMap={'Débutant':1,'En progression':2,'Bon niveau':3,'Expert':4};
+                    const lvlColor={1:'#F59E0B',2:'#FF5A1F',3:'#22C55E',4:'#3B82F6'};
+                    const lvlLabel={1:'Débutant',2:'En progression',3:'Bon niveau',4:'Expert'};
+                    const pts=(DB.progressNotes||[]).filter(n=>n.level&&lvlMap[n.level]).sort((a,b)=>new Date(a.lesson_date||a.created_at)-new Date(b.lesson_date||b.created_at));
+                    if(pts.length<2) return '';
+                    const W=300,H=100,PAD=20;
+                    const xs=pts.map((_,i)=>PAD+i*(W-PAD*2)/(pts.length-1));
+                    const ys=pts.map(p=>H-PAD-(lvlMap[p.level]-1)*(H-PAD*2)/3);
+                    const pathD='M '+xs.map((x,i)=>x+','+ys[i]).join(' L ');
+                    const areaD=pathD+` L ${xs[xs.length-1]},${H-PAD} L ${xs[0]},${H-PAD} Z`;
+                    const dots=pts.map((p,i)=>`<circle cx="${xs[i]}" cy="${ys[i]}" r="5" fill="${lvlColor[lvlMap[p.level]]}" stroke="#fff" stroke-width="2"><title>${p.level} — ${p.lesson_date||''}</title></circle>`).join('');
+                    const labels=['Débutant','En prog.','Bon niv.','Expert'].map((l,i)=>`<text x="4" y="${H-PAD-(i)*(H-PAD*2)/3+4}" font-size="7" fill="var(--db-text3)" font-family="DM Sans">${l}</text>`).join('');
+                    return `<div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border);margin-bottom:16px">
+                        <p style="font-size:12px;font-weight:700;color:var(--db-text2);margin:0 0 12px">Évolution du niveau</p>
+                        <svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible">
+                            <defs><linearGradient id="progGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF5A1F" stop-opacity="0.2"/><stop offset="100%" stop-color="#FF5A1F" stop-opacity="0"/></linearGradient></defs>
+                            ${[0,1,2,3].map(i=>`<line x1="${PAD}" y1="${H-PAD-i*(H-PAD*2)/3}" x2="${W-PAD}" y2="${H-PAD-i*(H-PAD*2)/3}" stroke="var(--db-border)" stroke-width="1" stroke-dasharray="3,3"/>`).join('')}
+                            ${labels}
+                            <path d="${areaD}" fill="url(#progGrad)"/>
+                            <path d="${pathD}" fill="none" stroke="#FF5A1F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            ${dots}
+                        </svg>
+                    </div>`;
                 })()}
+
+                <!-- Export iCal élève -->
+                <button onclick="_exportStudentCalendar()" style="width:100%;padding:13px;background:var(--db-bg2);border:1.5px solid var(--db-border);border-radius:14px;color:var(--db-text);font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px" onmouseover="this.style.borderColor='#FF5A1F'" onmouseout="this.style.borderColor='var(--db-border)'">
+                    📅 Exporter mes cours vers Google Calendar / iCal
+                </button>
+
+                <!-- Notes détaillées -->
+                <p class="db-section-title">Fiches par cours</p>
                 <div style="display:flex;flex-direction:column;gap:12px">
-                ${(DB.progressNotes||[]).map(note => `
-                    <div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border);box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                ${(DB.progressNotes||[]).sort((a,b)=>new Date(b.lesson_date||b.created_at)-new Date(a.lesson_date||a.created_at)).map(note => `
+                    <div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border)">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
                             <div style="display:flex;align-items:center;gap:10px">
-                                <div style="width:40px;height:40px;border-radius:12px;background:#FF5A1F;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:16px;flex-shrink:0">
+                                <div style="width:40px;height:40px;border-radius:12px;background:#FF5A1F;overflow:hidden;flex-shrink:0">
                                     <img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">
                                 </div>
                                 <div>
@@ -1843,9 +1882,8 @@ function StudentDashboard() {
                             </div>
                         ` : ''}
                         <div style="background:var(--db-bg);border-radius:14px;padding:14px;border-left:3px solid #FF5A1F">
-                            <p style="font-size:14px;color:var(--db-text);line-height:1.6;white-space:pre-wrap">${(note.note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+                            <p style="font-size:13px;color:var(--db-text);line-height:1.6;white-space:pre-wrap">${(note.note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
                         </div>
-                        <p style="font-size:10px;color:var(--db-text3);margin-top:8px;text-align:right">Rédigé le ${new Date(note.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
                     </div>
                 `).join('')}
                 </div>
@@ -2427,41 +2465,100 @@ function InstructorDashboard() {
 
         ${tab==='earnings' ? `
             <p class="db-section-title">Revenus</p>
-            <div style="background:var(--db-bg2);border-radius:24px;padding:24px;margin-bottom:16px;border:1px solid var(--db-border)">
-                <p style="color:var(--db-text3);font-size:11px;font-weight:700;letter-spacing:1px">TOTAL NETS</p>
-                <p style="color:var(--db-text);font-size:38px;font-weight:900;margin:6px 0">${totalNet.toLocaleString()} XPF</p>
-                <p style="color:var(--db-text3);font-size:13px">${paidBookings.length} cours payés</p>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-                <div style="background:var(--db-bg2);border-radius:18px;padding:18px;border:1px solid var(--db-border)">
-                    <p style="color:var(--db-text2);font-size:12px;margin-bottom:6px">Moy. par cours</p>
-                    <p style="font-size:22px;font-weight:900;color:#FF5A1F">${paidBookings.length>0?Math.round(totalNet/paidBookings.length).toLocaleString():0}</p>
-                    <p style="color:var(--db-text2);font-size:11px">XPF nets</p>
+
+            <!-- KPI cards -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+                <div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border);grid-column:1/-1">
+                    <p style="color:var(--db-text3);font-size:10px;font-weight:700;letter-spacing:2px;margin-bottom:6px">TOTAL NETS</p>
+                    <p style="color:var(--db-text);font-size:36px;font-weight:900;margin:0;font-family:'Instrument Serif',serif">${totalNet.toLocaleString()} <span style="font-size:14px;font-weight:400;font-family:'DM Sans',sans-serif;color:var(--db-text3)">XPF</span></p>
+                    <p style="color:var(--db-text3);font-size:12px;margin-top:6px">${paidBookings.length} cours payés · commission 15% déduite</p>
                 </div>
-                <div style="background:var(--db-bg2);border-radius:18px;padding:18px;border:1px solid var(--db-border)">
-                    <p style="color:var(--db-text2);font-size:12px;margin-bottom:6px">Taux complétion</p>
-                    <p style="font-size:22px;font-weight:900;color:${myBookings.length>0&&paidBookings.length/myBookings.length>=0.8?'#059669':myBookings.length>0&&paidBookings.length/myBookings.length>=0.5?'#D97706':'#DC2626'}">${myBookings.length>0?Math.round(paidBookings.length/myBookings.length*100):0}%</p>
-                    <p style="color:var(--db-text2);font-size:11px">${myBookings.filter(b=>b.status==='cancelled').length} annulation(s)</p>
+                <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border)">
+                    <p style="color:var(--db-text2);font-size:11px;margin-bottom:4px;font-weight:600">Moy. / cours</p>
+                    <p style="font-size:22px;font-weight:900;color:#FF5A1F;margin:0">${paidBookings.length>0?Math.round(totalNet/paidBookings.length).toLocaleString():0}</p>
+                    <p style="color:var(--db-text3);font-size:10px;margin-top:2px">XPF nets</p>
+                </div>
+                <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border)">
+                    <p style="color:var(--db-text2);font-size:11px;margin-bottom:4px;font-weight:600">Taux complétion</p>
+                    <p style="font-size:22px;font-weight:900;margin:0;color:${myBookings.length>0&&paidBookings.length/myBookings.length>=0.8?'#22C55E':myBookings.length>0&&paidBookings.length/myBookings.length>=0.5?'#F59E0B':'#EF4444'}">${myBookings.length>0?Math.round(paidBookings.length/myBookings.length*100):0}%</p>
+                    <p style="color:var(--db-text3);font-size:10px;margin-top:2px">${myBookings.filter(b=>b.status==='cancelled').length} annulation(s)</p>
                 </div>
             </div>
-            <p class="db-section-title">Par mois</p>
+
+            <!-- Graphique barres revenus par mois -->
+            <p class="db-section-title">Revenus par mois</p>
+            <div style="background:var(--db-bg2);border-radius:20px;padding:20px;border:1px solid var(--db-border);margin-bottom:16px;overflow:hidden">
             ${(()=>{
                 const months={};
-                paidBookings.forEach(b=>{const m=b.date.substr(0,7);months[m]=(months[m]||0)+(b.net||0);});
-                const entries=Object.entries(months).sort((a,b)=>b[0].localeCompare(a[0]));
-                const maxVal=entries.length>0?Math.max(...entries.map(e=>e[1])):1;
-                if(!entries.length) return '<p style="text-align:center;color:var(--db-text2);padding:30px">Aucun revenu</p>';
-                return '<div style="display:flex;flex-direction:column;gap:8px">'+entries.map(([m,v])=>{
-                    const pct=Math.min(100,Math.round(v/maxVal*100));
-                    return `<div style="background:var(--db-bg2);border-radius:16px;padding:14px 16px;border:1px solid var(--db-border)">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                            <p style="font-weight:700;color:var(--db-text)">${m}</p>
-                            <p style="font-weight:900;color:#FF5A1F">${v.toLocaleString()} XPF</p>
-                        </div>
-                        <div style="background:var(--db-bg);border-radius:99px;height:4px"><div style="background:#FF5A1F;height:4px;border-radius:99px;width:${pct}%"></div></div>
-                    </div>`;
-                }).join('')+'</div>';
+                paidBookings.forEach(b=>{const m=b.date.substr(0,7);if(!months[m])months[m]={rev:0,count:0};months[m].rev+=(b.net||0);months[m].count++;});
+                const entries=Object.entries(months).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
+                if(!entries.length) return '<p style="text-align:center;color:var(--db-text3);padding:30px 0">Aucun revenu encore</p>';
+                const maxVal=Math.max(...entries.map(e=>e[1].rev),1);
+                const W=300, H=140, PAD=10, barW=Math.floor((W-PAD*2)/entries.length*0.55), gap=Math.floor((W-PAD*2)/entries.length);
+                const bars=entries.map(([m,v],i)=>{
+                    const bh=Math.max(4,Math.round((v.rev/maxVal)*(H-30)));
+                    const x=PAD+i*gap+gap/2-barW/2;
+                    const y=H-bh-20;
+                    const label=m.substr(5);
+                    return `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="6" fill="url(#earnGrad)" opacity="0.9"/>
+                    <text x="${x+barW/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--db-text3)" font-family="DM Sans">${label}</text>
+                    <text x="${x+barW/2}" y="${y-4}" text-anchor="middle" font-size="8" fill="#FF5A1F" font-family="DM Sans" font-weight="700">${Math.round(v.rev/1000)}k</text>`;
+                }).join('');
+                return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible"><defs><linearGradient id="earnGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF5A1F"/><stop offset="100%" stop-color="#FF8C42" stop-opacity="0.6"/></linearGradient></defs>${bars}</svg>`;
             })()}
+            </div>
+
+            <!-- Meilleurs jours de la semaine -->
+            <p class="db-section-title">Meilleurs jours</p>
+            <div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border);margin-bottom:16px">
+            ${(()=>{
+                const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+                const byDay=[0,0,0,0,0,0,0];
+                const countDay=[0,0,0,0,0,0,0];
+                paidBookings.forEach(b=>{if(!b.date)return;const d=new Date(b.date).getDay();byDay[d]+=(b.net||0);countDay[d]++;});
+                const maxD=Math.max(...byDay,1);
+                return '<div style="display:flex;align-items:flex-end;gap:6px;height:80px;padding-bottom:20px;position:relative">'+
+                days.map((d,i)=>{
+                    const pct=Math.max(4,Math.round(byDay[i]/maxD*100));
+                    const isMax=byDay[i]===maxD&&byDay[i]>0;
+                    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+                        <div style="width:100%;border-radius:6px 6px 0 0;background:${isMax?'#FF5A1F':'var(--db-bg4)'};height:${pct}%;transition:height .5s;position:relative" title="${byDay[i].toLocaleString()} XPF · ${countDay[i]} cours"></div>
+                        <span style="font-size:9px;color:${isMax?'#FF5A1F':'var(--db-text3)'};font-weight:${isMax?'800':'500'};position:absolute;bottom:0">${d}</span>
+                    </div>`;
+                }).join('')+'</div>'+
+                '<p style="font-size:11px;color:var(--db-text3);text-align:center;margin-top:4px">Basé sur '+paidBookings.length+' cours payés</p>';
+            })()}
+            </div>
+
+            <!-- Taux de remplissage créneaux -->
+            <p class="db-section-title">Taux de remplissage</p>
+            <div style="background:var(--db-bg2);border-radius:20px;padding:18px;border:1px solid var(--db-border);margin-bottom:16px">
+            ${(()=>{
+                const total=mySlots.length;
+                const booked=mySlots.filter(s=>DB.bookings.find(b=>b.slot_id===s.id&&b.status!=='cancelled')).length;
+                const pct=total>0?Math.round(booked/total*100):0;
+                const color=pct>=75?'#22C55E':pct>=40?'#F59E0B':'#EF4444';
+                return `<div style="display:flex;align-items:center;gap:16px">
+                    <div style="position:relative;width:72px;height:72px;flex-shrink:0">
+                        <svg viewBox="0 0 36 36" width="72" height="72">
+                            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--db-bg4)" stroke-width="3"/>
+                            <circle cx="18" cy="18" r="15.9" fill="none" stroke="${color}" stroke-width="3" stroke-dasharray="${pct} ${100-pct}" stroke-dashoffset="25" stroke-linecap="round" style="transition:stroke-dasharray .8s"/>
+                        </svg>
+                        <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:${color}">${pct}%</span>
+                    </div>
+                    <div>
+                        <p style="font-weight:800;font-size:16px;color:var(--db-text);margin:0 0 4px">${booked} / ${total} créneaux réservés</p>
+                        <p style="font-size:12px;color:var(--db-text3);margin:0">${total-booked} créneau${total-booked!==1?'x':''} encore disponible${total-booked!==1?'s':''}</p>
+                        ${pct<50&&total>0?`<p style="font-size:11px;color:#F59E0B;margin:6px 0 0;font-weight:700">💡 Activez votre GPS pour plus de visibilité</p>`:''}
+                    </div>
+                </div>`;
+            })()}
+            </div>
+
+            <!-- Export iCal -->
+            <button onclick="_exportInstructorCalendar()" style="width:100%;padding:14px;background:var(--db-bg2);border:1.5px solid var(--db-border);border-radius:16px;color:var(--db-text);font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px" onmouseover="this.style.borderColor='#FF5A1F';this.style.color='#FF5A1F'" onmouseout="this.style.borderColor='var(--db-border)';this.style.color='var(--db-text)'">
+                📅 Exporter mes cours vers Google Calendar / iCal
+            </button>
         ` : ''}
 
         ${tab==='settings' ? `
@@ -3386,10 +3483,14 @@ window.submitValidationCode = async function(bookingId) {
                 <div style="width:80px;height:80px;background:#ECFDF5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px">✅</div>
                 <h3 style="color:#fff;font-weight:900;font-size:22px;margin-bottom:8px">Cours validé !</h3>
                 <p style="color:#6B7280;font-size:14px;margin-bottom:20px">Le cours avec <strong style="color:#fff">${booking.student_name}</strong> du ${booking.date} à ${booking.time} a été validé.</p>
-                <button onclick="document.querySelectorAll('.validate-modal').forEach(m=>m.remove());openProgressNoteModal('${bookingId}','${(booking.student_name||'').replace(/'/g,'')}','${booking.student_id}','${booking.date}')" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:10px">
+                <button onclick="document.querySelectorAll('.validate-modal').forEach(m=>m.remove());openProgressNoteModal('${bookingId}','${(booking.student_name||'').replace(/'/g,'')}','${booking.student_id}','${booking.date}')" style="width:100%;padding:14px;background:linear-gradient(135deg,#FF5A1F,#FF8C42);color:#fff;border:none;border-radius:16px;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:10px">
                     📝 Remplir la fiche de suivi
                 </button>
-                <p style="color:#4B5563;font-size:12px">Vous avez <strong style="color:#FBBF24">24h</strong> pour remplir la fiche de suivi</p>
+                <button onclick="document.querySelectorAll('.validate-modal').forEach(m=>m.remove());_showStudentRatingModal('${bookingId}','${(booking.student_name||'').replace(/'/g,'')}')" style="width:100%;padding:14px;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.3);color:#FBBF24;border-radius:16px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:10px">
+                    ⭐ Évaluer l'élève
+                </button>
+                <button onclick="document.querySelectorAll('.validate-modal').forEach(m=>m.remove())" style="width:100%;padding:12px;background:none;border:none;color:#4B5563;font-size:13px;cursor:pointer">Plus tard</button>
+                <p style="color:#4B5563;font-size:11px;margin-top:6px">Vous avez <strong style="color:#FBBF24">24h</strong> pour remplir la fiche de suivi</p>
             </div>`;
     }
 
@@ -5996,32 +6097,53 @@ window._submitReport = async function(bookingId, reporterType) {
 };
 
 // ========== NOTATION ÉLÈVE PAR MONITEUR ==========
+window._showStudentRatingModal = function(bookingId, studentName) {
+    window.rateStudent(bookingId, studentName);
+};
+
 window.rateStudent = function(bookingId, studentName) {
     window._selectedStudentRating = 0;
+    window._studentRatingNote = '';
     document.getElementById('student-rating-modal')?.remove();
+    const criteria = ['Ponctualité', 'Écoute', 'Sérieux', 'Progrès'];
     const stars = [1,2,3,4,5].map(i =>
-        '<span style="font-size:2.8rem;cursor:pointer;transition:transform 0.15s;display:inline-block" data-sval="'+i+'" '+
+        '<span style="font-size:2.6rem;cursor:pointer;transition:transform 0.15s;display:inline-block" data-sval="'+i+'" '+
         'onclick="window._selectStudentStar('+i+')" '+
         'onmouseover="window._hoverStudentStar('+i+');this.style.transform=\'scale(1.2)\'" '+
         'onmouseout="window._resetStudentStars();this.style.transform=\'scale(1)\'">☆</span>'
     ).join('');
     const modal = document.createElement('div');
     modal.id = 'student-rating-modal';
-    modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4';
-    modal.style.animation = 'fadeUp 0.3s ease-out';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
     modal.innerHTML =
-        '<div style="background:#fff;border-radius:28px;padding:32px;max-width:360px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.25);text-align:center;animation:scaleIn 0.3s ease-out">'+
-        '<div style="width:64px;height:64px;background:#EFF6FF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px">👨‍🎓</div>'+
-        '<h3 style="font-size:20px;font-weight:900;margin-bottom:6px;color:#111">Noter '+studentName+'</h3>'+
-        '<p style="color:#999;font-size:14px;margin-bottom:24px">Comment s\'est comporté l\'élève ?</p>'+
-        '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:28px">'+stars+'</div>'+
+        '<div style="background:#fff;border-radius:28px;padding:28px;max-width:380px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto">'+
+        '<div style="text-align:center;margin-bottom:20px">'+
+        '<div style="width:64px;height:64px;background:linear-gradient(135deg,#FBBF24,#F59E0B);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px">👨‍🎓</div>'+
+        '<h3 style="font-size:20px;font-weight:900;margin-bottom:4px;color:#111">Évaluer '+_esc(studentName)+'</h3>'+
+        '<p style="color:#9CA3AF;font-size:13px">Note globale pour cet élève</p></div>'+
+        '<div style="display:flex;justify-content:center;gap:4px;margin-bottom:20px" id="srating-stars">'+stars+'</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">'+
+        criteria.map(c=>`<button onclick="_toggleStudentCriteria(this,'${c}')" data-crit="${c}" style="padding:9px 8px;border:1.5px solid #E5E7EB;border-radius:12px;background:#fff;color:#6B7280;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s">${c}</button>`).join('')+
+        '</div>'+
+        '<textarea id="student-rating-note" placeholder="Commentaire (optionnel)…" style="width:100%;border:1.5px solid #E5E7EB;border-radius:14px;padding:12px;font-size:13px;resize:none;height:80px;outline:none;font-family:inherit;box-sizing:border-box;margin-bottom:16px"></textarea>'+
         '<div style="display:flex;gap:10px">'+
-        '<button onclick="document.getElementById(\'student-rating-modal\').remove()" style="flex:1;padding:14px;border:1.5px solid #E5E7EB;background:#fff;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;color:#6B7280">Annuler</button>'+
-        '<button onclick="window._submitStudentRating(\''+bookingId+'\')" style="flex:1;padding:14px;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer">Envoyer</button>'+
+        '<button onclick="document.getElementById(\'student-rating-modal\').remove()" style="flex:1;padding:13px;border:1.5px solid #E5E7EB;background:#fff;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;color:#6B7280">Annuler</button>'+
+        '<button onclick="window._submitStudentRating(\''+bookingId+'\')" style="flex:1;padding:13px;background:linear-gradient(135deg,#FBBF24,#F59E0B);color:#fff;border:none;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer">⭐ Envoyer</button>'+
         '</div></div>';
     document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 };
 
+window._toggleStudentCriteria = function(btn, crit) {
+    if (!window._studentRatingCriteria) window._studentRatingCriteria = new Set();
+    if (window._studentRatingCriteria.has(crit)) {
+        window._studentRatingCriteria.delete(crit);
+        btn.style.background='#fff'; btn.style.color='#6B7280'; btn.style.borderColor='#E5E7EB';
+    } else {
+        window._studentRatingCriteria.add(crit);
+        btn.style.background='#FFFBEB'; btn.style.color='#D97706'; btn.style.borderColor='#FBBF24';
+    }
+};
 window._selectStudentStar = function(v) {
     window._selectedStudentRating = v;
     document.querySelectorAll('[data-sval]').forEach((s,i) => { s.textContent = i < v ? '⭐' : '☆'; });
@@ -6036,10 +6158,76 @@ window._resetStudentStars = function() {
 window._submitStudentRating = async function(bookingId) {
     const rating = window._selectedStudentRating || 0;
     if (!rating) { notif('❌ Choisissez une note', '', 'red'); return; }
-    await sb.from('bookings').update({ instructor_rated: true, student_rating: rating }).eq('id', bookingId);
+    const note = document.getElementById('student-rating-note')?.value?.trim() || '';
+    const criteria = window._studentRatingCriteria ? [...window._studentRatingCriteria].join(', ') : '';
+    const ratingNote = [criteria, note].filter(Boolean).join(' — ');
+    await sb.from('bookings').update({
+        instructor_rated: true,
+        student_rating: rating,
+        student_rating_note: ratingNote || null,
+        student_rated_at: new Date().toISOString()
+    }).eq('id', bookingId);
     document.getElementById('student-rating-modal')?.remove();
-    notif('⭐ Note enregistrée !', `${rating}/5 étoiles pour l'élève`, 'green');
+    window._studentRatingCriteria = new Set();
+    notif('⭐ Évaluation enregistrée !', `${rating}/5 étoiles pour l'élève`, 'green');
     await loadData(); render();
+};
+
+// ========== EXPORT iCAL ==========
+function _buildICalEvent(booking, role) {
+    const pad = n => String(n).padStart(2,'0');
+    const toICalDate = (dateStr, timeStr) => {
+        const d = new Date(dateStr + 'T' + (timeStr||'08:00') + ':00');
+        return d.getUTCFullYear()+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())+'T'+pad(d.getUTCHours())+pad(d.getUTCMinutes())+'00Z';
+    };
+    const dtStart = toICalDate(booking.date, booking.time);
+    const endDate = new Date(booking.date + 'T' + (booking.time||'08:00') + ':00');
+    endDate.setHours(endDate.getHours() + (parseFloat(booking.duration)||1));
+    const dtEnd = endDate.getUTCFullYear()+pad(endDate.getUTCMonth()+1)+pad(endDate.getUTCDate())+'T'+pad(endDate.getUTCHours())+pad(endDate.getUTCMinutes())+'00Z';
+    const title = role==='student' ? `Cours de conduite avec ${booking.instructor_name||'Moniteur'}` : `Cours avec ${booking.student_name||'Élève'}`;
+    const uid = booking.id + '@driveconnect.nc';
+    return [
+        'BEGIN:VEVENT',
+        'UID:' + uid,
+        'DTSTAMP:' + toICalDate(new Date().toISOString().split('T')[0], new Date().toTimeString().substr(0,5)),
+        'DTSTART:' + dtStart,
+        'DTEND:' + dtEnd,
+        'SUMMARY:' + title,
+        'DESCRIPTION:DriveConnect NC — ' + booking.date + ' à ' + (booking.time||'') + ' — ' + (booking.duration||1) + 'h',
+        'END:VEVENT'
+    ].join('\r\n');
+}
+
+function _downloadICal(events, filename) {
+    const cal = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//DriveConnect NC//FR',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        ...events,
+        'END:VCALENDAR'
+    ].join('\r\n');
+    const blob = new Blob([cal], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    notif('✅ Fichier exporté !', 'Ouvrez le fichier .ics pour l\'ajouter à votre calendrier', 'green');
+}
+
+window._exportStudentCalendar = function() {
+    const confirmed = DB.bookings.filter(b=>b.status==='confirmed'||b.status==='completed');
+    if (!confirmed.length) { notif('ℹ️ Aucun cours à exporter', '', 'orange'); return; }
+    const events = confirmed.map(b => _buildICalEvent(b, 'student'));
+    _downloadICal(events, 'mes-cours-driveconnect.ics');
+};
+
+window._exportInstructorCalendar = function() {
+    const confirmed = DB.bookings.filter(b=>b.status==='confirmed'||b.status==='completed');
+    if (!confirmed.length) { notif('ℹ️ Aucun cours à exporter', '', 'orange'); return; }
+    const events = confirmed.map(b => _buildICalEvent(b, 'instructor'));
+    _downloadICal(events, 'mes-cours-moniteur-driveconnect.ics');
 };
 
 // ========== MODE SOMBRE ==========
@@ -6365,8 +6553,43 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
         +'</div></div>'
         +'<p id="chat-video-preview-name" style="font-size:10px;color:#8B5CF6;margin:6px 0 0"></p>';
 
-    inputBar.append(photoLabel, videoLabel, micBtn, textInput, sendBtn);
-    panel.append(header, previewZone, videoPreviewZone, recZone, audioPreviewZone, replyZone, msgsZone, inputBar);
+    // ── BOUTON DOCUMENT PDF ──
+    const docLabel = document.createElement('label');
+    docLabel.title = 'Envoyer un document';
+    Object.assign(docLabel.style, {
+        width:'42px', height:'42px', borderRadius:'12px', background:'#F3F4F6',
+        border:'1.5px solid #E5E7EB', display:'flex', alignItems:'center',
+        justifyContent:'center', cursor:'pointer', flexShrink:'0', fontSize:'18px'
+    });
+    docLabel.textContent = '📄';
+    const docFileInput = document.createElement('input');
+    docFileInput.type = 'file';
+    docFileInput.id = 'chat-doc-input';
+    docFileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt';
+    docFileInput.style.display = 'none';
+    docLabel.appendChild(docFileInput);
+
+    // ── ZONE PREVIEW DOCUMENT ──
+    const docPreviewZone = document.createElement('div');
+    docPreviewZone.id = 'chat-doc-preview';
+    Object.assign(docPreviewZone.style, {
+        display:'none', padding:'10px 16px', background:'#F0F9FF',
+        borderBottom:'1px solid #BAE6FD', flexShrink:'0'
+    });
+    docPreviewZone.innerHTML =
+        '<p style="font-size:12px;font-weight:700;color:#0369A1;margin:0 0 8px">📄 Document prêt à envoyer</p>'
+        +'<div style="display:flex;align-items:center;gap:10px">'
+        +'<div style="flex:1;background:#fff;border:1px solid #BAE6FD;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;min-width:0">'
+        +'<span style="font-size:24px;flex-shrink:0" id="chat-doc-preview-icon">📄</span>'
+        +'<div style="min-width:0"><p id="chat-doc-preview-name" style="font-size:12px;font-weight:700;color:#0C4A6E;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></p>'
+        +'<p id="chat-doc-preview-size" style="font-size:10px;color:#7CB9E8;margin:2px 0 0"></p></div>'
+        +'</div>'
+        +'<button id="chat-doc-preview-cancel" style="width:32px;height:32px;border-radius:50%;background:#E0F2FE;border:none;color:#DC2626;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">&times;</button>'
+        +'<button id="chat-doc-preview-send" style="background:#0284C7;color:#fff;border:none;border-radius:16px;padding:8px 14px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0">📤 Envoyer</button>'
+        +'</div>';
+
+    inputBar.append(photoLabel, videoLabel, docLabel, micBtn, textInput, sendBtn);
+    panel.append(header, previewZone, videoPreviewZone, docPreviewZone, recZone, audioPreviewZone, replyZone, msgsZone, inputBar);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
@@ -6397,6 +6620,11 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
     videoFileInput.addEventListener('change', () => _chatPreviewVideo(videoFileInput));
     document.getElementById('chat-video-preview-cancel').addEventListener('click', _chatCancelVideoPreview);
     document.getElementById('chat-video-preview-send').addEventListener('click', () => _chatSendVideo(bookingId, videoFileInput));
+
+    // Doc events
+    docFileInput.addEventListener('change', () => _chatPreviewDoc(docFileInput));
+    document.getElementById('chat-doc-preview-cancel').addEventListener('click', _chatCancelDocPreview);
+    document.getElementById('chat-doc-preview-send').addEventListener('click', () => _chatSendDoc(bookingId, docFileInput));
 
     // Reply cancel
     document.getElementById('chat-reply-cancel').addEventListener('click', _chatCancelReply);
@@ -6864,7 +7092,28 @@ function _chatAppend(msg) {
         bubbleWrap.appendChild(replyRef);
     }
 
-    if (msg.video_url) {
+    if (msg.doc_url) {
+        const docWrap = document.createElement('a');
+        docWrap.href = msg.doc_url;
+        docWrap.target = '_blank';
+        docWrap.style.cssText = 'text-decoration:none;display:block';
+        const docBubble = document.createElement('div');
+        Object.assign(docBubble.style, {
+            background: isMe ? bgMe : '#fff',
+            borderRadius: isMe ? radMe : radOther,
+            padding:'12px 14px',
+            boxShadow: isMe ? '0 3px 14px rgba(59,130,246,0.35)' : '0 2px 8px rgba(0,0,0,0.1)',
+            display:'flex', alignItems:'center', gap:'10px', minWidth:'180px', maxWidth:'240px'
+        });
+        const ext = (msg.doc_name||'').split('.').pop().toLowerCase();
+        const icon = ext==='pdf'?'📕':ext==='doc'||ext==='docx'?'📘':ext==='xls'||ext==='xlsx'?'📗':ext==='ppt'||ext==='pptx'?'📙':'📄';
+        docBubble.innerHTML =
+            `<span style="font-size:26px;flex-shrink:0">${icon}</span>`
+            +`<div style="min-width:0"><p style="font-size:12px;font-weight:700;color:${isMe?'#fff':'#111'};margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(msg.doc_name||'Document')}</p>`
+            +`<p style="font-size:10px;color:${isMe?'rgba(255,255,255,0.6)':'#9CA3AF'};margin:3px 0 0">${(msg.doc_type||'').toUpperCase()} · Appuyer pour ouvrir</p></div>`;
+        docWrap.appendChild(docBubble);
+        bubbleWrap.appendChild(docWrap);
+    } else if (msg.video_url) {
         const vidWrap = document.createElement('div');
         Object.assign(vidWrap.style, {
             background: isMe ? bgMe : '#fff',
@@ -7082,6 +7331,56 @@ async function _chatSendVideo(bookingId, fileInput) {
         content: caption || '🎬 Vidéo', video_url: videoUrl
     });
     notif('✅ Vidéo envoyée !', '', 'green');
+}
+
+// ── DOCUMENTS ──
+function _chatPreviewDoc(fileInput) {
+    const file = fileInput?.files?.[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) { notif('❌ Fichier trop lourd', 'Max 50 Mo', 'red'); fileInput.value=''; return; }
+    const pz   = document.getElementById('chat-doc-preview');
+    const pn   = document.getElementById('chat-doc-preview-name');
+    const ps   = document.getElementById('chat-doc-preview-size');
+    const icon = document.getElementById('chat-doc-preview-icon');
+    const ext  = file.name.split('.').pop().toLowerCase();
+    if (pz) pz.style.display = 'block';
+    if (pn) pn.textContent = file.name;
+    if (ps) ps.textContent = (file.size/(1024)).toFixed(0) + ' Ko';
+    if (icon) icon.textContent = ext==='pdf'?'📕':ext==='doc'||ext==='docx'?'📘':ext==='xls'||ext==='xlsx'?'📗':ext==='ppt'||ext==='pptx'?'📙':'📄';
+}
+function _chatCancelDocPreview() {
+    const fi = document.getElementById('chat-doc-input');
+    if (fi) fi.value = '';
+    const pz = document.getElementById('chat-doc-preview');
+    if (pz) pz.style.display = 'none';
+}
+async function _chatSendDoc(bookingId, fileInput) {
+    const file = fileInput?.files?.[0];
+    if (!file) { notif('❌ Aucun document', '', 'red'); return; }
+    const btn = document.getElementById('chat-doc-preview-send');
+    if (btn) { btn.textContent = '⏳ Envoi…'; btn.disabled = true; }
+    const ext  = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const path = bookingId + '/doc_' + Date.now() + '_' + Math.random().toString(36).substr(2,5) + '.' + ext;
+    const { error: upErr } = await sb.storage.from('chat-docs').upload(path, file, { upsert:false, contentType: file.type });
+    if (upErr) { notif('❌ Erreur upload', upErr.message, 'red'); if(btn){btn.textContent='📤 Envoyer';btn.disabled=false;} return; }
+    const { data: urlData } = sb.storage.from('chat-docs').getPublicUrl(path);
+    const docUrl = urlData?.publicUrl;
+    if (!docUrl) { notif('❌ URL introuvable', '', 'red'); return; }
+    const remoteMsg = {
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: '📄 ' + file.name, doc_url: docUrl, doc_name: file.name, doc_type: ext,
+        created_at: new Date().toISOString()
+    };
+    _chatAppend({ ...remoteMsg });
+    _chatCancelDocPreview();
+    try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: remoteMsg }); } catch(e){}
+    await sb.from('messages').insert({
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: '📄 ' + file.name, doc_url: docUrl, doc_name: file.name, doc_type: ext
+    });
+    notif('✅ Document envoyé !', file.name, 'green');
 }
 
 // ── TYPING INDICATOR ──
