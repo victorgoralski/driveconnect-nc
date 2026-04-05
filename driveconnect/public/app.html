@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC — app 88</title>
+    <title>DriveConnect NC — app 89</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -6293,8 +6293,42 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
         +'</div>'
         +'<button id="chat-reply-cancel" style="width:28px;height:28px;border-radius:50%;background:#DBEAFE;border:none;color:#3B82F6;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">&times;</button>';
 
-    inputBar.append(photoLabel, micBtn, textInput, sendBtn);
-    panel.append(header, previewZone, recZone, audioPreviewZone, replyZone, msgsZone, inputBar);
+    // ── BOUTON VIDÉO ──
+    const videoLabel = document.createElement('label');
+    videoLabel.title = 'Envoyer une vidéo';
+    Object.assign(videoLabel.style, {
+        width:'42px', height:'42px', borderRadius:'12px', background:'#F3F4F6',
+        border:'1.5px solid #E5E7EB', display:'flex', alignItems:'center',
+        justifyContent:'center', cursor:'pointer', flexShrink:'0', fontSize:'19px'
+    });
+    videoLabel.textContent = '🎬';
+
+    const videoFileInput = document.createElement('input');
+    videoFileInput.type = 'file';
+    videoFileInput.id = 'chat-video-input';
+    videoFileInput.accept = 'video/*';
+    videoFileInput.style.display = 'none';
+    videoLabel.appendChild(videoFileInput);
+
+    // ── ZONE PREVIEW VIDÉO ──
+    const videoPreviewZone = document.createElement('div');
+    videoPreviewZone.id = 'chat-video-preview';
+    Object.assign(videoPreviewZone.style, {
+        display:'none', padding:'10px 16px', background:'#F5F3FF',
+        borderBottom:'1px solid #DDD6FE', flexShrink:'0'
+    });
+    videoPreviewZone.innerHTML =
+        '<p style="font-size:12px;font-weight:700;color:#6D28D9;margin:0 0 8px">🎬 Vidéo prête à envoyer</p>'
+        +'<div style="display:flex;align-items:center;gap:10px">'
+        +'<video id="chat-video-preview-player" controls style="flex:1;max-height:120px;border-radius:10px;min-width:0;background:#000"></video>'
+        +'<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'
+        +'<button id="chat-video-preview-cancel" style="width:32px;height:32px;border-radius:50%;background:#EDE9FE;border:none;color:#DC2626;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">&times;</button>'
+        +'<button id="chat-video-preview-send" style="background:#7C3AED;color:#fff;border:none;border-radius:16px;padding:8px 12px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap">📤 Envoyer</button>'
+        +'</div></div>'
+        +'<p id="chat-video-preview-name" style="font-size:10px;color:#8B5CF6;margin:6px 0 0"></p>';
+
+    inputBar.append(photoLabel, videoLabel, micBtn, textInput, sendBtn);
+    panel.append(header, previewZone, videoPreviewZone, recZone, audioPreviewZone, replyZone, msgsZone, inputBar);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
@@ -6320,6 +6354,11 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
     document.getElementById('chat-rec-cancel').addEventListener('click', () => _chatStopRecording(true));
     document.getElementById('chat-audio-preview-cancel').addEventListener('click', _chatCancelAudioPreview);
     document.getElementById('chat-audio-preview-send').addEventListener('click', () => _chatSendAudio(bookingId));
+
+    // Video events
+    videoFileInput.addEventListener('change', () => _chatPreviewVideo(videoFileInput));
+    document.getElementById('chat-video-preview-cancel').addEventListener('click', _chatCancelVideoPreview);
+    document.getElementById('chat-video-preview-send').addEventListener('click', () => _chatSendVideo(bookingId, videoFileInput));
 
     // Reply cancel
     document.getElementById('chat-reply-cancel').addEventListener('click', _chatCancelReply);
@@ -6787,7 +6826,30 @@ function _chatAppend(msg) {
         bubbleWrap.appendChild(replyRef);
     }
 
-    if (msg.audio_url) {
+    if (msg.video_url) {
+        const vidWrap = document.createElement('div');
+        Object.assign(vidWrap.style, {
+            background: isMe ? bgMe : '#fff',
+            borderRadius: isMe ? radMe : radOther,
+            padding:'6px',
+            boxShadow: isMe ? '0 3px 14px rgba(59,130,246,0.35)' : '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth:'240px'
+        });
+        const vid = document.createElement('video');
+        vid.src = msg.video_url;
+        vid.controls = true;
+        vid.playsInline = true;
+        vid.style.cssText = 'width:100%;border-radius:10px;display:block;max-height:200px;background:#000';
+        if (msg.content && msg.content !== '🎬 Vidéo') {
+            const cap = document.createElement('p');
+            cap.textContent = msg.content;
+            Object.assign(cap.style, { margin:'5px 6px 2px', fontSize:'13px', color: isMe ? '#fff' : '#111' });
+            vidWrap.append(vid, cap);
+        } else {
+            vidWrap.appendChild(vid);
+        }
+        bubbleWrap.appendChild(vidWrap);
+    } else if (msg.audio_url) {
         const audioWrap = document.createElement('div');
         Object.assign(audioWrap.style, {
             background: isMe ? bgMe : '#fff',
@@ -6914,6 +6976,74 @@ function _chatFullImg(src) {
     dl.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;color:#111;text-decoration:none;padding:10px 24px;border-radius:20px;font-weight:700;font-size:13px';
     lb.append(closeBtn, img, dl);
     document.body.appendChild(lb);
+}
+
+// ── VIDÉO ──
+function _chatPreviewVideo(fileInput) {
+    const file = fileInput?.files?.[0];
+    if (!file) return;
+    if (file.size > 100 * 1024 * 1024) { notif('❌ Vidéo trop lourde', 'Max 100 Mo', 'red'); fileInput.value=''; return; }
+    const url = URL.createObjectURL(file);
+    const pz  = document.getElementById('chat-video-preview');
+    const pv  = document.getElementById('chat-video-preview-player');
+    const pn  = document.getElementById('chat-video-preview-name');
+    if (pz) pz.style.display = 'block';
+    if (pv) pv.src = url;
+    if (pn) pn.textContent = file.name + ' · ' + (file.size / (1024*1024)).toFixed(1) + ' Mo';
+    const inp = document.getElementById('chat-input');
+    if (inp) inp.placeholder = 'Légende (optionnel)...';
+}
+function _chatCancelVideoPreview() {
+    const fi = document.getElementById('chat-video-input');
+    if (fi) fi.value = '';
+    const pz = document.getElementById('chat-video-preview');
+    const pv = document.getElementById('chat-video-preview-player');
+    if (pz) pz.style.display = 'none';
+    if (pv) { pv.pause(); pv.src = ''; }
+    const inp = document.getElementById('chat-input');
+    if (inp) inp.placeholder = 'Écrire un message...';
+}
+async function _chatSendVideo(bookingId, fileInput) {
+    const file = fileInput?.files?.[0];
+    if (!file) { notif('❌ Aucune vidéo', '', 'red'); return; }
+    const btn = document.getElementById('chat-video-preview-send');
+    if (btn) { btn.textContent = '⏳ Envoi…'; btn.disabled = true; }
+
+    const caption = (document.getElementById('chat-input')?.value || '').trim();
+    const ext = (file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const path = bookingId + '/vid_' + Date.now() + '_' + Math.random().toString(36).substr(2,5) + '.' + ext;
+
+    // Affichage local immédiat
+    const localUrl = URL.createObjectURL(file);
+    _chatAppend({
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: caption || '🎬 Vidéo', video_url: localUrl,
+        created_at: new Date().toISOString()
+    });
+    _chatCancelVideoPreview();
+    if (document.getElementById('chat-input')) document.getElementById('chat-input').value = '';
+
+    // Upload
+    const { error: upErr } = await sb.storage.from('chat-videos').upload(path, file, { upsert:false, contentType: file.type });
+    if (upErr) { notif('❌ Erreur upload', upErr.message, 'red'); if (btn) { btn.textContent = '📤 Envoyer'; btn.disabled = false; } return; }
+    const { data: urlData } = sb.storage.from('chat-videos').getPublicUrl(path);
+    const videoUrl = urlData?.publicUrl;
+    if (!videoUrl) { notif('❌ URL introuvable', '', 'red'); return; }
+
+    const remoteMsg = {
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: caption || '🎬 Vidéo', video_url: videoUrl,
+        created_at: new Date().toISOString()
+    };
+    try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: remoteMsg }); } catch(e){}
+    await sb.from('messages').insert({
+        booking_id: bookingId, sender_id: currentUser.id,
+        sender_name: currentUser.name || 'Moi',
+        content: caption || '🎬 Vidéo', video_url: videoUrl
+    });
+    notif('✅ Vidéo envoyée !', '', 'green');
 }
 
 // ── TYPING INDICATOR ──
