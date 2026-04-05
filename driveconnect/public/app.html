@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC — app 87</title>
+    <title>DriveConnect NC — app 88</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -6278,8 +6278,23 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
         +'<button id="chat-audio-preview-send" style="background:#22C55E;color:#fff;border:none;border-radius:20px;padding:7px 16px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap">📤 Envoyer</button>'
         +'</div>';
 
+    // ── ZONE REPLY ──
+    const replyZone = document.createElement('div');
+    replyZone.id = 'chat-reply-zone';
+    Object.assign(replyZone.style, {
+        display:'none', padding:'8px 14px', background:'#F0F4FF',
+        borderBottom:'1px solid #DBEAFE', flexShrink:'0',
+        alignItems:'center', gap:'10px'
+    });
+    replyZone.innerHTML =
+        '<div style="flex:1;border-left:3px solid #3B82F6;padding-left:8px;min-width:0">'
+        +'<p id="chat-reply-sender" style="font-size:11px;font-weight:700;color:#2563EB;margin:0 0 2px"></p>'
+        +'<p id="chat-reply-text" style="font-size:12px;color:#6B7280;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></p>'
+        +'</div>'
+        +'<button id="chat-reply-cancel" style="width:28px;height:28px;border-radius:50%;background:#DBEAFE;border:none;color:#3B82F6;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">&times;</button>';
+
     inputBar.append(photoLabel, micBtn, textInput, sendBtn);
-    panel.append(header, previewZone, recZone, audioPreviewZone, msgsZone, inputBar);
+    panel.append(header, previewZone, recZone, audioPreviewZone, replyZone, msgsZone, inputBar);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
@@ -6306,7 +6321,22 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
     document.getElementById('chat-audio-preview-cancel').addEventListener('click', _chatCancelAudioPreview);
     document.getElementById('chat-audio-preview-send').addEventListener('click', () => _chatSendAudio(bookingId));
 
+    // Reply cancel
+    document.getElementById('chat-reply-cancel').addEventListener('click', _chatCancelReply);
+
+    // Typing indicator
+    let _typingTimeout = null;
+    textInput.addEventListener('input', () => {
+        _chatSendTyping(bookingId, true);
+        clearTimeout(_typingTimeout);
+        _typingTimeout = setTimeout(() => _chatSendTyping(bookingId, false), 2000);
+    });
+    textInput.addEventListener('blur', () => { clearTimeout(_typingTimeout); _chatSendTyping(bookingId, false); });
+
     await _chatLoadMessages(bookingId);
+    // Marquer les messages reçus comme lus
+    _chatMarkReadInDB(bookingId);
+    try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'read_receipt', payload:{ reader_id: currentUser.id } }); } catch(e){}
 
     // ── Abonnement signaux WebRTC ──
     _rtcSubscribe(bookingId, otherUserId, otherName);
@@ -6315,6 +6345,14 @@ window.openChat = async function(bookingId, otherUserId, otherName) {
         .on('broadcast', { event: 'new_message' }, payload => {
             if (payload.payload && payload.payload.sender_id !== currentUser.id)
                 _chatAppend(payload.payload);
+        })
+        .on('broadcast', { event: 'typing' }, payload => {
+            if (payload.payload?.sender_id !== currentUser.id)
+                _chatShowTyping(payload.payload?.is_typing, payload.payload?.sender_name);
+        })
+        .on('broadcast', { event: 'read_receipt' }, payload => {
+            if (payload.payload?.reader_id !== currentUser.id)
+                _chatMarkAllRead();
         })
         .on('postgres_changes', {
             event: 'INSERT', schema: 'public', table: 'messages',
@@ -6575,30 +6613,37 @@ async function _chatSendText(bookingId) {
     const input = document.getElementById('chat-input');
     const text = input?.value?.trim();
     if (!text) return;
-    // Empêcher double envoi rapide
     if (input._sending) return;
     input._sending = true;
     input.value = '';
+
+    // Récupérer reply en cours
+    const replyToId      = window._chatReplyToId || null;
+    const replyToContent = window._chatReplyToContent || null;
+    const replyToSender  = window._chatReplyToSender || null;
+    _chatCancelReply();
+
     const tempId = 'local-' + Date.now() + '-' + Math.random().toString(36).substr(2,5);
     const msg = {
         id: tempId,
         booking_id: bookingId, sender_id: currentUser.id,
         sender_name: currentUser.name || 'Moi',
-        content: sanitize(text), created_at: new Date().toISOString()
+        content: sanitize(text), created_at: new Date().toISOString(),
+        reply_to_id: replyToId, reply_to_content: replyToContent, reply_to_sender: replyToSender
     };
     _chatAppend(msg);
-    // Stocker l'ID temporaire pour ignorer le retour postgres_changes
     if (!window._chatSentLocalIds) window._chatSentLocalIds = new Set();
     window._chatSentLocalIds.add(text.trim());
-    // Envoyer en broadcast (pour l'autre personne)
     try { sb.channel('chat-' + bookingId).send({ type:'broadcast', event:'new_message', payload: msg }); } catch(e){}
+    // Stopper l'indicateur de frappe
+    _chatSendTyping(bookingId, false);
     const { error } = await sb.from('messages').insert({
         booking_id: bookingId, sender_id: currentUser.id,
-        sender_name: currentUser.name || 'Moi', content: sanitize(text)
+        sender_name: currentUser.name || 'Moi', content: sanitize(text),
+        reply_to_id: replyToId, reply_to_content: replyToContent, reply_to_sender: replyToSender
     });
     if (error) notif('❌ Erreur envoi', error.message, 'red');
     input._sending = false;
-    // Nettoyer après 5s
     setTimeout(() => window._chatSentLocalIds?.delete(text.trim()), 5000);
 }
 
@@ -6704,7 +6749,7 @@ function _chatAppend(msg) {
 
     const wrapper = document.createElement('div');
     wrapper.dataset.msgId = msg.id || '';
-    wrapper.style.cssText = 'display:flex;' + (isMe ? 'justify-content:flex-end' : 'justify-content:flex-start');
+    wrapper.style.cssText = 'display:flex;flex-direction:column;' + (isMe ? 'align-items:flex-end' : 'align-items:flex-start') + ';position:relative';
 
     const bubbleWrap = document.createElement('div');
     bubbleWrap.style.maxWidth = '75%';
@@ -6713,11 +6758,39 @@ function _chatAppend(msg) {
     const radOther = '18px 18px 18px 4px';
     const bgMe = 'linear-gradient(135deg,#3B82F6,#2563EB)';
 
+    // ── Bloc reply cité ──
+    if (msg.reply_to_id && msg.reply_to_content) {
+        const replyRef = document.createElement('div');
+        Object.assign(replyRef.style, {
+            background: isMe ? 'rgba(255,255,255,0.18)' : '#F0F4FF',
+            borderLeft: '3px solid ' + (isMe ? 'rgba(255,255,255,0.6)' : '#3B82F6'),
+            borderRadius: '10px 10px 0 0',
+            padding: '6px 10px',
+            marginBottom: '-4px',
+            cursor: 'pointer',
+            maxWidth: '100%'
+        });
+        replyRef.innerHTML =
+            '<p style="font-size:10px;font-weight:700;color:' + (isMe ? 'rgba(255,255,255,0.7)' : '#2563EB') + ';margin:0 0 2px">'
+            + _esc(msg.reply_to_sender || 'Contact') + '</p>'
+            + '<p style="font-size:11px;color:' + (isMe ? 'rgba(255,255,255,0.55)' : '#9CA3AF') + ';margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">'
+            + _esc(msg.reply_to_content) + '</p>';
+        replyRef.addEventListener('click', () => {
+            const target = document.querySelector('[data-msg-id="' + msg.reply_to_id + '"]');
+            if (target) {
+                target.scrollIntoView({ behavior:'smooth', block:'center' });
+                target.style.transition = 'background .3s';
+                target.style.background = 'rgba(59,130,246,0.12)';
+                setTimeout(() => target.style.background = '', 1000);
+            }
+        });
+        bubbleWrap.appendChild(replyRef);
+    }
+
     if (msg.audio_url) {
-        // Message vocal
         const audioWrap = document.createElement('div');
         Object.assign(audioWrap.style, {
-            background: isMe ? 'linear-gradient(135deg,#3B82F6,#2563EB)' : '#fff',
+            background: isMe ? bgMe : '#fff',
             borderRadius: isMe ? radMe : radOther,
             padding:'10px 12px',
             boxShadow: isMe ? '0 3px 14px rgba(59,130,246,0.35)' : '0 2px 8px rgba(0,0,0,0.1)',
@@ -6749,7 +6822,6 @@ function _chatAppend(msg) {
             objectFit:'cover', borderRadius:'12px', cursor:'pointer'
         });
         img.addEventListener('click', () => _chatFullImg(msg.image_url));
-        // Retry loading au lieu de cacher l'image (CDN peut être lent)
         let retryCount = 0;
         img.addEventListener('error', () => {
             if (retryCount < 3) {
@@ -6785,13 +6857,43 @@ function _chatAppend(msg) {
         bubbleWrap.appendChild(bubble);
     }
 
-    const meta = document.createElement('p');
-    meta.textContent = (isMe ? 'Vous' : (msg.sender_name || 'Contact')) + ' · ' + time;
-    Object.assign(meta.style, { fontSize:'10px', color:'#9CA3AF', margin:'3px 2px 0', textAlign: isMe ? 'right' : 'left' });
+    // ── Meta (heure + icône lu) ──
+    const meta = document.createElement('div');
+    meta.style.cssText = 'display:flex;align-items:center;gap:4px;margin:3px 2px 0;' + (isMe ? 'justify-content:flex-end' : '');
+    const timeSpan = document.createElement('span');
+    timeSpan.style.cssText = 'font-size:10px;color:#9CA3AF';
+    timeSpan.textContent = (isMe ? 'Vous' : (msg.sender_name || 'Contact')) + ' · ' + time;
+    meta.appendChild(timeSpan);
+    if (isMe) {
+        const readIcon = document.createElement('span');
+        readIcon.dataset.readIcon = msg.id || '';
+        readIcon.style.cssText = 'font-size:11px;transition:color .3s;color:' + (msg.read_at ? '#3B82F6' : '#D1D5DB');
+        readIcon.textContent = msg.read_at ? '✓✓' : '✓';
+        meta.appendChild(readIcon);
+    }
     bubbleWrap.appendChild(meta);
+
+    // ── Swipe droite ou double-clic = répondre ──
+    let _tStartX = 0, _lpTimer = null;
+    bubbleWrap.addEventListener('touchstart', e => {
+        _tStartX = e.touches[0].clientX;
+        _lpTimer = setTimeout(() => _chatSetReply(msg), 600);
+    }, { passive:true });
+    bubbleWrap.addEventListener('touchmove', e => {
+        clearTimeout(_lpTimer);
+        if (e.touches[0].clientX - _tStartX > 50) _chatSetReply(msg);
+    }, { passive:true });
+    bubbleWrap.addEventListener('touchend', () => clearTimeout(_lpTimer), { passive:true });
+    bubbleWrap.addEventListener('dblclick', () => _chatSetReply(msg));
+
     wrapper.appendChild(bubbleWrap);
     container.appendChild(wrapper);
     container.scrollTop = container.scrollHeight;
+
+    // Marquer comme lu si message reçu
+    if (!isMe && msg.id && !msg.id.startsWith('local-') && !msg.read_at) {
+        _chatMarkOneRead(msg.id);
+    }
 }
 
 function _chatFullImg(src) {
@@ -6812,6 +6914,92 @@ function _chatFullImg(src) {
     dl.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;color:#111;text-decoration:none;padding:10px 24px;border-radius:20px;font-weight:700;font-size:13px';
     lb.append(closeBtn, img, dl);
     document.body.appendChild(lb);
+}
+
+// ── TYPING INDICATOR ──
+let _typingHideTimer = null;
+function _chatSendTyping(bookingId, isTyping) {
+    try {
+        sb.channel('chat-' + bookingId).send({
+            type:'broadcast', event:'typing',
+            payload:{ sender_id: currentUser.id, sender_name: currentUser.name || 'Moi', is_typing: isTyping }
+        });
+    } catch(e){}
+}
+function _chatShowTyping(isTyping, senderName) {
+    let el = document.getElementById('chat-typing-indicator');
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    if (isTyping) {
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'chat-typing-indicator';
+            el.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0';
+            el.innerHTML =
+                '<div style="background:#fff;border-radius:18px 18px 18px 4px;padding:10px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;align-items:center;gap:5px">'
+                +'<span style="font-size:11px;color:#9CA3AF;margin-right:4px">' + _esc(senderName || 'Contact') + ' écrit</span>'
+                +'<span style="display:inline-flex;gap:3px">'
+                + [0,0.2,0.4].map(d=>`<span style="width:6px;height:6px;border-radius:50%;background:#9CA3AF;display:inline-block;animation:chatWave 0.7s ease-in-out ${d}s infinite alternate"></span>`).join('')
+                +'</span></div>';
+            container.appendChild(el);
+        }
+        container.scrollTop = container.scrollHeight;
+        clearTimeout(_typingHideTimer);
+        _typingHideTimer = setTimeout(() => el?.remove(), 4000);
+    } else {
+        el?.remove();
+        clearTimeout(_typingHideTimer);
+    }
+}
+
+// ── LU / PAS LU ──
+async function _chatMarkReadInDB(bookingId) {
+    try {
+        await sb.from('messages')
+            .update({ read_at: new Date().toISOString() })
+            .eq('booking_id', bookingId)
+            .neq('sender_id', currentUser.id)
+            .is('read_at', null);
+    } catch(e){}
+}
+async function _chatMarkOneRead(msgId) {
+    try { await sb.from('messages').update({ read_at: new Date().toISOString() }).eq('id', msgId); } catch(e){}
+}
+function _chatMarkAllRead() {
+    // Mettre à jour toutes les icônes ✓ → ✓✓ bleu
+    document.querySelectorAll('[data-read-icon]').forEach(el => {
+        el.textContent = '✓✓';
+        el.style.color = '#3B82F6';
+    });
+}
+
+// ── RÉPONDRE À UN MESSAGE ──
+window._chatReplyToId      = null;
+window._chatReplyToContent = null;
+window._chatReplyToSender  = null;
+
+function _chatSetReply(msg) {
+    window._chatReplyToId      = msg.id;
+    window._chatReplyToContent = msg.content || (msg.audio_url ? '🎤 Vocal' : msg.image_url ? '📷 Photo' : '');
+    window._chatReplyToSender  = msg.sender_id === currentUser.id ? 'Vous' : (msg.sender_name || 'Contact');
+
+    const rz = document.getElementById('chat-reply-zone');
+    const rs = document.getElementById('chat-reply-sender');
+    const rt = document.getElementById('chat-reply-text');
+    if (rz) rz.style.display = 'flex';
+    if (rs) rs.textContent = window._chatReplyToSender;
+    if (rt) rt.textContent = window._chatReplyToContent;
+
+    // Focus sur l'input
+    const input = document.getElementById('chat-input');
+    if (input) { input.focus(); input.placeholder = 'Répondre…'; }
+}
+function _chatCancelReply() {
+    window._chatReplyToId = window._chatReplyToContent = window._chatReplyToSender = null;
+    const rz = document.getElementById('chat-reply-zone');
+    if (rz) rz.style.display = 'none';
+    const input = document.getElementById('chat-input');
+    if (input) input.placeholder = 'Écrire un message...';
 }
 
 // ── VOCAL ──
