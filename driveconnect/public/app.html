@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC — app 91</title>
+    <title>DriveConnect NC — app 92</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -1638,6 +1638,19 @@ function StudentDashboard() {
 
                     <!-- Contact button -->
                     ${next.status==='confirmed'?`<button onclick="openChat('${next.id}','${next.instructor_id}','${next.instructor_name}')" style="background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.25);color:#fff;border-radius:14px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">💬 Contacter le moniteur</button>`:''}
+                </div>
+
+                <!-- Météo prévue -->
+                <div id="weather-next-course" style="background:var(--db-bg2);border-radius:18px;padding:16px 18px;margin-bottom:16px;border:1px solid var(--db-border);display:flex;align-items:center;gap:14px">
+                    <div style="width:42px;height:42px;background:var(--db-bg3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0" id="weather-icon-next">⏳</div>
+                    <div style="flex:1">
+                        <p style="font-size:11px;font-weight:700;color:var(--db-text3);letter-spacing:0.5px;margin:0 0 3px">MÉTÉO LE JOUR DU COURS</p>
+                        <p style="font-size:14px;font-weight:700;color:var(--db-text);margin:0" id="weather-desc-next">Chargement…</p>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                        <p style="font-size:22px;font-weight:900;color:var(--db-text);margin:0" id="weather-temp-next">—</p>
+                        <p style="font-size:10px;color:var(--db-text3);margin:2px 0 0" id="weather-wind-next"></p>
+                    </div>
                 </div>`;
             })()}
 
@@ -1676,7 +1689,7 @@ function StudentDashboard() {
                             <div style="width:52px;height:52px;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,#FF5A1F,#FF7340);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:16px">
                                 ${i.avatar_url?`<img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`:`<img src="${DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`}
                             </div>
-                            ${i.is_online?`<span style="position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;background:#22C55E;border:2px solid var(--db-bg2);display:block"></span>`:''}
+                            ${i.is_driving?`<span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:#FBBF24;border:2px solid var(--db-bg2);display:flex;align-items:center;justify-content:center;font-size:8px" title="En cours de conduite">🚗</span>`:i.is_online?`<span style="position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;background:#22C55E;border:2px solid var(--db-bg2);display:block"></span>`:''}
                         </div>
                         <div style="flex:1;min-width:0">
                             <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
@@ -2254,6 +2267,9 @@ function InstructorDashboard() {
                             <span style="width:7px;height:7px;border-radius:50%;background:${profile.is_online?'#22C55E':'#4B5563'};${profile.is_online?'box-shadow:0 0 8px rgba(34,197,94,0.6)':''}"></span>
                             ${profile.is_online?'En ligne':'Hors ligne'}
                         </button>
+                        <button onclick="toggleDriving()" style="display:flex;align-items:center;gap:6px;background:${profile.is_driving?'rgba(251,191,36,0.15)':'rgba(255,255,255,0.05)'};border:1px solid ${profile.is_driving?'rgba(251,191,36,0.4)':'rgba(242,237,232,0.1)'};border-radius:100px;padding:6px 14px;cursor:pointer;color:${profile.is_driving?'#FBBF24':'rgba(242,237,232,0.4)'};font-size:12px;font-weight:700;font-family:'Syne',sans-serif;transition:all .2s" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+                            ${profile.is_driving?'🚗 En cours de conduite':'🚗 Démarrer un cours'}
+                        </button>
                         ${pending>0?`<span style="background:rgba(239,68,68,0.12);color:#EF4444;border-radius:100px;padding:6px 14px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif">${pending} en attente</span>`:''}
                     </div>
                 </div>
@@ -2314,6 +2330,18 @@ function InstructorDashboard() {
         <div class="db-main">
 
         ${tab==='home' ? `
+            <!-- Bannière mode conduite actif -->
+            ${profile.is_driving ? `
+            <div style="background:linear-gradient(135deg,#FBBF24,#F59E0B);border-radius:20px;padding:18px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden">
+                <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.15);pointer-events:none"></div>
+                <div style="width:46px;height:46px;background:rgba(255,255,255,0.25);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🚗</div>
+                <div style="flex:1">
+                    <p style="font-weight:900;font-size:15px;color:#78350F;margin:0 0 2px">Cours en cours</p>
+                    <p style="font-size:12px;color:rgba(120,53,15,0.7);margin:0">Notifications bloquées · Les élèves voient votre statut</p>
+                </div>
+                <button onclick="toggleDriving()" style="background:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.4);border-radius:12px;padding:8px 14px;font-size:12px;font-weight:800;color:#78350F;cursor:pointer;white-space:nowrap;flex-shrink:0">✓ Terminer</button>
+            </div>` : ''}
+
             <!-- Actions rapides -->
             <p class="db-section-title">Actions rapides</p>
             <div class="stagger db-action-grid">
@@ -3978,6 +4006,32 @@ window.toggleOnline = async function() {
     render();
 };
 
+window.toggleDriving = async function() {
+    if (!currentUser || currentUser.user_type !== 'instructor') return;
+    const profile = DB.instructors.find(i => i.id === currentUser.id);
+    const isDriving = !(profile?.is_driving);
+    await sb.from('instructors').update({
+        is_driving: isDriving,
+        driving_since: isDriving ? new Date().toISOString() : null,
+        is_online: isDriving ? true : (profile?.is_online ?? false)
+    }).eq('id', currentUser.id);
+    if (profile) {
+        profile.is_driving = isDriving;
+        profile.driving_since = isDriving ? new Date().toISOString() : null;
+        if (isDriving) profile.is_online = true;
+    }
+    if (isDriving) {
+        notif('🚗 Cours démarré !', 'Notifications bloquées · Statut visible par vos élèves', 'orange');
+        window._drivingModeActive = true;
+        // Démarrer le GPS aussi
+        window.startTracking();
+    } else {
+        window._drivingModeActive = false;
+        notif('✅ Cours terminé !', 'Vous êtes de nouveau disponible', 'green');
+    }
+    render();
+};
+
 // Mettre automatiquement en ligne quand moniteur arrive sur le dashboard
 async function _autoSetOnline() {
     if (!currentUser || currentUser.user_type !== 'instructor') return;
@@ -5596,8 +5650,8 @@ function _renderNow() {
         case 'home':                app.innerHTML=HomePage(); break;
         case 'student-login':       app.innerHTML=LoginPage('student');    setupLoginForm('student');    break;
         case 'instructor-login':    app.innerHTML=LoginPage('instructor'); setupLoginForm('instructor'); break;
-        case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>initMap(),100); break;
-        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();if(currentTab==='settings')loadReferralData();_autoSetOnline();},150); break;
+        case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>{ initMap(); _fetchNextCourseWeather(); },100); break;
+        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();if(currentTab==='settings')loadReferralData();_autoSetOnline(); _fetchNextCourseWeather('instructor');},150); break;
         case 'instructor-upload-docs': app.innerHTML=InstructorUploadDocs(); setTimeout(()=>setupDocUpload(),100); break;
         case 'instructor-pending':  app.innerHTML=InstructorPending(); break;
         case 'instructor-rejected': app.innerHTML=InstructorRejected(); setTimeout(()=>setupDocUpload(),100); break;
@@ -5648,6 +5702,11 @@ async function subscribeToPush() {
 }
 
 async function sendPushToUser(userId, title, body) {
+    // Bloquer les notifications si le destinataire est un moniteur en mode conduite
+    try {
+        const profile = DB.instructors.find(i => i.id === userId);
+        if (profile?.is_driving) return; // Mode conduite actif → pas de notif
+    } catch(e){}
     try {
         const token = (await sb.auth.getSession()).data.session?.access_token;
         await fetch('https://nnmdvepfyccnehzbvpfn.supabase.co/functions/v1/send-push', {
@@ -6172,6 +6231,75 @@ window._submitStudentRating = async function(bookingId) {
     notif('⭐ Évaluation enregistrée !', `${rating}/5 étoiles pour l'élève`, 'green');
     await loadData(); render();
 };
+
+// ========== MÉTÉO PROCHAIN COURS ==========
+async function _fetchNextCourseWeather(role) {
+    // Open-Meteo — gratuit, pas de clé API, coordonnées Nouméa
+    const LAT = -22.2758, LNG = 166.4580;
+    const bookings = DB.bookings || [];
+    const next = bookings.filter(b=>b.status==='confirmed'&&new Date(b.date)>=new Date())
+                         .sort((a,b)=>new Date(a.date)-new Date(b.date))[0];
+    if (!next) return;
+
+    const iconEl   = document.getElementById('weather-icon-next');
+    const descEl   = document.getElementById('weather-desc-next');
+    const tempEl   = document.getElementById('weather-temp-next');
+    const windEl   = document.getElementById('weather-wind-next');
+    if (!iconEl) return;
+
+    try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}`
+            + `&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max`
+            + `&timezone=Pacific%2FNoumea&start_date=${next.date}&end_date=${next.date}`;
+        const res  = await fetch(url);
+        const data = await res.json();
+        if (!data.daily) throw new Error('no data');
+
+        const code  = data.daily.weathercode[0];
+        const tMax  = Math.round(data.daily.temperature_2m_max[0]);
+        const tMin  = Math.round(data.daily.temperature_2m_min[0]);
+        const wind  = Math.round(data.daily.windspeed_10m_max[0]);
+
+        // WMO weather codes → emoji + label
+        const wmoCodes = {
+            0:['☀️','Ensoleillé'], 1:['🌤️','Peu nuageux'], 2:['⛅','Nuageux'], 3:['☁️','Couvert'],
+            45:['🌫️','Brouillard'], 48:['🌫️','Brouillard givrant'],
+            51:['🌦️','Bruine légère'], 53:['🌦️','Bruine'], 55:['🌧️','Bruine forte'],
+            61:['🌧️','Pluie légère'], 63:['🌧️','Pluie'], 65:['🌧️','Pluie forte'],
+            71:['🌨️','Neige légère'], 73:['🌨️','Neige'], 75:['🌨️','Neige forte'],
+            80:['🌦️','Averses légères'], 81:['🌧️','Averses'], 82:['⛈️','Averses fortes'],
+            95:['⛈️','Orage'], 96:['⛈️','Orage grêle'], 99:['⛈️','Orage fort']
+        };
+        const [icon, desc] = wmoCodes[code] || ['🌡️','Conditions variables'];
+
+        // Alerte si mauvais temps
+        const isBad = [61,63,65,80,81,82,95,96,99].includes(code);
+        const isWind = wind > 40;
+
+        if (iconEl) iconEl.textContent = icon;
+        if (descEl) {
+            descEl.textContent = desc;
+            if (isBad || isWind) {
+                descEl.style.color = '#F59E0B';
+                descEl.textContent += isBad ? ' ⚠️' : '';
+            }
+        }
+        if (tempEl) tempEl.textContent = tMax + '°C';
+        if (windEl) windEl.textContent = `↓${tMin}° · 💨 ${wind} km/h`;
+
+        // Conseil si mauvais temps
+        if ((isBad || isWind) && document.getElementById('weather-next-course')) {
+            const tip = document.createElement('p');
+            tip.style.cssText = 'font-size:11px;color:#F59E0B;margin:8px 0 0;font-weight:700;grid-column:1/-1';
+            tip.textContent = isBad
+                ? '⚠️ Pluie prévue — pensez à prévenir votre moniteur si vous avez un 2 roues'
+                : '⚠️ Vents forts — conditions difficiles pour la moto';
+            document.getElementById('weather-next-course').appendChild(tip);
+        }
+    } catch(e) {
+        if (descEl) descEl.textContent = 'Météo indisponible';
+    }
+}
 
 // ========== EXPORT iCAL ==========
 function _buildICalEvent(booking, role) {
@@ -7802,7 +7930,11 @@ window.showInstructorProfile = function(instructorId) {
     // Statut en ligne
     const statusBar = document.createElement('div');
     statusBar.style.cssText = 'padding:12px 20px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)';
-    statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:' + (inst.is_online ? '#22C55E' : '#9CA3AF') + '"></div><p style="font-size:14px;font-weight:500;color:var(--db-text)">' + (inst.is_online ? 'En ligne maintenant' : 'Hors ligne') + '</p>';
+    if (inst.is_driving) {
+        statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:#FBBF24;box-shadow:0 0 6px rgba(251,191,36,0.6)"></div><p style="font-size:14px;font-weight:700;color:#D97706">🚗 En cours de conduite</p><span style="margin-left:auto;font-size:11px;color:#9CA3AF">Notifications suspendues</span>';
+    } else {
+        statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:' + (inst.is_online ? '#22C55E' : '#9CA3AF') + '"></div><p style="font-size:14px;font-weight:500;color:var(--db-text)">' + (inst.is_online ? 'En ligne maintenant' : 'Hors ligne') + '</p>';
+    }
 
     // Créneaux
     const slotsSection = document.createElement('div');
