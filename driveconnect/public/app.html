@@ -758,28 +758,16 @@ function setupAppEnhancements() {
     });
 
     window.addEventListener('error', (e) => {
-        // Ignorer les erreurs d'images/ressources (pas des erreurs JS)
+        // Log silencieux uniquement — pas de notif pour ne pas spammer l'utilisateur
         if (e.target && (e.target.tagName === 'IMG' || e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) return;
-        // Ignorer les erreurs venant d'extensions de navigateur
         if (e.filename && (e.filename.includes('extension') || e.filename.includes('moz-extension') || e.filename.includes('chrome-extension'))) return;
-        // Ignorer si pas de message d'erreur réel
         if (!e.message || e.message === 'Script error.' || e.message === 'ResizeObserver loop limit exceeded') return;
-        const now = Date.now();
-        if (now - _lastGlobalErrTs < 6000) return;
-        _lastGlobalErrTs = now;
-        notif('⚠️ Erreur temporaire', 'Une action a échoué, réessayez.', 'yellow');
         logAppError('window.error', new Error(e.message || 'Global window error'));
     });
     window.addEventListener('unhandledrejection', (e) => {
-        // Ignorer les rejets liés à des ressources réseau mineures ou extensions
+        // Log silencieux uniquement
         const reason = e?.reason;
         if (!reason) return;
-        const msg = (reason?.message || String(reason) || '').toLowerCase();
-        if (msg.includes('extension') || msg.includes('aborted') || msg.includes('cancelled') || msg.includes('networkerror') && msg.length < 20) return;
-        const now = Date.now();
-        if (now - _lastGlobalErrTs < 6000) return;
-        _lastGlobalErrTs = now;
-        notif('⚠️ Problème réseau/serveur', 'Réessayez dans quelques secondes.', 'yellow');
         logAppError('window.unhandledrejection', reason || 'Unhandled promise rejection');
     });
 }
@@ -6361,7 +6349,7 @@ window._submitStudentRating = async function(bookingId) {
 
 // ========== MÉTÉO PROCHAIN COURS ==========
 async function _fetchNextCourseWeather(role) {
-    // Open-Meteo — gratuit, pas de clé API, coordonnées Nouméa
+    try {
     const LAT = -22.2758, LNG = 166.4580;
     const bookings = DB.bookings || [];
     const next = bookings.filter(b=>b.status==='confirmed'&&new Date(b.date)>=new Date())
@@ -6387,7 +6375,6 @@ async function _fetchNextCourseWeather(role) {
         const tMin  = Math.round(data.daily.temperature_2m_min[0]);
         const wind  = Math.round(data.daily.windspeed_10m_max[0]);
 
-        // WMO weather codes → emoji + label
         const wmoCodes = {
             0:['☀️','Ensoleillé'], 1:['🌤️','Peu nuageux'], 2:['⛅','Nuageux'], 3:['☁️','Couvert'],
             45:['🌫️','Brouillard'], 48:['🌫️','Brouillard givrant'],
@@ -6398,34 +6385,27 @@ async function _fetchNextCourseWeather(role) {
             95:['⛈️','Orage'], 96:['⛈️','Orage grêle'], 99:['⛈️','Orage fort']
         };
         const [icon, desc] = wmoCodes[code] || ['🌡️','Conditions variables'];
-
-        // Alerte si mauvais temps
         const isBad = [61,63,65,80,81,82,95,96,99].includes(code);
         const isWind = wind > 40;
 
         if (iconEl) iconEl.textContent = icon;
         if (descEl) {
             descEl.textContent = desc;
-            if (isBad || isWind) {
-                descEl.style.color = '#F59E0B';
-                descEl.textContent += isBad ? ' ⚠️' : '';
-            }
+            if (isBad || isWind) { descEl.style.color = '#F59E0B'; descEl.textContent += isBad ? ' ⚠️' : ''; }
         }
         if (tempEl) tempEl.textContent = tMax + '°C';
         if (windEl) windEl.textContent = `↓${tMin}° · 💨 ${wind} km/h`;
 
-        // Conseil si mauvais temps
         if ((isBad || isWind) && document.getElementById('weather-next-course')) {
             const tip = document.createElement('p');
-            tip.style.cssText = 'font-size:11px;color:#F59E0B;margin:8px 0 0;font-weight:700;grid-column:1/-1';
-            tip.textContent = isBad
-                ? '⚠️ Pluie prévue — pensez à prévenir votre moniteur si vous avez un 2 roues'
-                : '⚠️ Vents forts — conditions difficiles pour la moto';
+            tip.style.cssText = 'font-size:11px;color:#F59E0B;margin:8px 0 0;font-weight:700';
+            tip.textContent = isBad ? '⚠️ Pluie prévue — pensez à prévenir votre moniteur si vous avez un 2 roues' : '⚠️ Vents forts — conditions difficiles pour la moto';
             document.getElementById('weather-next-course').appendChild(tip);
         }
     } catch(e) {
         if (descEl) descEl.textContent = 'Météo indisponible';
     }
+    } catch(e) { /* silencieux */ }
 }
 
 // ========== LISTE D'ATTENTE ==========
@@ -6524,33 +6504,32 @@ window._downloadAllReceipts = function() {
 let _reminderIntervalId = null;
 
 async function _checkReminders() {
-    if (!currentUser || !DB.bookings?.length) return;
-    const now = new Date();
-    const confirmed = DB.bookings.filter(b=>b.status==='confirmed');
-
-    for (const b of confirmed) {
-        if (!b.date || !b.time) continue;
-        const courseTime = new Date(b.date + 'T' + b.time + ':00');
-        const diffMs = courseTime - now;
-        const diffH = diffMs / (1000 * 60 * 60);
-
-        // Rappel 24h avant
-        if (diffH > 0 && diffH <= 24 && diffH > 23) {
-            const key = 'reminder_24h_' + b.id;
-            if (!localStorage.getItem(key)) {
-                localStorage.setItem(key, '1');
-                _showReminderNotif('📅 Cours demain !', `Votre cours avec ${b.instructor_name||'votre moniteur'} est demain à ${b.time}`, b);
-            }
+    try {
+        if (!currentUser || !DB.bookings?.length) return;
+        const now = new Date();
+        const confirmed = DB.bookings.filter(b=>b.status==='confirmed');
+        for (const b of confirmed) {
+            if (!b.date || !b.time) continue;
+            try {
+                const courseTime = new Date(b.date + 'T' + b.time + ':00');
+                const diffH = (courseTime - now) / (1000 * 60 * 60);
+                if (diffH > 0 && diffH <= 24 && diffH > 23) {
+                    const key = 'reminder_24h_' + b.id;
+                    if (!localStorage.getItem(key)) {
+                        localStorage.setItem(key, '1');
+                        _showReminderNotif('📅 Cours demain !', `Votre cours avec ${b.instructor_name||'votre moniteur'} est demain à ${b.time}`, b);
+                    }
+                }
+                if (diffH > 0 && diffH <= 1) {
+                    const key = 'reminder_1h_' + b.id;
+                    if (!localStorage.getItem(key)) {
+                        localStorage.setItem(key, '1');
+                        _showReminderNotif('⏰ Cours dans 1h !', `N\'oubliez pas votre cours avec ${b.instructor_name||'votre moniteur'} à ${b.time}`, b);
+                    }
+                }
+            } catch(e) { /* ignorer les erreurs par réservation */ }
         }
-        // Rappel 1h avant
-        if (diffH > 0 && diffH <= 1) {
-            const key = 'reminder_1h_' + b.id;
-            if (!localStorage.getItem(key)) {
-                localStorage.setItem(key, '1');
-                _showReminderNotif('⏰ Cours dans 1h !', `N\'oubliez pas votre cours avec ${b.instructor_name||'votre moniteur'} à ${b.time}`, b);
-            }
-        }
-    }
+    } catch(e) { /* ignorer silencieusement */ }
 }
 
 function _showReminderNotif(title, msg, booking) {
