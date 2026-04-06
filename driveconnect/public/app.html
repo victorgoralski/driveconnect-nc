@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC — app 92</title>
+    <title>DriveConnect NC — app 93</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -610,7 +610,7 @@ let studentFinderFilters = { onlineOnly: false, maxRate: 10000, minRating: 0 };
 let pwdResetState = { email: '', cooldownUntil: 0 };
 
 // Cache local pour éviter trop de requêtes
-let DB = { instructors: [], slots: [], bookings: [], progressNotes: [] };
+let DB = { instructors: [], slots: [], bookings: [], progressNotes: [], waitlist: [] };
 
 // ========== HELPERS ==========
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
@@ -913,6 +913,9 @@ async function loadData() {
                 const { data: notes, error: nErr } = await sb.from('progress_notes').select('*').eq('student_id', currentUser.id).order('created_at', { ascending: false });
                 if (nErr) throw nErr;
                 DB.progressNotes = notes || [];
+                // Charger la liste d'attente
+                const { data: wl } = await sb.from('waitlist').select('*').eq('student_id', currentUser.id);
+                DB.waitlist = wl || [];
             } else {
                 // Moniteur : charger les notes qu'il a écrites
                 const { data: notes, error: nErr } = await sb.from('progress_notes').select('*').eq('instructor_id', currentUser.id).order('created_at', { ascending: false });
@@ -1752,15 +1755,51 @@ function StudentDashboard() {
                         <span style="font-family:monospace;font-weight:900;font-size:15px;color:#FF5A1F;letter-spacing:3px">${b.completion_code}</span>
                         <span style="font-size:11px;color:#9CA3AF">🔑 Donnez ce code au moniteur</span>
                     </div>`:''}
-                    ${b.status==='completed'?`<div style="margin-top:10px;padding:8px 12px;background:#ECFDF5;border-radius:10px;text-align:center">
+                    ${b.status==='completed'?`<div style="margin-top:10px;padding:8px 12px;background:#ECFDF5;border-radius:10px;display:flex;align-items:center;justify-content:space-between">
                         <span style="font-size:12px;color:#059669;font-weight:700">✅ Cours validé par le moniteur</span>
+                        <button onclick="_downloadReceipt('${b.id}')" style="background:#fff;border:1px solid #D1FAE5;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:#059669;cursor:pointer">📄 Reçu</button>
                     </div>`:''}
                 </div>`;
             }).join('')}
             </div>
-        ` : ''}
 
-        ${tab==='map' ? `
+            <!-- Historique paiements -->
+            ${(()=>{
+                const paid = myBookings.filter(b=>b.payment_status==='paid');
+                if (!paid.length) return '';
+                const total = paid.reduce((s,b)=>s+(b.amount||0),0);
+                return `<div style="margin-top:24px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                        <p class="db-section-title" style="margin:0">💳 Historique des paiements</p>
+                        <button onclick="_downloadAllReceipts()" style="background:var(--db-bg2);border:1px solid var(--db-border);border-radius:10px;padding:6px 12px;font-size:11px;font-weight:700;color:var(--db-text2);cursor:pointer" onmouseover="this.style.borderColor='#FF5A1F'" onmouseout="this.style.borderColor='var(--db-border)'">📄 Tout exporter</button>
+                    </div>
+                    <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+                        <div>
+                            <p style="font-size:11px;color:var(--db-text3);margin:0 0 4px;font-weight:700;letter-spacing:0.5px">TOTAL DÉPENSÉ</p>
+                            <p style="font-size:26px;font-weight:900;color:#FF5A1F;margin:0">${total.toLocaleString()} XPF</p>
+                        </div>
+                        <div style="text-align:right">
+                            <p style="font-size:12px;color:var(--db-text3);margin:0">${paid.length} paiement${paid.length>1?'s':''}</p>
+                            <p style="font-size:11px;color:var(--db-text3);margin:4px 0 0">Moy. ${Math.round(total/paid.length).toLocaleString()} XPF</p>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                    ${paid.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>`
+                        <div style="background:var(--db-bg2);border-radius:14px;padding:14px 16px;border:1px solid var(--db-border);display:flex;align-items:center;gap:12px">
+                            <div style="width:38px;height:38px;background:#ECFDF5;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">✅</div>
+                            <div style="flex:1;min-width:0">
+                                <p style="font-weight:700;font-size:13px;color:var(--db-text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.instructor_name||'Moniteur'}</p>
+                                <p style="font-size:11px;color:var(--db-text3);margin:2px 0 0">${b.date} · ${b.duration}h</p>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                                <p style="font-weight:900;font-size:14px;color:#FF5A1F;margin:0">${(b.amount||0).toLocaleString()} XPF</p>
+                                <button onclick="_downloadReceipt('${b.id}')" style="background:none;border:1px solid var(--db-border);border-radius:8px;padding:4px 8px;font-size:11px;color:var(--db-text2);cursor:pointer" title="Reçu">📄</button>
+                            </div>
+                        </div>`).join('')}
+                    </div>
+                </div>`;
+            })()}
+        ` : ''}
             <p class="db-section-title">Tous les moniteurs</p>
             <div class="db-surface-card" style="overflow:hidden;margin-bottom:16px">
                 <div id="map" style="height:clamp(250px,42vh,420px);border-radius:0"></div>
@@ -1814,6 +1853,59 @@ function StudentDashboard() {
 
         ${tab==='suivi' ? `
             <p class="db-section-title">📖 Ma progression</p>
+            ${(()=>{
+                // Stats calculées
+                const completedBooks = myBookings.filter(b=>b.status==='completed'||b.status==='confirmed');
+                const totalHours = completedBooks.reduce((s,b)=>s+(parseFloat(b.duration)||1),0);
+                const totalSpentAll = myBookings.filter(b=>b.status==='confirmed'||b.status==='completed').filter(b=>b.payment_status==='paid').reduce((s,b)=>s+(b.amount||0),0);
+                const uniqueInstructors = [...new Set(completedBooks.map(b=>b.instructor_id))].length;
+                const notes = DB.progressNotes||[];
+                const lastLevel = notes.find(n=>n.level);
+                const lvlMap={'Débutant':1,'En progression':2,'Bon niveau':3,'Expert':4};
+                const lvlColors={'Débutant':'#F59E0B','En progression':'#FF5A1F','Bon niveau':'#22C55E','Expert':'#3B82F6'};
+                const currentLvl = lastLevel ? lastLevel.level : null;
+
+                return `
+                <!-- KPI Stats -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+                    <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border)">
+                        <p style="font-size:10px;font-weight:700;color:var(--db-text3);letter-spacing:1px;margin:0 0 6px">HEURES DE CONDUITE</p>
+                        <p style="font-size:28px;font-weight:900;color:#FF5A1F;margin:0;line-height:1">${totalHours}<span style="font-size:14px;font-weight:400;color:var(--db-text3)">h</span></p>
+                        <p style="font-size:10px;color:var(--db-text3);margin:4px 0 0">${completedBooks.length} cours au total</p>
+                    </div>
+                    <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border)">
+                        <p style="font-size:10px;font-weight:700;color:var(--db-text3);letter-spacing:1px;margin:0 0 6px">INVESTISSEMENT</p>
+                        <p style="font-size:20px;font-weight:900;color:var(--db-text);margin:0;line-height:1">${totalSpentAll.toLocaleString()}</p>
+                        <p style="font-size:10px;color:var(--db-text3);margin:4px 0 0">XPF dépensés</p>
+                    </div>
+                    <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border)">
+                        <p style="font-size:10px;font-weight:700;color:var(--db-text3);letter-spacing:1px;margin:0 0 6px">MONITEURS</p>
+                        <p style="font-size:28px;font-weight:900;color:var(--db-text);margin:0;line-height:1">${uniqueInstructors}</p>
+                        <p style="font-size:10px;color:var(--db-text3);margin:4px 0 0">différent${uniqueInstructors>1?'s':''}</p>
+                    </div>
+                    <div style="background:var(--db-bg2);border-radius:18px;padding:16px;border:1px solid var(--db-border)">
+                        <p style="font-size:10px;font-weight:700;color:var(--db-text3);letter-spacing:1px;margin:0 0 6px">NIVEAU ACTUEL</p>
+                        ${currentLvl ? `<p style="font-size:16px;font-weight:900;color:${lvlColors[currentLvl]||'#FF5A1F'};margin:0;line-height:1.2">${currentLvl==='Débutant'?'🟡':currentLvl==='En progression'?'🟠':currentLvl==='Bon niveau'?'🟢':'🔵'} ${currentLvl}</p>` : `<p style="font-size:14px;color:var(--db-text3);margin:0">Non évalué</p>`}
+                    </div>
+                </div>
+
+                <!-- Objectif heures permis -->
+                ${(()=>{
+                    const target = 20; // heures recommandées
+                    const pct = Math.min(100, Math.round(totalHours/target*100));
+                    const color = pct>=100?'#22C55E':pct>=60?'#FF5A1F':'#F59E0B';
+                    return `<div style="background:var(--db-bg2);border-radius:18px;padding:18px;border:1px solid var(--db-border);margin-bottom:16px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                            <p style="font-weight:700;font-size:14px;color:var(--db-text);margin:0">🎯 Objectif permis</p>
+                            <span style="font-size:12px;font-weight:700;color:${color}">${totalHours}h / ${target}h</span>
+                        </div>
+                        <div style="background:var(--db-bg4);border-radius:99px;height:8px;overflow:hidden">
+                            <div style="background:${color};height:8px;border-radius:99px;width:${pct}%;transition:width 1s ease"></div>
+                        </div>
+                        <p style="font-size:11px;color:var(--db-text3);margin:6px 0 0">${pct>=100?'✅ Objectif atteint !':'Encore '+Math.max(0,target-totalHours)+'h recommandées avant le permis'}</p>
+                    </div>`;
+                })()}`;
+            })()}
             ${(DB.progressNotes||[]).length === 0 ? `
                 <div style="text-align:center;padding:60px 20px;background:var(--db-bg2);border-radius:24px;border:1px solid var(--db-border)">
                     <p style="font-size:50px;margin-bottom:12px">📖</p>
@@ -2840,26 +2932,48 @@ window.showAddSlot = function() {
 window.showSlots = function(instructorId) {
     const instructor = DB.instructors.find(x=>x.id===instructorId);
     if (!instructor) return;
-    const slots = DB.slots.filter(s=>s.instructor_id===instructorId&&s.available);
+    const allSlots = DB.slots.filter(s=>s.instructor_id===instructorId&&s.available);
+    // Charger aussi les créneaux réservés pour afficher la liste d'attente
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4';
-    modal.innerHTML = `<div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl max-h-[80vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-            <div><h3 class="text-xl font-bold">${instructor.name}</h3><p class="text-gray-400 text-sm">📍 ${instructor.location} · ⭐ ${instructor.rating||'N/A'}</p></div>
-            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 text-2xl">✕</button>
-        </div>
-        <div class="space-y-3">
-            ${slots.length===0?'<p class="text-center text-gray-400 py-8">Aucun créneau disponible</p>':slots.map(s=>`
-            <div class="border border-gray-100 rounded-2xl p-4 fade-in">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="font-bold">📅 ${s.date}</p>
-                        <p class="text-sm text-gray-400">🕐 ${s.time} · ⏱️ ${s.duration}h</p>
-                        <p class="font-semibold text-orange-600 mt-1">${s.price} XPF</p>
-                    </div>
-                    <button onclick="bookSlot('${s.id}','${instructorId}')" class="bg-orange-500 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-orange-600">Réserver</button>
+    const myWaitlist = DB.waitlist || [];
+    modal.innerHTML = `<div style="background:var(--db-bg2);border-radius:28px 28px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,0.3)">
+        <div style="padding:20px 20px 0">
+            <div style="width:36px;height:4px;background:var(--db-border);border-radius:2px;margin:0 auto 16px"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <div>
+                    <h3 style="font-size:18px;font-weight:900;color:var(--db-text);margin:0 0 2px">${_esc(instructor.name)}</h3>
+                    <p style="color:var(--db-text3);font-size:13px;margin:0">📍 ${instructor.location||'Nouméa'} · ⭐ ${instructor.rating||'N/A'}</p>
                 </div>
-            </div>`).join('')}
+                <button onclick="this.closest('.fixed').remove()" style="color:var(--db-text3);background:var(--db-bg3);border:none;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>
+            </div>
+        </div>
+        <div style="padding:0 20px 24px;display:flex;flex-direction:column;gap:10px">
+            ${allSlots.length===0?`<div style="text-align:center;padding:40px 20px;color:var(--db-text3)">
+                <p style="font-size:36px;margin-bottom:8px">📅</p>
+                <p style="font-weight:700;color:var(--db-text)">Aucun créneau disponible</p>
+                <p style="font-size:13px;margin-top:4px">Revenez plus tard ou contactez le moniteur</p>
+            </div>`:allSlots.map(s=>{
+                const isBooked = !s.available || DB.bookings.find(b=>b.slot_id===s.id&&b.status!=='cancelled');
+                const onWl = myWaitlist.find(w=>w.slot_id===s.id);
+                return `<div style="background:var(--db-bg3);border-radius:18px;padding:16px;border:1px solid var(--db-border)">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <div>
+                            <p style="font-weight:800;color:var(--db-text);font-size:15px;margin:0 0 3px">📅 ${s.date}</p>
+                            <p style="font-size:13px;color:var(--db-text2);margin:0">🕐 ${s.time} · ⏱ ${s.duration}h · ${s.price.toLocaleString()} XPF</p>
+                            ${s.license_type?`<p style="font-size:11px;color:var(--db-text3);margin:3px 0 0">Permis ${s.license_type}</p>`:''}
+                        </div>
+                        <div style="flex-shrink:0;margin-left:12px">
+                            ${isBooked
+                                ? onWl
+                                    ? `<button onclick="_leaveWaitlist('${s.id}',this)" style="background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">❌ Se désinscrire</button>`
+                                    : `<button onclick="_joinWaitlist('${s.id}','${instructorId}',this)" style="background:#FFFBEB;color:#D97706;border:1px solid #FDE68A;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">⏳ File d'attente</button>`
+                                : `<button onclick="bookSlot('${s.id}','${instructorId}')" style="background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer">Réserver</button>`
+                            }
+                        </div>
+                    </div>
+                </div>`;
+            }).join('')}
         </div>
     </div>`;
     document.body.appendChild(modal);
@@ -5650,8 +5764,8 @@ function _renderNow() {
         case 'home':                app.innerHTML=HomePage(); break;
         case 'student-login':       app.innerHTML=LoginPage('student');    setupLoginForm('student');    break;
         case 'instructor-login':    app.innerHTML=LoginPage('instructor'); setupLoginForm('instructor'); break;
-        case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>{ initMap(); _fetchNextCourseWeather(); },100); break;
-        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();if(currentTab==='settings')loadReferralData();_autoSetOnline(); _fetchNextCourseWeather('instructor');},150); break;
+        case 'student-dashboard':   app.innerHTML=StudentDashboard();      setTimeout(()=>{ initMap(); _fetchNextCourseWeather(); _checkOnboarding(); _startReminderCheck(); },100); break;
+        case 'instructor-dashboard':app.innerHTML=InstructorDashboard();   setTimeout(()=>{initMap();if(currentTab==='settings')loadReferralData();_autoSetOnline(); _fetchNextCourseWeather('instructor'); _checkOnboarding(); _startReminderCheck();},150); break;
         case 'instructor-upload-docs': app.innerHTML=InstructorUploadDocs(); setTimeout(()=>setupDocUpload(),100); break;
         case 'instructor-pending':  app.innerHTML=InstructorPending(); break;
         case 'instructor-rejected': app.innerHTML=InstructorRejected(); setTimeout(()=>setupDocUpload(),100); break;
@@ -6299,6 +6413,214 @@ async function _fetchNextCourseWeather(role) {
     } catch(e) {
         if (descEl) descEl.textContent = 'Météo indisponible';
     }
+}
+
+// ========== LISTE D'ATTENTE ==========
+window._joinWaitlist = async function(slotId, instructorId, btn) {
+    if (!currentUser) { notif('❌ Connectez-vous d\'abord', '', 'red'); return; }
+    if (btn) { btn.textContent = '⏳…'; btn.disabled = true; }
+    const { error } = await sb.from('waitlist').insert({
+        slot_id: slotId,
+        student_id: currentUser.id,
+        student_name: currentUser.name || 'Élève'
+    });
+    if (error) { notif('❌ Erreur', error.message, 'red'); if(btn){btn.textContent='⏳ File d\'attente';btn.disabled=false;} return; }
+    DB.waitlist = [...(DB.waitlist||[]), { slot_id: slotId, student_id: currentUser.id }];
+    if (btn) { btn.textContent = '❌ Se désinscrire'; btn.style.background='#FEF2F2'; btn.style.color='#DC2626'; btn.style.borderColor='#FCA5A5'; btn.disabled = false; btn.onclick = ()=>window._leaveWaitlist(slotId, btn); }
+    notif('✅ Inscrit en liste d\'attente !', 'Vous serez notifié si le créneau se libère', 'green');
+};
+
+window._leaveWaitlist = async function(slotId, btn) {
+    if (btn) { btn.textContent = '…'; btn.disabled = true; }
+    await sb.from('waitlist').delete().eq('slot_id', slotId).eq('student_id', currentUser.id);
+    DB.waitlist = (DB.waitlist||[]).filter(w=>w.slot_id!==slotId);
+    if (btn) { btn.textContent = '⏳ File d\'attente'; btn.style.background='#FFFBEB'; btn.style.color='#D97706'; btn.style.borderColor='#FDE68A'; btn.disabled=false; btn.onclick=()=>window._joinWaitlist(slotId,null,btn); }
+    notif('↩️ Retiré de la liste d\'attente', '', 'orange');
+};
+
+// Notifier la liste d'attente quand un créneau se libère (après annulation)
+async function _notifyWaitlist(slotId) {
+    try {
+        const { data: waiters } = await sb.from('waitlist').select('*').eq('slot_id', slotId).order('created_at', { ascending: true });
+        if (!waiters || !waiters.length) return;
+        const slot = DB.slots.find(s=>s.id===slotId);
+        const slotInfo = slot ? `${slot.date} à ${slot.time}` : 'Créneau disponible';
+        for (const w of waiters) {
+            await sendPushToUser(w.student_id, '🔔 Créneau disponible !', `Le créneau ${slotInfo} que vous attendiez vient de se libérer. Réservez vite !`);
+            await sb.from('waitlist').update({ notified_at: new Date().toISOString() }).eq('id', w.id);
+        }
+    } catch(e) { console.error('[waitlist notify]', e); }
+}
+
+// ========== REÇU PDF ==========
+window._downloadReceipt = function(bookingId) {
+    const b = DB.bookings.find(x=>x.id===bookingId);
+    if (!b) { notif('❌ Réservation introuvable', '', 'red'); return; }
+    const lines = [
+        '<!DOCTYPE html><html><head><meta charset="UTF-8">',
+        '<style>body{font-family:Arial,sans-serif;max-width:600px;margin:40px auto;color:#111;padding:20px}',
+        'h1{color:#FF5A1F;font-size:24px;margin-bottom:4px}.logo{font-weight:900;font-size:28px;color:#FF5A1F}',
+        '.divider{border:none;border-top:1px solid #eee;margin:20px 0}',
+        '.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:14px}',
+        '.total{font-weight:900;font-size:18px;color:#FF5A1F}.badge{background:#ECFDF5;color:#059669;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}',
+        '</style></head><body>',
+        '<p class="logo">DriveConnect NC</p>',
+        '<p style="color:#999;font-size:12px;margin:0">Plateforme de cours de conduite · Nouméa, Nouvelle-Calédonie</p>',
+        '<hr class="divider">',
+        '<h1>Reçu de paiement</h1>',
+        `<p style="color:#999;font-size:13px">Réf: ${b.id?.slice(0,8).toUpperCase()||'—'} · Émis le ${new Date().toLocaleDateString('fr-FR')}</p>`,
+        '<hr class="divider">',
+        `<div class="row"><span>Élève</span><span><strong>${_esc(b.student_name||currentUser?.name||'—')}</strong></span></div>`,
+        `<div class="row"><span>Moniteur</span><span><strong>${_esc(b.instructor_name||'—')}</strong></span></div>`,
+        `<div class="row"><span>Date du cours</span><span>${b.date||'—'}</span></div>`,
+        `<div class="row"><span>Heure</span><span>${b.time||'—'}</span></div>`,
+        `<div class="row"><span>Durée</span><span>${b.duration||1}h</span></div>`,
+        `<div class="row"><span>Statut</span><span><span class="badge">✅ Payé</span></span></div>`,
+        '<hr class="divider">',
+        `<div class="row total"><span>Total payé</span><span>${(b.amount||0).toLocaleString()} XPF</span></div>`,
+        '<hr class="divider">',
+        '<p style="font-size:11px;color:#999;text-align:center;margin-top:30px">DriveConnect NC · contact@driveconnect.nc · Ce reçu est généré automatiquement</p>',
+        '</body></html>'
+    ].join('');
+    const blob = new Blob([lines], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `recu-driveconnect-${b.date||'cours'}.html`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    notif('📄 Reçu téléchargé !', 'Ouvrez le fichier dans votre navigateur pour l\'imprimer', 'green');
+};
+
+window._downloadAllReceipts = function() {
+    const paid = DB.bookings.filter(b=>b.payment_status==='paid');
+    if (!paid.length) { notif('ℹ️ Aucun paiement', '', 'orange'); return; }
+    const rows = paid.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(b=>`
+        <tr><td>${b.date||'—'}</td><td>${_esc(b.instructor_name||'—')}</td><td>${b.duration||1}h</td><td><strong style="color:#FF5A1F">${(b.amount||0).toLocaleString()} XPF</strong></td><td><span style="background:#ECFDF5;color:#059669;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">✅ Payé</span></td></tr>`).join('');
+    const total = paid.reduce((s,b)=>s+(b.amount||0),0);
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;padding:20px}h1{color:#FF5A1F}.logo{font-weight:900;font-size:26px;color:#FF5A1F}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #eee}th{background:#F9FAFB;font-weight:700;font-size:13px;color:#6B7280}.total-row{font-weight:900;font-size:16px}</style></head><body><p class="logo">DriveConnect NC</p><h1>Historique des paiements</h1><p style="color:#999;font-size:13px">Exporté le ${new Date().toLocaleDateString('fr-FR')} · ${paid.length} paiement${paid.length>1?'s':''}</p><table><thead><tr><th>Date</th><th>Moniteur</th><th>Durée</th><th>Montant</th><th>Statut</th></tr></thead><tbody>${rows}<tr class="total-row"><td colspan="3"><strong>TOTAL</strong></td><td><strong style="color:#FF5A1F">${total.toLocaleString()} XPF</strong></td><td></td></tr></tbody></table></body></html>`;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'historique-paiements-driveconnect.html'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    notif('📄 Historique exporté !', `${paid.length} paiements · ${total.toLocaleString()} XPF`, 'green');
+};
+
+// ========== RAPPELS AUTOMATIQUES ==========
+let _reminderIntervalId = null;
+
+async function _checkReminders() {
+    if (!currentUser || !DB.bookings?.length) return;
+    const now = new Date();
+    const confirmed = DB.bookings.filter(b=>b.status==='confirmed');
+
+    for (const b of confirmed) {
+        if (!b.date || !b.time) continue;
+        const courseTime = new Date(b.date + 'T' + b.time + ':00');
+        const diffMs = courseTime - now;
+        const diffH = diffMs / (1000 * 60 * 60);
+
+        // Rappel 24h avant
+        if (diffH > 0 && diffH <= 24 && diffH > 23) {
+            const key = 'reminder_24h_' + b.id;
+            if (!localStorage.getItem(key)) {
+                localStorage.setItem(key, '1');
+                _showReminderNotif('📅 Cours demain !', `Votre cours avec ${b.instructor_name||'votre moniteur'} est demain à ${b.time}`, b);
+            }
+        }
+        // Rappel 1h avant
+        if (diffH > 0 && diffH <= 1) {
+            const key = 'reminder_1h_' + b.id;
+            if (!localStorage.getItem(key)) {
+                localStorage.setItem(key, '1');
+                _showReminderNotif('⏰ Cours dans 1h !', `N\'oubliez pas votre cours avec ${b.instructor_name||'votre moniteur'} à ${b.time}`, b);
+            }
+        }
+    }
+}
+
+function _showReminderNotif(title, msg, booking) {
+    // Notification in-app
+    notif(title, msg, 'orange');
+    // Notification native si permission
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, {
+            body: msg,
+            icon: '/icon-192.png',
+            tag: 'reminder-' + booking.id
+        });
+    }
+}
+
+function _startReminderCheck() {
+    _checkReminders(); // Check immédiat
+    if (_reminderIntervalId) clearInterval(_reminderIntervalId);
+    _reminderIntervalId = setInterval(_checkReminders, 60 * 1000); // Toutes les minutes
+}
+
+// ========== ONBOARDING ==========
+async function _checkOnboarding() {
+    if (!currentUser) return;
+    // Vérifier si onboarding déjà fait
+    const table = currentUser.user_type === 'student' ? 'users' : 'instructors';
+    const { data } = await sb.from(table).select('onboarding_done').eq('id', currentUser.id).maybeSingle();
+    if (data?.onboarding_done) return;
+    // Attendre 800ms pour laisser le dashboard se charger
+    setTimeout(() => _showOnboarding(), 800);
+}
+
+function _showOnboarding() {
+    const isStudent = currentUser.user_type === 'student';
+    const steps = isStudent ? [
+        { icon:'👋', title:'Bienvenue sur DriveConnect !', desc:'La plateforme de cours de conduite à Nouméa. En quelques minutes, trouvez votre moniteur et réservez votre premier cours.', action:'Suivant' },
+        { icon:'🗺️', title:'Trouvez un moniteur', desc:'Allez dans l\'onglet <strong>Carte</strong> pour voir les moniteurs disponibles près de vous. Filtrez par tarif, note et disponibilité.', action:'Suivant' },
+        { icon:'📅', title:'Réservez un créneau', desc:'Appuyez sur <strong>Réserver</strong> et payez en ligne via PayPal. Vous recevrez un code de validation pour le jour du cours.', action:'Suivant' },
+        { icon:'📖', title:'Suivez vos progrès', desc:'Après chaque cours, votre moniteur remplira votre fiche de suivi. Suivez votre évolution dans l\'onglet <strong>Suivi</strong>.', action:'C\'est parti ! 🚀' }
+    ] : [
+        { icon:'👋', title:'Bienvenue, moniteur !', desc:'Votre profil a été validé. Commencez à recevoir des réservations en quelques étapes simples.', action:'Suivant' },
+        { icon:'📍', title:'Activez votre GPS', desc:'Activez votre position GPS pour apparaître sur la carte des élèves. Plus vous êtes visible, plus vous recevez de réservations.', action:'Suivant' },
+        { icon:'➕', title:'Ajoutez des créneaux', desc:'Créez vos créneaux disponibles depuis l\'onglet <strong>Créneaux</strong>. Définissez date, heure, durée et tarif.', action:'Suivant' },
+        { icon:'💬', title:'Communiquez avec vos élèves', desc:'Le chat intégré vous permet d\'échanger des messages, photos, vocaux et même faire des appels vidéo avec vos élèves.', action:'C\'est parti ! 🚀' }
+    ];
+
+    let currentStep = 0;
+    document.getElementById('onboarding-modal')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'onboarding-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)';
+
+    function renderStep() {
+        const s = steps[currentStep];
+        const isLast = currentStep === steps.length - 1;
+        overlay.innerHTML = `
+        <div style="background:var(--db-bg2);border-radius:28px 28px 0 0;width:100%;max-width:480px;padding:32px 28px;box-shadow:0 -12px 60px rgba(0,0,0,0.4)">
+            <div style="text-align:center;margin-bottom:24px">
+                <div style="font-size:52px;margin-bottom:16px">${s.icon}</div>
+                <h2 style="font-size:22px;font-weight:900;color:var(--db-text);margin:0 0 10px">${s.title}</h2>
+                <p style="font-size:15px;color:var(--db-text2);line-height:1.6;margin:0">${s.desc}</p>
+            </div>
+            <!-- Dots -->
+            <div style="display:flex;justify-content:center;gap:6px;margin-bottom:24px">
+                ${steps.map((_,i)=>`<div style="width:${i===currentStep?24:6}px;height:6px;border-radius:99px;background:${i===currentStep?'#FF5A1F':'var(--db-bg4)'};transition:all .3s"></div>`).join('')}
+            </div>
+            <button id="onboarding-next-btn" style="width:100%;padding:16px;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;border:none;border-radius:16px;font-weight:800;font-size:16px;cursor:pointer;margin-bottom:10px">${s.action}</button>
+            <button onclick="document.getElementById('onboarding-modal').remove();_markOnboardingDone()" style="width:100%;padding:12px;background:none;border:none;color:var(--db-text3);font-size:13px;cursor:pointer">Passer l'introduction</button>
+        </div>`;
+        document.getElementById('onboarding-next-btn').onclick = () => {
+            if (isLast) { overlay.remove(); _markOnboardingDone(); }
+            else { currentStep++; renderStep(); }
+        };
+    }
+
+    renderStep();
+    document.body.appendChild(overlay);
+}
+
+async function _markOnboardingDone() {
+    const table = currentUser?.user_type === 'student' ? 'users' : 'instructors';
+    try { await sb.from(table).update({ onboarding_done: true }).eq('id', currentUser.id); } catch(e){}
 }
 
 // ========== EXPORT iCAL ==========
