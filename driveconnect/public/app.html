@@ -757,19 +757,30 @@ function setupAppEnhancements() {
         notif('✅ Application installée', 'DriveConnect est maintenant sur votre écran d’accueil', 'green');
     });
 
-    window.addEventListener('error', () => {
+    window.addEventListener('error', (e) => {
+        // Ignorer les erreurs d'images/ressources (pas des erreurs JS)
+        if (e.target && (e.target.tagName === 'IMG' || e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) return;
+        // Ignorer les erreurs venant d'extensions de navigateur
+        if (e.filename && (e.filename.includes('extension') || e.filename.includes('moz-extension') || e.filename.includes('chrome-extension'))) return;
+        // Ignorer si pas de message d'erreur réel
+        if (!e.message || e.message === 'Script error.' || e.message === 'ResizeObserver loop limit exceeded') return;
         const now = Date.now();
         if (now - _lastGlobalErrTs < 6000) return;
         _lastGlobalErrTs = now;
         notif('⚠️ Erreur temporaire', 'Une action a échoué, réessayez.', 'yellow');
-        logAppError('window.error', new Error('Global window error'));
+        logAppError('window.error', new Error(e.message || 'Global window error'));
     });
     window.addEventListener('unhandledrejection', (e) => {
+        // Ignorer les rejets liés à des ressources réseau mineures ou extensions
+        const reason = e?.reason;
+        if (!reason) return;
+        const msg = (reason?.message || String(reason) || '').toLowerCase();
+        if (msg.includes('extension') || msg.includes('aborted') || msg.includes('cancelled') || msg.includes('networkerror') && msg.length < 20) return;
         const now = Date.now();
         if (now - _lastGlobalErrTs < 6000) return;
         _lastGlobalErrTs = now;
         notif('⚠️ Problème réseau/serveur', 'Réessayez dans quelques secondes.', 'yellow');
-        logAppError('window.unhandledrejection', e?.reason || 'Unhandled promise rejection');
+        logAppError('window.unhandledrejection', reason || 'Unhandled promise rejection');
     });
 }
 
