@@ -1800,6 +1800,8 @@ function StudentDashboard() {
                 </div>`;
             })()}
         ` : ''}
+
+        ${tab==='map' ? `
             <p class="db-section-title">Tous les moniteurs</p>
             <div class="db-surface-card" style="overflow:hidden;margin-bottom:16px">
                 <div id="map" style="height:clamp(250px,42vh,420px);border-radius:0"></div>
