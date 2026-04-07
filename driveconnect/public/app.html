@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC — app 93</title>
+    <title>DriveConnect NC — app 94</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -4850,6 +4850,168 @@ function AdminDashboard() {
 function getAdminTabContent(tab, stats) {
     const now = new Date();
 
+    // ── VUE D'ENSEMBLE ──────────────────────────────────────────────────────
+    if (tab === 'overview') {
+        const paid = adminData.bookings.filter(b => b.status === 'confirmed' && b.payment_status === 'paid');
+        const totalRev = paid.reduce((s,b) => s+(b.amount||0), 0);
+        const totalCom = paid.reduce((s,b) => s+(b.commission||0), 0);
+
+        // Revenus par mois (6 derniers)
+        const byMonth = {};
+        paid.forEach(b => {
+            const m = (b.date||'').substring(0,7);
+            if (!byMonth[m]) byMonth[m] = { rev:0, count:0 };
+            byMonth[m].rev += b.amount||0;
+            byMonth[m].count++;
+        });
+        const months6 = Object.entries(byMonth).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
+        const maxRev = Math.max(...months6.map(([,v])=>v.rev), 1);
+
+        // Réservations par jour (7 derniers jours)
+        const byDay = {};
+        for (let i=6; i>=0; i--) {
+            const d = new Date(Date.now()-i*86400000).toISOString().split('T')[0];
+            byDay[d] = 0;
+        }
+        adminData.bookings.forEach(b => { if (byDay[b.date]!==undefined) byDay[b.date]++; });
+        const days7 = Object.entries(byDay);
+        const maxDay = Math.max(...days7.map(([,v])=>v), 1);
+
+        // Activité récente
+        const recent = [...adminData.bookings]
+            .filter(b => b.created_at)
+            .sort((a,b) => new Date(b.created_at)-new Date(a.created_at))
+            .slice(0,8);
+
+        // Taux conversion
+        const convRate = adminData.bookings.length > 0 ? Math.round(paid.length/adminData.bookings.length*100) : 0;
+        const cancelRate = adminData.bookings.length > 0 ? Math.round(adminData.bookings.filter(b=>b.status==='cancelled').length/adminData.bookings.length*100) : 0;
+
+        return `
+        <div style="display:flex;flex-direction:column;gap:20px">
+
+            <!-- Métriques clés row -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+                <div style="background:linear-gradient(135deg,rgba(255,90,31,0.12),rgba(255,90,31,0.04));border:1px solid rgba(255,90,31,0.25);border-radius:18px;padding:20px">
+                    <p style="font-size:10px;color:#6B7280;font-weight:700;letter-spacing:1px;margin:0 0 8px">COMMISSION TOTALE</p>
+                    <p style="font-size:26px;font-weight:900;color:#FF5A1F;margin:0">${totalCom.toLocaleString()}</p>
+                    <p style="font-size:11px;color:#6B7280;margin:4px 0 0">XPF encaissés</p>
+                </div>
+                <div style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:18px;padding:20px">
+                    <p style="font-size:10px;color:#6B7280;font-weight:700;letter-spacing:1px;margin:0 0 8px">TAUX COMPLÉTION</p>
+                    <p style="font-size:26px;font-weight:900;color:#34D399;margin:0">${convRate}%</p>
+                    <p style="font-size:11px;color:#6B7280;margin:4px 0 0">${paid.length} cours payés</p>
+                </div>
+                <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:18px;padding:20px">
+                    <p style="font-size:10px;color:#6B7280;font-weight:700;letter-spacing:1px;margin:0 0 8px">TAUX ANNULATION</p>
+                    <p style="font-size:26px;font-weight:900;color:#EF4444;margin:0">${cancelRate}%</p>
+                    <p style="font-size:11px;color:#6B7280;margin:4px 0 0">${adminData.bookings.filter(b=>b.status==='cancelled').length} annulés</p>
+                </div>
+                <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:18px;padding:20px">
+                    <p style="font-size:10px;color:#6B7280;font-weight:700;letter-spacing:1px;margin:0 0 8px">MONITEURS VÉRIFIÉS</p>
+                    <p style="font-size:26px;font-weight:900;color:#FBBF24;margin:0">${adminData.instructors.filter(i=>i.verified).length}</p>
+                    <p style="font-size:11px;color:#6B7280;margin:4px 0 0">sur ${adminData.instructors.length} total</p>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+                <!-- Graphique revenus par mois -->
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:22px">
+                    <p style="font-weight:800;font-size:15px;margin:0 0 20px">💰 Revenus par mois</p>
+                    ${months6.length === 0 ? '<p style="color:#4B5563;text-align:center;padding:40px 0">Pas encore de données</p>' : `
+                    <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding-bottom:24px;position:relative">
+                        ${months6.map(([m,v])=>{
+                            const pct = Math.max(4, Math.round(v.rev/maxRev*100));
+                            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+                                <span style="font-size:9px;color:#FF5A1F;font-weight:700">${Math.round(v.rev/1000)}k</span>
+                                <div style="width:100%;background:linear-gradient(180deg,#FF5A1F,rgba(255,90,31,0.4));border-radius:6px 6px 0 0;height:${pct}%;min-height:4px;transition:height .5s"></div>
+                                <span style="font-size:9px;color:#4B5563;position:absolute;bottom:0">${m.slice(5)}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>`}
+                </div>
+
+                <!-- Graphique réservations 7 jours -->
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:22px">
+                    <p style="font-weight:800;font-size:15px;margin:0 0 20px">📅 Réservations (7j)</p>
+                    <div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding-bottom:24px;position:relative">
+                        ${days7.map(([d,v])=>{
+                            const pct = Math.max(4, Math.round(v/maxDay*100));
+                            const label = new Date(d).toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,3);
+                            const isToday = d === now.toISOString().split('T')[0];
+                            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+                                ${v>0?`<span style="font-size:9px;color:#60A5FA;font-weight:700">${v}</span>`:''}
+                                <div style="width:100%;background:${isToday?'#60A5FA':'rgba(96,165,250,0.3)'};border-radius:4px 4px 0 0;height:${pct}%;min-height:4px"></div>
+                                <span style="font-size:9px;color:${isToday?'#60A5FA':'#4B5563'};font-weight:${isToday?'700':'400'};position:absolute;bottom:0">${label}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+                <!-- Activité récente -->
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:22px">
+                    <p style="font-weight:800;font-size:15px;margin:0 0 16px">⚡ Activité récente</p>
+                    ${recent.length === 0 ? '<p style="color:#4B5563;text-align:center;padding:20px">Aucune activité</p>' :
+                    `<div style="display:flex;flex-direction:column;gap:10px">
+                    ${recent.map(b => {
+                        const icon = b.status==='confirmed'?'✅':b.status==='cancelled'?'❌':b.status==='completed'?'🏁':b.status==='dispute'?'⚠️':'⏳';
+                        const color = b.status==='confirmed'?'#34D399':b.status==='cancelled'?'#EF4444':b.status==='completed'?'#60A5FA':b.status==='dispute'?'#FBBF24':'#9CA3AF';
+                        const ago = b.created_at ? Math.round((Date.now()-new Date(b.created_at))/60000) : 0;
+                        const agoStr = ago < 60 ? ago+'min' : ago < 1440 ? Math.round(ago/60)+'h' : Math.round(ago/1440)+'j';
+                        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#1A1A1A;border-radius:12px">
+                            <span style="font-size:16px">${icon}</span>
+                            <div style="flex:1;min-width:0">
+                                <p style="font-size:12px;font-weight:700;color:#fff;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.student_name||'Élève'} ↔ ${b.instructor_name||'Moniteur'}</p>
+                                <p style="font-size:10px;color:#6B7280;margin:2px 0 0">${b.date} · ${(b.amount||0).toLocaleString()} XPF</p>
+                            </div>
+                            <div style="text-align:right;flex-shrink:0">
+                                <span style="font-size:10px;font-weight:700;color:${color}">${b.status}</span>
+                                <p style="font-size:10px;color:#4B5563;margin:2px 0 0">${agoStr}</p>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                    </div>`}
+                </div>
+
+                <!-- Répartition statuts + santé plateforme -->
+                <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:22px">
+                    <p style="font-weight:800;font-size:15px;margin:0 0 16px">🏥 Santé de la plateforme</p>
+                    ${[
+                        { label:'Réservations confirmées', val: adminData.bookings.filter(b=>b.status==='confirmed').length, total: adminData.bookings.length, color:'#34D399' },
+                        { label:'Cours complétés', val: adminData.bookings.filter(b=>b.status==='completed').length, total: adminData.bookings.length, color:'#60A5FA' },
+                        { label:'Annulations', val: adminData.bookings.filter(b=>b.status==='cancelled').length, total: adminData.bookings.length, color:'#EF4444' },
+                        { label:'En attente', val: adminData.bookings.filter(b=>b.status==='pending').length, total: adminData.bookings.length, color:'#FBBF24' },
+                        { label:'Litiges', val: adminData.bookings.filter(b=>b.status==='dispute').length, total: adminData.bookings.length, color:'#A78BFA' },
+                    ].map(s => {
+                        const pct = s.total > 0 ? Math.round(s.val/s.total*100) : 0;
+                        return `<div style="margin-bottom:14px">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                                <span style="font-size:12px;color:#9CA3AF">${s.label}</span>
+                                <span style="font-size:12px;font-weight:700;color:${s.color}">${s.val} <span style="color:#4B5563;font-weight:400">(${pct}%)</span></span>
+                            </div>
+                            <div style="background:#1F1F1F;border-radius:99px;height:5px">
+                                <div style="background:${s.color};height:5px;border-radius:99px;width:${pct}%;transition:width .8s"></div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+
+                    <div style="border-top:1px solid #1F1F1F;margin-top:16px;padding-top:16px">
+                        <p style="font-size:12px;color:#6B7280;margin:0 0 8px;font-weight:700">MONITEURS</p>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap">
+                            <span style="background:rgba(34,197,94,0.1);color:#34D399;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700">🟢 ${adminData.instructors.filter(i=>i.is_online).length} en ligne</span>
+                            <span style="background:rgba(251,191,36,0.1);color:#FBBF24;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700">🚗 ${adminData.instructors.filter(i=>i.is_driving).length} en conduite</span>
+                            <span style="background:rgba(255,90,31,0.1);color:#FF5A1F;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700">⏳ ${adminData.instructors.filter(i=>i.approval_status==='pending_review').length} en attente validation</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
     // ── APPROBATIONS ──────────────────────────────────────────────────────
     if (tab === 'approvals') {
         const pendingInstructors = adminData.instructors.filter(i => i.approval_status === 'pending_review');
@@ -5185,85 +5347,116 @@ GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
         const totalCom = paid.reduce((s,b) => s+(b.commission||0), 0);
         const totalNet = paid.reduce((s,b) => s+(b.net||0), 0);
 
-        // Regrouper par mois
         const byMonth = {};
         paid.forEach(b => {
-            const m = (b.date||'').substring(0, 7);
-            if (!byMonth[m]) byMonth[m] = { amount: 0, commission: 0, count: 0 };
-            byMonth[m].amount     += b.amount     || 0;
-            byMonth[m].commission += b.commission || 0;
+            const m = (b.date||'').substring(0,7);
+            if (!byMonth[m]) byMonth[m] = { amount:0, commission:0, count:0 };
+            byMonth[m].amount += b.amount||0;
+            byMonth[m].commission += b.commission||0;
             byMonth[m].count++;
         });
-        const months = Object.entries(byMonth).sort((a,b) => b[0].localeCompare(a[0]));
+        const months = Object.entries(byMonth).sort((a,b)=>a[0].localeCompare(b[0]));
+        const maxVal = Math.max(...months.map(([,v])=>v.amount),1);
 
-        // Top moniteurs
+        // Croissance mois sur mois
+        const lastTwo = months.slice(-2);
+        const growth = lastTwo.length===2 && lastTwo[0][1].amount>0
+            ? Math.round((lastTwo[1][1].amount-lastTwo[0][1].amount)/lastTwo[0][1].amount*100) : null;
+
         const byInstructor = {};
         paid.forEach(b => {
-            if (!byInstructor[b.instructor_id]) byInstructor[b.instructor_id] = { name: b.instructor_name, amount: 0, count: 0 };
-            byInstructor[b.instructor_id].amount += b.net || 0;
+            if (!byInstructor[b.instructor_id]) byInstructor[b.instructor_id] = { name: b.instructor_name, amount:0, count:0 };
+            byInstructor[b.instructor_id].amount += b.net||0;
             byInstructor[b.instructor_id].count++;
         });
-        const topInst = Object.values(byInstructor).sort((a,b) => b.amount - a.amount).slice(0, 5);
+        const topInst = Object.values(byInstructor).sort((a,b)=>b.amount-a.amount).slice(0,5);
+
+        // SVG graphique
+        const W=400, H=120, PAD=10;
+        const barW = months.length > 0 ? Math.floor((W-PAD*2)/months.length*0.6) : 30;
+        const gap = months.length > 0 ? Math.floor((W-PAD*2)/months.length) : 40;
+        const svgBars = months.map(([m,v],i)=>{
+            const bh = Math.max(4,Math.round(v.amount/maxVal*(H-30)));
+            const x = PAD+i*gap+gap/2-barW/2;
+            const y = H-bh-20;
+            const isLast = i===months.length-1;
+            return `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="5" fill="${isLast?'#FF5A1F':'rgba(255,90,31,0.4)'}"/>
+            <text x="${x+barW/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="#6B7280" font-family="DM Sans">${m.slice(5)}</text>
+            ${isLast?`<text x="${x+barW/2}" y="${y-4}" text-anchor="middle" font-size="9" fill="#FF5A1F" font-family="DM Sans" font-weight="700">${Math.round(v.amount/1000)}k</text>`:''}`;
+        }).join('');
 
         return `
         <div style="display:flex;flex-direction:column;gap:20px">
-            <!-- Bouton remise à zéro -->
-            <div style="display:flex;justify-content:flex-end">
-                <button onclick="adminResetRevenueCounters()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer">🔄 Remettre les compteurs à 0</button>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;align-items:center;gap:12px">
+                    ${growth!==null?`<span style="background:${growth>=0?'rgba(52,211,153,0.12)':'rgba(239,68,68,0.12)'};color:${growth>=0?'#34D399':'#EF4444'};border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700">${growth>=0?'↑':'↓'} ${Math.abs(growth)}% vs mois précédent</span>`:''}
+                </div>
+                <button onclick="adminResetRevenueCounters()" style="padding:9px 18px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#EF4444;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer">🔄 Remettre à zéro</button>
             </div>
-            <!-- Commission info -->
-            <div style="background:rgba(255,90,31,0.08);border:1px solid rgba(255,90,31,0.2);border-radius:14px;padding:14px 18px">
-                <p style="color:#FF5A1F;font-size:13px;font-weight:700">💡 Commission actuelle : <strong>15%</strong> sur chaque créneau payé</p>
-            </div>
-            <!-- Totaux -->
+
+            <!-- KPIs -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
-                <div style="background:linear-gradient(135deg,rgba(255,90,31,0.1),rgba(255,90,31,0.05));border:1px solid rgba(255,90,31,0.2);border-radius:18px;padding:20px;text-align:center">
-                    <p style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Chiffre d'affaires</p>
-                    <p style="font-size:28px;font-weight:900;color:#FF5A1F">${totalRev.toLocaleString()}</p>
-                    <p style="font-size:13px;color:#6B7280">XPF total</p>
+                <div style="background:linear-gradient(135deg,rgba(255,90,31,0.12),rgba(255,90,31,0.04));border:1px solid rgba(255,90,31,0.25);border-radius:18px;padding:20px;text-align:center">
+                    <p style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px">Chiffre d'affaires</p>
+                    <p style="font-size:28px;font-weight:900;color:#FF5A1F;margin:0">${totalRev.toLocaleString()}</p>
+                    <p style="font-size:12px;color:#6B7280;margin:4px 0 0">XPF total</p>
                 </div>
-                <div style="background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.05));border:1px solid rgba(251,191,36,0.2);border-radius:18px;padding:20px;text-align:center">
-                    <p style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Commission DriveConnect</p>
-                    <p style="font-size:28px;font-weight:900;color:#FBBF24">${totalCom.toLocaleString()}</p>
-                    <p style="font-size:13px;color:#6B7280">XPF (${totalRev > 0 ? Math.round(totalCom/totalRev*100) : 0}%)</p>
+                <div style="background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(251,191,36,0.04));border:1px solid rgba(251,191,36,0.25);border-radius:18px;padding:20px;text-align:center">
+                    <p style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px">Commission DriveConnect</p>
+                    <p style="font-size:28px;font-weight:900;color:#FBBF24;margin:0">${totalCom.toLocaleString()}</p>
+                    <p style="font-size:12px;color:#6B7280;margin:4px 0 0">XPF (${totalRev>0?Math.round(totalCom/totalRev*100):0}%)</p>
                 </div>
-                <div style="background:linear-gradient(135deg,rgba(52,211,153,0.1),rgba(52,211,153,0.05));border:1px solid rgba(52,211,153,0.2);border-radius:18px;padding:20px;text-align:center">
-                    <p style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Reversé aux moniteurs</p>
-                    <p style="font-size:28px;font-weight:900;color:#34D399">${totalNet.toLocaleString()}</p>
-                    <p style="font-size:13px;color:#6B7280">XPF net</p>
+                <div style="background:linear-gradient(135deg,rgba(52,211,153,0.12),rgba(52,211,153,0.04));border:1px solid rgba(52,211,153,0.25);border-radius:18px;padding:20px;text-align:center">
+                    <p style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px">Reversé moniteurs</p>
+                    <p style="font-size:28px;font-weight:900;color:#34D399;margin:0">${totalNet.toLocaleString()}</p>
+                    <p style="font-size:12px;color:#6B7280;margin:4px 0 0">XPF net</p>
                 </div>
+            </div>
+
+            <!-- Graphique SVG -->
+            <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:22px">
+                <p style="font-weight:800;font-size:15px;margin:0 0 16px">📈 Évolution du chiffre d'affaires</p>
+                ${months.length===0?'<p style="color:#4B5563;text-align:center;padding:40px">Pas encore de données</p>':
+                `<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible">
+                    <defs><linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF5A1F"/><stop offset="100%" stop-color="rgba(255,90,31,0.2)"/></linearGradient></defs>
+                    ${svgBars}
+                </svg>`}
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-                <!-- Par mois -->
+                <!-- Détail par mois -->
                 <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
-                    <p style="font-weight:800;font-size:15px;margin-bottom:16px">📈 Par mois</p>
-                    ${months.length === 0 ? '<p style="color:#4B5563;text-align:center;padding:20px">Pas encore de données</p>' :
-                    months.map(([m, d]) => `
-                    <div style="margin-bottom:14px">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                    <p style="font-weight:800;font-size:15px;margin:0 0 16px">📆 Détail par mois</p>
+                    ${months.length===0?'<p style="color:#4B5563;text-align:center;padding:20px">Pas encore de données</p>':
+                    [...months].reverse().map(([m,d])=>`
+                    <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #1F1F1F">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
                             <span style="font-size:13px;font-weight:700">${m}</span>
-                            <span style="font-size:13px;color:#FBBF24">${d.amount.toLocaleString()} XPF · ${d.count} cours</span>
+                            <div style="text-align:right">
+                                <p style="font-size:13px;font-weight:800;color:#FF5A1F;margin:0">${d.amount.toLocaleString()} XPF</p>
+                                <p style="font-size:10px;color:#FBBF24;margin:0">Com: ${d.commission.toLocaleString()} · ${d.count} cours</p>
+                            </div>
                         </div>
-                        <div style="background:#1F1F1F;border-radius:4px;height:6px">
-                            <div style="background:#FF5A1F;height:6px;border-radius:4px;width:${Math.round(d.amount / Math.max(...months.map(([,x])=>x.amount)) * 100)}%"></div>
+                        <div style="background:#1F1F1F;border-radius:4px;height:4px">
+                            <div style="background:#FF5A1F;height:4px;border-radius:4px;width:${Math.round(d.amount/maxVal*100)}%"></div>
                         </div>
-                        <p style="font-size:10px;color:#4B5563;margin-top:2px">Commission: ${d.commission.toLocaleString()} XPF</p>
                     </div>`).join('')}
                 </div>
-
                 <!-- Top moniteurs -->
                 <div style="background:#111;border:1px solid #1F1F1F;border-radius:20px;padding:20px">
-                    <p style="font-weight:800;font-size:15px;margin-bottom:16px">🏆 Top moniteurs</p>
-                    ${topInst.length === 0 ? '<p style="color:#4B5563;text-align:center;padding:20px">Pas encore de données</p>' :
-                    topInst.map((inst, idx) => `
-                    <div style="display:flex;align-items:center;gap:12px;padding:10px;background:#1A1A1A;border-radius:12px;margin-bottom:8px">
-                        <span style="font-size:18px">${['🥇','🥈','🥉','4️⃣','5️⃣'][idx]}</span>
-                        <div style="flex:1">
-                            <p style="font-weight:700;font-size:13px">${inst.name||'?'}</p>
-                            <p style="font-size:11px;color:#6B7280">${inst.count} cours</p>
+                    <p style="font-weight:800;font-size:15px;margin:0 0 16px">🏆 Top moniteurs</p>
+                    ${topInst.length===0?'<p style="color:#4B5563;text-align:center;padding:20px">Pas encore de données</p>':
+                    topInst.map((inst,idx)=>`
+                    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#1A1A1A;border-radius:14px;margin-bottom:8px">
+                        <span style="font-size:20px">${['🥇','🥈','🥉','4️⃣','5️⃣'][idx]}</span>
+                        <div style="flex:1;min-width:0">
+                            <p style="font-weight:700;font-size:13px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.name||'?'}</p>
+                            <p style="font-size:11px;color:#6B7280;margin:2px 0 0">${inst.count} cours complétés</p>
                         </div>
-                        <p style="font-weight:800;color:#34D399;font-size:14px">${inst.amount.toLocaleString()} XPF</p>
+                        <div style="text-align:right;flex-shrink:0">
+                            <p style="font-weight:800;color:#34D399;font-size:14px;margin:0">${inst.amount.toLocaleString()}</p>
+                            <p style="font-size:10px;color:#6B7280;margin:2px 0 0">XPF nets</p>
+                        </div>
                     </div>`).join('')}
                 </div>
             </div>
@@ -8170,132 +8363,155 @@ window.uploadStudentAvatar = async function(file) {
 // ========== PROFIL PUBLIC MONITEUR ==========
 window.focusInstructor = function(id) { window.showInstructorProfile(id); };
 
-window.showInstructorProfile = function(instructorId) {
+window.showInstructorProfile = async function(instructorId) {
     const inst = DB.instructors.find(x => x.id === instructorId);
     if (!inst) return;
     const slots = DB.slots.filter(s => s.instructor_id === instructorId && s.available);
-    const initials = (inst.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     const stars = inst.rating ? Math.round(inst.rating) : 0;
 
-    // Supprimer modal existant
     document.getElementById('profile-modal')?.remove();
 
-    // Créer overlay
     const overlay = document.createElement('div');
     overlay.id = 'profile-modal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center';
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-    // Créer panel
     const panel = document.createElement('div');
-    panel.style.cssText = 'width:100%;max-width:480px;border-radius:24px 24px 0 0;overflow:hidden;max-height:90vh;overflow-y:auto;background:var(--surface)';
-
-    // Header sombre
-    const header = document.createElement('div');
-    header.style.cssText = 'background:linear-gradient(135deg,#1A1A1A,#2D2D2D);padding:24px;position:relative';
-
-    const closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '&#x2715;';
-    closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px';
-    closeBtn.onclick = () => overlay.remove();
-
-    const avatarDiv = document.createElement('div');
-    avatarDiv.style.cssText = 'width:72px;height:72px;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:white;background:var(--primary);flex-shrink:0';
-    if (inst.avatar_url) {
-        const img = document.createElement('img');
-        img.src = inst.avatar_url;
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover';
-        img.alt = inst.name;
-        avatarDiv.appendChild(img);
-    } else {
-        const img = document.createElement('img');
-        img.src = DEFAULT_AVATAR;
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:inherit';
-        avatarDiv.appendChild(img);
-    }
-
-    const infoDiv = document.createElement('div');
-    infoDiv.innerHTML = '<h2 style="font-size:20px;font-weight:700;color:white;margin-bottom:4px">' + inst.name + (inst.verified ? ' <span style="background:#DCFCE7;color:#16A34A;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600">✓ Vérifié</span>' : '') + '</h2>' +
-        '<p style="color:rgba(255,255,255,0.5);font-size:13px">📍 ' + (inst.location || 'Nouméa') + '</p>' +
-        '<p style="color:#F59E0B;font-size:14px;margin-top:4px">' + '★'.repeat(stars) + '☆'.repeat(5 - stars) + (inst.rating ? ' <span style="color:rgba(255,255,255,0.7)">' + inst.rating.toFixed(1) + '</span>' : '') + ' <span style="color:rgba(255,255,255,0.3);font-size:12px">(' + (inst.total_reviews || 0) + ' avis)</span></p>';
-
-    const flexRow = document.createElement('div');
-    flexRow.style.cssText = 'display:flex;align-items:center;gap:16px';
-    flexRow.appendChild(avatarDiv);
-    flexRow.appendChild(infoDiv);
-    header.appendChild(closeBtn);
-    header.appendChild(flexRow);
-
-    // Stats bar
-    const statsBar = document.createElement('div');
-    statsBar.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;padding:20px;border-bottom:1px solid var(--border)';
-    const statsData = [
-        { val: (inst.hourly_rate || 0).toLocaleString(), label: 'XPF/heure' },
-        { val: inst.experience || '—', label: 'ans exp.' },
-        { val: slots.length, label: 'créneaux' }
-    ];
-    statsData.forEach((s, i) => {
-        const cell = document.createElement('div');
-        cell.style.cssText = 'text-align:center' + (i > 0 ? ';border-left:1px solid var(--border)' : '');
-        cell.innerHTML = '<p style="font-size:22px;font-weight:700;color:' + (i === 0 ? 'var(--primary)' : 'var(--text)') + '">' + s.val + '</p><p style="font-size:12px;color:var(--db-text2);margin-top:4px">' + s.label + '</p>';
-        statsBar.appendChild(cell);
-    });
-
-    // Statut en ligne
-    const statusBar = document.createElement('div');
-    statusBar.style.cssText = 'padding:12px 20px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)';
-    if (inst.is_driving) {
-        statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:#FBBF24;box-shadow:0 0 6px rgba(251,191,36,0.6)"></div><p style="font-size:14px;font-weight:700;color:#D97706">🚗 En cours de conduite</p><span style="margin-left:auto;font-size:11px;color:#9CA3AF">Notifications suspendues</span>';
-    } else {
-        statusBar.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:' + (inst.is_online ? '#22C55E' : '#9CA3AF') + '"></div><p style="font-size:14px;font-weight:500;color:var(--db-text)">' + (inst.is_online ? 'En ligne maintenant' : 'Hors ligne') + '</p>';
-    }
-
-    // Créneaux
-    const slotsSection = document.createElement('div');
-    slotsSection.style.cssText = 'padding:20px';
-    const slotsTitle = document.createElement('h3');
-    slotsTitle.style.cssText = 'font-weight:700;font-size:16px;color:var(--db-text);margin-bottom:16px';
-    slotsTitle.textContent = 'Créneaux disponibles';
-    slotsSection.appendChild(slotsTitle);
-
-    if (slots.length === 0) {
-        const empty = document.createElement('p');
-        empty.style.cssText = 'text-align:center;color:var(--db-text2);font-size:14px;padding:32px 0';
-        empty.textContent = 'Aucun créneau disponible pour le moment';
-        slotsSection.appendChild(empty);
-    } else {
-        slots.forEach(s => {
-            const slotCard = document.createElement('div');
-            slotCard.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px;border-radius:16px;margin-bottom:8px;background:#181818;border:1px solid rgba(242,237,232,0.08)';
-            const slotInfo = document.createElement('div');
-            slotInfo.innerHTML = '<p style="font-weight:600;font-size:14px;color:var(--db-text)">' + s.date + ' à ' + s.time + '</p><p style="font-size:12px;color:var(--db-text2);margin-top:2px">Durée : ' + s.duration + 'h</p>';
-            const slotRight = document.createElement('div');
-            slotRight.style.cssText = 'display:flex;align-items:center;gap:12px';
-            const price = document.createElement('p');
-            price.style.cssText = 'font-weight:700;color:var(--primary)';
-            price.textContent = s.price.toLocaleString() + ' XPF';
-            const bookBtn = document.createElement('button');
-            bookBtn.className = 'btn-primary';
-            bookBtn.style.cssText = 'padding:8px 16px;font-size:13px';
-            bookBtn.textContent = 'Réserver';
-            bookBtn.onclick = () => {
-                overlay.remove();
-                window.bookSlot(s.id, instructorId);
-            };
-            slotRight.appendChild(price);
-            slotRight.appendChild(bookBtn);
-            slotCard.appendChild(slotInfo);
-            slotCard.appendChild(slotRight);
-            slotsSection.appendChild(slotCard);
-        });
-    }
-
-    panel.appendChild(header);
-    panel.appendChild(statsBar);
-    panel.appendChild(statusBar);
-    panel.appendChild(slotsSection);
+    panel.style.cssText = 'width:100%;max-width:520px;border-radius:28px 28px 0 0;overflow:hidden;max-height:92vh;overflow-y:auto;background:var(--surface)';
+    panel.innerHTML = '<div style="text-align:center;padding:40px;color:var(--db-text2)"><p style="font-size:32px">⏳</p><p>Chargement...</p></div>';
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
+
+    // Charger les avis
+    let reviews = [];
+    try {
+        const { data } = await sb.from('bookings')
+            .select('id,student_name,rating,rating_comment,rated_at,date')
+            .eq('instructor_id', instructorId)
+            .not('rating', 'is', null)
+            .order('rated_at', { ascending: false })
+            .limit(10);
+        reviews = data || [];
+    } catch(e) {}
+
+    const specialties = [];
+    if (inst.is_aac) specialties.push('🚗 AAC');
+    if (inst.is_refresh) specialties.push('🔄 Remise à niveau');
+    if (!inst.license_types || inst.license_types.includes('B')) specialties.push('🚗 Permis B');
+    if (inst.license_types?.includes('A')) specialties.push('🏍️ Permis A');
+    if (inst.license_types?.includes('AT')) specialties.push('🛵 Permis AT');
+
+    const starDist = [5,4,3,2,1].map(s => ({
+        stars: s,
+        count: reviews.filter(r=>Math.round(r.rating)===s).length
+    }));
+
+    panel.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0D0D0D 0%,#1A1A1A 100%);padding:28px 24px 24px;position:relative">
+        <button onclick="document.getElementById('profile-modal').remove()" style="position:absolute;top:18px;right:18px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center">✕</button>
+        <div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:20px">
+            <div style="position:relative;flex-shrink:0">
+                <div style="width:80px;height:80px;border-radius:20px;overflow:hidden;background:#FF5A1F;border:2px solid ${inst.is_driving?'#FBBF24':inst.is_online?'#22C55E':'#333'}">
+                    <img src="${inst.avatar_url||DEFAULT_AVATAR}" style="width:100%;height:100%;object-fit:cover">
+                </div>
+                <div style="position:absolute;bottom:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:${inst.is_driving?'#FBBF24':inst.is_online?'#22C55E':'#555'};border:2px solid #0D0D0D"></div>
+            </div>
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                    <h2 style="font-size:21px;font-weight:900;color:#fff;margin:0">${_esc(inst.name||'')}</h2>
+                    ${inst.verified?'<span style="background:rgba(34,197,94,0.15);color:#4ADE80;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:700">✓ Vérifié</span>':''}
+                </div>
+                <p style="color:rgba(255,255,255,0.45);font-size:13px;margin:0 0 8px">📍 ${_esc(inst.location||'Nouméa')}</p>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <span style="color:#F59E0B;font-size:15px">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</span>
+                    <span style="color:rgba(255,255,255,0.7);font-size:13px;font-weight:700">${inst.rating?inst.rating.toFixed(1):'—'}</span>
+                    <span style="color:rgba(255,255,255,0.3);font-size:12px">(${inst.total_reviews||reviews.length||0} avis)</span>
+                </div>
+                <p style="font-size:12px;color:${inst.is_driving?'#FBBF24':inst.is_online?'#4ADE80':'#6B7280'};margin:6px 0 0;font-weight:700">
+                    ${inst.is_driving?'🚗 En cours de conduite':inst.is_online?'🟢 En ligne maintenant':'⚫ Hors ligne'}
+                </p>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:rgba(255,255,255,0.08);border-radius:16px;overflow:hidden">
+            ${[
+                { val:(inst.hourly_rate||0).toLocaleString(), sub:'XPF/h', color:'#FF5A1F' },
+                { val:inst.experience||'—', sub:'ans exp.', color:'#fff' },
+                { val:slots.length, sub:'créneaux', color:'#fff' },
+                { val:inst.total_reviews||reviews.length||0, sub:'avis', color:'#F59E0B' },
+            ].map(s=>`<div style="background:rgba(255,255,255,0.04);padding:14px 8px;text-align:center">
+                <p style="font-size:18px;font-weight:900;color:${s.color};margin:0">${s.val}</p>
+                <p style="font-size:10px;color:rgba(255,255,255,0.3);margin:3px 0 0">${s.sub}</p>
+            </div>`).join('')}
+        </div>
+    </div>
+
+    ${inst.bio ? `<div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+        <p style="font-size:14px;color:var(--db-text);line-height:1.6;margin:0">${_esc(inst.bio)}</p>
+    </div>` : ''}
+
+    ${specialties.length ? `<div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px">
+        ${specialties.map(s=>`<span style="background:var(--db-bg3);color:var(--db-text2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;border:1px solid var(--db-border)">${s}</span>`).join('')}
+    </div>` : ''}
+
+    ${reviews.length > 0 ? `<div style="padding:20px;border-bottom:1px solid var(--border)">
+        <p style="font-weight:800;font-size:15px;color:var(--db-text);margin:0 0 14px">⭐ Évaluations</p>
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">
+            <div style="text-align:center;flex-shrink:0">
+                <p style="font-size:40px;font-weight:900;color:var(--db-text);margin:0;line-height:1">${inst.rating?inst.rating.toFixed(1):'—'}</p>
+                <p style="font-size:12px;color:var(--db-text2);margin:4px 0 0">${reviews.length} avis</p>
+            </div>
+            <div style="flex:1">
+                ${starDist.map(s=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                    <span style="font-size:11px;color:var(--db-text2);width:10px;text-align:right">${s.stars}</span>
+                    <span style="color:#F59E0B;font-size:10px">★</span>
+                    <div style="flex:1;background:var(--db-bg4);border-radius:4px;height:6px">
+                        <div style="background:#F59E0B;height:6px;border-radius:4px;width:${reviews.length>0?Math.round(s.count/reviews.length*100):0}%"></div>
+                    </div>
+                    <span style="font-size:10px;color:var(--db-text3);width:14px">${s.count}</span>
+                </div>`).join('')}
+            </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;max-height:200px;overflow-y:auto">
+            ${reviews.filter(r=>r.rating_comment).slice(0,5).map(r=>`
+            <div style="background:var(--db-bg3);border-radius:14px;padding:12px 14px;border:1px solid var(--db-border)">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                    <p style="font-weight:700;font-size:13px;color:var(--db-text);margin:0">${_esc(r.student_name||'Élève')}</p>
+                    <div style="display:flex;align-items:center;gap:4px">
+                        <span style="color:#F59E0B;font-size:11px">${'★'.repeat(Math.round(r.rating||0))}</span>
+                        <span style="font-size:10px;color:var(--db-text3)">${r.rated_at?new Date(r.rated_at).toLocaleDateString('fr-FR',{month:'short',year:'numeric'}):''}</span>
+                    </div>
+                </div>
+                <p style="font-size:13px;color:var(--db-text2);margin:0;line-height:1.5">${_esc(r.rating_comment)}</p>
+            </div>`).join('')}
+            ${reviews.filter(r=>!r.rating_comment).length>0&&reviews.filter(r=>r.rating_comment).length===0?'<p style="text-align:center;color:var(--db-text3);font-size:13px;padding:8px">Aucun commentaire écrit</p>':''}
+        </div>
+    </div>` : `<div style="padding:16px 20px;text-align:center;border-bottom:1px solid var(--border)">
+        <p style="color:var(--db-text3);font-size:13px">Aucun avis pour le moment</p>
+    </div>`}
+
+    <div style="padding:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <p style="font-weight:800;font-size:15px;color:var(--db-text);margin:0">📅 Créneaux disponibles</p>
+            <span style="background:var(--db-bg3);color:var(--db-text2);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700">${slots.length}</span>
+        </div>
+        ${slots.length===0
+            ?`<div style="text-align:center;padding:28px;background:var(--db-bg3);border-radius:18px;border:1px solid var(--db-border)">
+                <p style="font-size:32px;margin:0 0 8px">📅</p>
+                <p style="font-weight:700;color:var(--db-text);margin:0">Aucun créneau disponible</p>
+                <p style="font-size:13px;color:var(--db-text2);margin:4px 0 0">Revenez plus tard</p>
+               </div>`
+            :slots.map(s=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:16px;margin-bottom:8px;background:var(--db-bg3);border:1px solid var(--db-border)">
+                <div>
+                    <p style="font-weight:700;font-size:14px;color:var(--db-text);margin:0">${s.date} à ${s.time}</p>
+                    <p style="font-size:12px;color:var(--db-text2);margin:3px 0 0">⏱ ${s.duration}h ${s.license_type?'· Permis '+s.license_type:''}</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <p style="font-weight:800;color:#FF5A1F;font-size:14px;margin:0">${s.price.toLocaleString()} XPF</p>
+                    <button onclick="document.getElementById('profile-modal').remove();window.bookSlot('${s.id}','${instructorId}')" style="background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;border:none;border-radius:12px;padding:9px 16px;font-weight:800;font-size:13px;cursor:pointer">Réserver</button>
+                </div>
+            </div>`).join('')}
+    </div>`;
 }
 
 
