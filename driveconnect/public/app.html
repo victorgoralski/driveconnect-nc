@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DriveConnect NC — app 94</title>
+    <title>DriveConnect NC — app 95</title>
     <meta name="description" content="La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie">
     <meta name="theme-color" content="#f97316">
     <meta name="mobile-web-app-capable" content="yes">
@@ -1388,73 +1388,150 @@ async function finalizeSignup(email, name, userType) {
 
 // ========== HOME ====================
 function HomePage() {
-    return `<div class="min-h-screen" style="background:linear-gradient(160deg,#0f0f0f 0%,#1a1a1a 50%,#0f0f0f 100%)">
-        <!-- Hero -->
-        <div class="flex flex-col min-h-screen px-6 pt-16 pb-8 max-w-lg mx-auto">
-            <div class="flex-1 flex flex-col justify-center">
-                <!-- Logo & Badge -->
-                <div class="mb-8 fade-in">
-                    <div style="margin-bottom:14px">${renderBrandWordmark({ size:'sm', textColor:'#FFFFFF' })}</div>
-                    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 mb-8">
-                        <div class="w-2 h-2 rounded-full bg-green-400"></div>
-                        <span class="text-white/80 text-sm font-medium">Disponible à Nouméa</span>
-                    </div>
-                    <h1 class="display-font text-5xl font-normal text-white leading-tight mb-4">
-                        Apprenez à <em style="color:#FF5A1F">conduire</em><br>à votre rythme
-                    </h1>
-                    <p class="text-white/50 text-lg leading-relaxed">Trouvez un moniteur qualifié près de chez vous en Nouvelle-Calédonie.</p>
-                </div>
+    // Stats dynamiques depuis DB si disponibles
+    const onlineCount = DB.instructors ? DB.instructors.filter(i=>i.is_online).length : 0;
+    const verifiedCount = DB.instructors ? DB.instructors.filter(i=>i.verified).length : 0;
+    const topInstructors = DB.instructors
+        ? [...DB.instructors].filter(i=>i.verified&&i.avatar_url).sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,3)
+        : [];
 
-                <!-- Stats -->
-                <div class="grid grid-cols-3 gap-4 mb-12 fade-in" style="animation-delay:0.1s">
-                    <div class="text-center">
-                        <p class="text-2xl font-bold text-white">100%</p>
-                        <p class="text-white/40 text-xs mt-1">Moniteurs vérifiés</p>
-                    </div>
-                    <div class="text-center border-x border-white/10">
-                        <p class="text-2xl font-bold text-white">NC</p>
-                        <p class="text-white/40 text-xs mt-1">Nouvelle-Cal.</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-2xl font-bold text-white">15%</p>
-                        <p class="text-white/40 text-xs mt-1">Commission seul.</p>
-                    </div>
-                </div>
+    return `<div style="background:linear-gradient(160deg,#0a0a0a 0%,#161616 100%);min-height:100vh;overflow-x:hidden">
 
-                <!-- Boutons principaux -->
-                <div class="space-y-3 fade-in" style="animation-delay:0.2s">
-                    <button onclick="showView('student-login')" class="w-full py-4 rounded-2xl font-semibold text-lg transition-all active:scale-95" style="background:#FF5A1F;color:white">
-                        Trouver un moniteur
-                    </button>
-                    <button onclick="showView('instructor-login')" class="w-full py-4 rounded-2xl font-semibold text-lg transition-all active:scale-95" style="background:rgba(255,255,255,0.08);color:white;border:1.5px solid rgba(255,255,255,0.15)">
-                        Je suis moniteur
-                    </button>
-                </div>
+        <!-- HERO -->
+        <div style="padding:64px 24px 48px;max-width:480px;margin:0 auto">
+            <div style="margin-bottom:20px">${renderBrandWordmark({ size:'sm', textColor:'#FFFFFF' })}</div>
 
-                <!-- Trust badges -->
-                <div class="fade-in" style="animation-delay:0.25s;margin-top:24px;display:flex;flex-direction:column;gap:10px">
-                    <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px">
-                        <span style="font-size:20px">🛡️</span>
-                        <div>
-                            <p style="color:#fff;font-weight:700;font-size:13px">Protection paiement garanti</p>
-                            <p style="color:rgba(255,255,255,0.4);font-size:11px">Paiement sécurisé et protégé jusqu'à validation du cours</p>
-                        </div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px">
-                        <span style="font-size:20px">✅</span>
-                        <div>
-                            <p style="color:#fff;font-weight:700;font-size:13px">Moniteurs vérifiés</p>
-                            <p style="color:rgba(255,255,255,0.4);font-size:11px">Documents et qualifications contrôlés manuellement</p>
-                        </div>
-                    </div>
-                </div>
+            ${onlineCount>0?`<div style="display:inline-flex;align-items:center;gap:8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:100px;padding:7px 16px;margin-bottom:20px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;box-shadow:0 0 8px rgba(34,197,94,0.6);animation:pulse 1.5s infinite"></div>
+                <span style="color:#4ADE80;font-size:13px;font-weight:700">${onlineCount} moniteur${onlineCount>1?'s':''} disponible${onlineCount>1?'s':''} maintenant</span>
+            </div>`:`<div style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:100px;padding:7px 16px;margin-bottom:20px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#22C55E"></div>
+                <span style="color:rgba(255,255,255,0.6);font-size:13px;font-weight:600">Disponible à Nouméa</span>
+            </div>`}
+
+            <h1 style="font-size:44px;font-weight:900;color:#fff;line-height:1.1;margin:0 0 16px;letter-spacing:-1px">
+                Apprenez à<br><span style="color:#FF5A1F">conduire</span> à<br>votre rythme
+            </h1>
+            <p style="color:rgba(255,255,255,0.45);font-size:17px;line-height:1.6;margin:0 0 32px">Trouvez un moniteur qualifié près de chez vous en Nouvelle-Calédonie. Réservez en ligne, payez en sécurité.</p>
+
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px">
+                <button onclick="showView('student-login')" style="width:100%;padding:18px;border-radius:18px;font-weight:800;font-size:17px;border:none;cursor:pointer;background:linear-gradient(135deg,#FF5A1F,#FF7340);color:#fff;box-shadow:0 8px 32px rgba(255,90,31,0.4);transition:all .2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+                    Trouver un moniteur →
+                </button>
+                <button onclick="showView('instructor-login')" style="width:100%;padding:17px;border-radius:18px;font-weight:700;font-size:16px;cursor:pointer;background:rgba(255,255,255,0.06);color:#fff;border:1.5px solid rgba(255,255,255,0.15);transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.06)'">
+                    Je suis moniteur
+                </button>
             </div>
 
-            <!-- Footer légal -->
-            <div class="flex justify-center gap-6 pt-8 fade-in" style="animation-delay:0.3s">
-                <button onclick="showView('privacy')" class="text-white/30 text-sm hover:text-white/60 transition">Confidentialité</button>
-                <button onclick="showView('terms')" class="text-white/30 text-sm hover:text-white/60 transition">CGU</button>
-                <button onclick="showView('mentions')" class="text-white/30 text-sm hover:text-white/60 transition">Mentions légales</button>
+            <!-- Stats bar -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:rgba(255,255,255,0.08);border-radius:18px;overflow:hidden;margin-bottom:40px">
+                ${[
+                    { val: verifiedCount>0?verifiedCount+'':'✓', label:'Moniteurs vérifiés' },
+                    { val:'NC', label:'Nouvelle-Calédonie' },
+                    { val:'15%', label:'Commission seulement' }
+                ].map(s=>`<div style="background:#111;padding:16px 10px;text-align:center">
+                    <p style="font-size:22px;font-weight:900;color:#FF5A1F;margin:0">${s.val}</p>
+                    <p style="font-size:10px;color:rgba(255,255,255,0.35);margin:4px 0 0;font-weight:600">${s.label}</p>
+                </div>`).join('')}
+            </div>
+        </div>
+
+        <!-- MONITEURS EN VEDETTE -->
+        ${topInstructors.length > 0 ? `
+        <div style="padding:0 24px 40px;max-width:480px;margin:0 auto">
+            <p style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;margin:0 0 16px">MONITEURS EN VEDETTE</p>
+            <div style="display:flex;flex-direction:column;gap:10px">
+                ${topInstructors.map(i=>`
+                <div onclick="showView('student-login')" style="display:flex;align-items:center;gap:14px;background:#1A1A1A;border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:14px 16px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='rgba(255,90,31,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+                    <div style="position:relative;flex-shrink:0">
+                        <div style="width:52px;height:52px;border-radius:14px;overflow:hidden;background:#FF5A1F">
+                            <img src="${i.avatar_url}" style="width:100%;height:100%;object-fit:cover">
+                        </div>
+                        ${i.is_online?'<div style="position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;background:#22C55E;border:2px solid #1A1A1A"></div>':''}
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                            <p style="font-weight:800;font-size:15px;color:#fff;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(i.name)}</p>
+                            ${i.verified?'<span style="color:#4ADE80;font-size:11px">✓</span>':''}
+                        </div>
+                        <p style="font-size:12px;color:rgba(255,255,255,0.4);margin:0">📍 ${_esc(i.location||'Nouméa')} · ${i.experience||0} ans exp.</p>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                        <p style="font-size:16px;font-weight:900;color:#FF5A1F;margin:0">${(i.hourly_rate||0).toLocaleString()}</p>
+                        <p style="font-size:10px;color:rgba(255,255,255,0.3);margin:2px 0 0">XPF/H</p>
+                        ${i.rating?`<p style="font-size:11px;color:#F59E0B;margin:2px 0 0">★ ${i.rating.toFixed(1)}</p>`:''}
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>` : ''}
+
+        <!-- COMMENT ÇA MARCHE -->
+        <div style="padding:0 24px 40px;max-width:480px;margin:0 auto">
+            <p style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;margin:0 0 16px">COMMENT ÇA MARCHE</p>
+            <div style="display:flex;flex-direction:column;gap:10px">
+                ${[
+                    { n:'1', icon:'🔍', title:'Trouvez votre moniteur', desc:'Parcourez les profils, consultez les avis et choisissez selon votre budget.' },
+                    { n:'2', icon:'📅', title:'Réservez un créneau', desc:'Choisissez une date et payez en ligne via PayPal en toute sécurité.' },
+                    { n:'3', icon:'🚗', title:'Suivez votre progression', desc:'Votre moniteur remplit votre fiche de suivi après chaque cours.' },
+                ].map(s=>`
+                <div style="display:flex;align-items:flex-start;gap:14px;background:#1A1A1A;border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:16px">
+                    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#FF5A1F,#FF7340);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${s.icon}</div>
+                    <div>
+                        <p style="font-weight:800;font-size:14px;color:#fff;margin:0 0 4px">${s.title}</p>
+                        <p style="font-size:13px;color:rgba(255,255,255,0.4);margin:0;line-height:1.5">${s.desc}</p>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>
+
+        <!-- CONFIANCE -->
+        <div style="padding:0 24px 40px;max-width:480px;margin:0 auto">
+            <p style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;margin:0 0 16px">POURQUOI DRIVECONNECT</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                ${[
+                    { icon:'🛡️', title:'Paiement protégé', desc:'Libéré uniquement après validation du cours' },
+                    { icon:'✅', title:'Moniteurs vérifiés', desc:'Documents contrôlés manuellement par l\'équipe' },
+                    { icon:'💬', title:'Chat intégré', desc:'Contactez votre moniteur directement dans l\'app' },
+                    { icon:'📖', title:'Suivi pédagogique', desc:'Fiche de progression après chaque cours' },
+                ].map(s=>`
+                <div style="background:#1A1A1A;border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:16px">
+                    <p style="font-size:24px;margin:0 0 8px">${s.icon}</p>
+                    <p style="font-weight:700;font-size:13px;color:#fff;margin:0 0 4px">${s.title}</p>
+                    <p style="font-size:12px;color:rgba(255,255,255,0.4);margin:0;line-height:1.4">${s.desc}</p>
+                </div>`).join('')}
+            </div>
+        </div>
+
+        <!-- FAQ -->
+        <div style="padding:0 24px 40px;max-width:480px;margin:0 auto">
+            <p style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;margin:0 0 16px">QUESTIONS FRÉQUENTES</p>
+            <div style="display:flex;flex-direction:column;gap:8px" id="faq-list">
+                ${[
+                    { q:'Combien coûte un cours de conduite ?', r:'Le tarif est fixé par chaque moniteur. Il varie généralement entre 4 000 et 8 000 XPF par heure. DriveConnect prélève 15% de commission.' },
+                    { q:'Comment fonctionne le remboursement en cas d\'annulation ?', r:'100% remboursé si vous annulez plus de 48h avant le cours, 50% entre 24h et 48h, aucun remboursement en dessous de 24h.' },
+                    { q:'Les moniteurs sont-ils vraiment vérifiés ?', r:'Oui. Chaque moniteur doit fournir son autorisation d\'enseigner, sa pièce d\'identité et son assurance professionnelle avant d\'être accepté sur la plateforme.' },
+                    { q:'Comment payer ?', r:'Le paiement s\'effectue via PayPal, de manière sécurisée. Le montant est libéré au moniteur uniquement après la validation du cours avec un code à 6 chiffres.' },
+                ].map((f,i)=>`
+                <div style="background:#1A1A1A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden">
+                    <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.faq-arrow').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(90deg)'" style="width:100%;padding:14px 16px;background:none;border:none;color:#fff;font-weight:700;font-size:14px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px">
+                        <span>${f.q}</span>
+                        <span class="faq-arrow" style="color:rgba(255,255,255,0.4);font-size:16px;transition:transform .2s;flex-shrink:0">›</span>
+                    </button>
+                    <div style="display:none;padding:0 16px 14px">
+                        <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;margin:0">${f.r}</p>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div style="padding:0 24px 40px;max-width:480px;margin:0 auto;border-top:1px solid rgba(255,255,255,0.06);padding-top:24px">
+            <div style="margin-bottom:16px">${renderBrandWordmark({ size:'sm', textColor:'rgba(255,255,255,0.3)' })}</div>
+            <p style="font-size:12px;color:rgba(255,255,255,0.2);margin:0 0 14px">La plateforme de cours de conduite à Nouméa, Nouvelle-Calédonie.</p>
+            <div style="display:flex;gap:20px">
+                <button onclick="showView('privacy')" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:12px;cursor:pointer;padding:0">Confidentialité</button>
+                <button onclick="showView('terms')" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:12px;cursor:pointer;padding:0">CGU</button>
+                <button onclick="showView('mentions')" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:12px;cursor:pointer;padding:0">Mentions légales</button>
             </div>
         </div>
     </div>`;
@@ -2736,6 +2813,11 @@ function InstructorDashboard() {
                         <label style="display:block;font-size:12px;font-weight:700;color:var(--db-text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Années d'expérience</label>
                         <input type="number" id="s-exp" value="${profile.experience||0}" style="background:var(--db-bg3);color:var(--db-text);border:1.5px solid var(--db-border);border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#FF5A1F';this.style.boxShadow='0 0 0 3px rgba(255,90,31,0.12)'" onblur="this.style.borderColor='rgba(242,237,232,0.1)';this.style.boxShadow='none'" class="input-field">
                     </div>
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:700;color:var(--db-text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Ma présentation <span style="color:var(--db-text3);font-weight:400;text-transform:none">(visible par les élèves)</span></label>
+                        <textarea id="s-bio" rows="4" placeholder="Décrivez votre approche pédagogique, vos spécialités, ce qui vous distingue…" style="background:var(--db-bg3);color:var(--db-text);border:1.5px solid var(--db-border);border-radius:14px;padding:14px 16px;width:100%;font-size:14px;outline:none;transition:border-color .2s;resize:none;font-family:'DM Sans',sans-serif;line-height:1.6;box-sizing:border-box" onfocus="this.style.borderColor='#FF5A1F';this.style.boxShadow='0 0 0 3px rgba(255,90,31,0.12)'" onblur="this.style.borderColor='rgba(242,237,232,0.1)';this.style.boxShadow='none'">${profile.bio||''}</textarea>
+                        <p style="font-size:11px;color:var(--db-text3);margin:4px 0 0;text-align:right" id="bio-counter">${(profile.bio||'').length}/300 caractères</p>
+                    </div>
                     <button type="submit" class="btn-primary w-full" style="font-size:15px;padding:14px">Sauvegarder les modifications</button>
                 </form>
             </div>
@@ -3276,29 +3358,75 @@ function showPaymentModal(slot, instructor, prices) {
 window.cancelStudent = async function(bookingId) {
     const b = DB.bookings.find(x=>x.id===bookingId);
     if (!b) return;
-    const pol = cancellationPolicy(b.date,b.time);
-    const refund = Math.round(b.amount*pol.pct/100);
-    if (!confirm(`Annuler ce cours ?\n\n${pol.label}\nRemboursement : ${refund} XPF\n\n⚠️ Le créneau sera supprimé. Le moniteur devra en créer un nouveau.`)) return;
+    const pol = cancellationPolicy(b.date, b.time);
+    const refund = Math.round(b.amount * pol.pct / 100);
+    const diffH = Math.round((new Date(b.date+'T'+b.time) - new Date()) / 3600000);
 
+    // Modal visuel de politique d'annulation
+    document.getElementById('cancel-policy-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'cancel-policy-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)';
+    const icon = pol.pct===100?'✅':pol.pct===50?'⚠️':'❌';
+    const iconBg = pol.pct===100?'#ECFDF5':pol.pct===50?'#FFFBEB':'#FEF2F2';
+    const iconColor = pol.pct===100?'#059669':pol.pct===50?'#D97706':'#DC2626';
+    modal.innerHTML = `
+    <div style="background:var(--db-bg2);border-radius:28px 28px 0 0;width:100%;max-width:480px;padding:28px;box-shadow:0 -12px 60px rgba(0,0,0,0.4)">
+        <div style="width:36px;height:4px;background:var(--db-border);border-radius:2px;margin:0 auto 20px"></div>
+        <div style="text-align:center;margin-bottom:20px">
+            <div style="width:64px;height:64px;border-radius:20px;background:${iconBg};display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px">${icon}</div>
+            <h3 style="font-size:19px;font-weight:900;color:var(--db-text);margin:0 0 6px">Annuler ce cours ?</h3>
+            <p style="font-size:13px;color:var(--db-text2);margin:0">Cours avec ${_esc(b.instructor_name||'le moniteur')} · ${b.date} à ${b.time}</p>
+        </div>
+        <!-- Politique -->
+        <div style="background:var(--db-bg3);border-radius:18px;padding:18px;margin-bottom:16px;border:1px solid var(--db-border)">
+            <p style="font-size:11px;font-weight:700;color:var(--db-text3);letter-spacing:1px;margin:0 0 12px">POLITIQUE D'ANNULATION</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:${diffH>48?'rgba(34,197,94,0.1)':'var(--db-bg2)'};border:1px solid ${diffH>48?'rgba(34,197,94,0.25)':'var(--db-border)'}">
+                    <span style="font-size:16px">✅</span>
+                    <div style="flex:1"><p style="font-size:13px;font-weight:700;color:var(--db-text);margin:0">Plus de 48h avant</p><p style="font-size:11px;color:var(--db-text2);margin:2px 0 0">Remboursement 100%</p></div>
+                    ${diffH>48?'<span style="font-size:11px;font-weight:700;color:#22C55E">← Vous êtes là</span>':''}
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:${diffH<=48&&diffH>24?'rgba(245,158,11,0.1)':'var(--db-bg2)'};border:1px solid ${diffH<=48&&diffH>24?'rgba(245,158,11,0.25)':'var(--db-border)'}">
+                    <span style="font-size:16px">⚠️</span>
+                    <div style="flex:1"><p style="font-size:13px;font-weight:700;color:var(--db-text);margin:0">24h à 48h avant</p><p style="font-size:11px;color:var(--db-text2);margin:2px 0 0">Remboursement 50%</p></div>
+                    ${diffH<=48&&diffH>24?'<span style="font-size:11px;font-weight:700;color:#F59E0B">← Vous êtes là</span>':''}
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:${diffH<=24?'rgba(239,68,68,0.1)':'var(--db-bg2)'};border:1px solid ${diffH<=24?'rgba(239,68,68,0.25)':'var(--db-border)'}">
+                    <span style="font-size:16px">❌</span>
+                    <div style="flex:1"><p style="font-size:13px;font-weight:700;color:var(--db-text);margin:0">Moins de 24h avant</p><p style="font-size:11px;color:var(--db-text2);margin:2px 0 0">Aucun remboursement</p></div>
+                    ${diffH<=24?'<span style="font-size:11px;font-weight:700;color:#EF4444">← Vous êtes là</span>':''}
+                </div>
+            </div>
+        </div>
+        <!-- Résumé remboursement -->
+        <div style="background:${iconBg};border:1px solid ${iconColor}33;border-radius:14px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+                <p style="font-size:12px;color:${iconColor};font-weight:700;margin:0 0 3px">REMBOURSEMENT PRÉVU</p>
+                <p style="font-size:22px;font-weight:900;color:${iconColor};margin:0">${refund.toLocaleString()} XPF <span style="font-size:13px;font-weight:400">(${pol.pct}%)</span></p>
+            </div>
+            <p style="font-size:13px;color:${iconColor};font-weight:700;margin:0">${pol.label}</p>
+        </div>
+        <div style="display:flex;gap:10px">
+            <button onclick="document.getElementById('cancel-policy-modal').remove()" style="flex:1;padding:14px;border:1.5px solid var(--db-border);background:var(--db-bg3);border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;color:var(--db-text)">Garder le cours</button>
+            <button onclick="document.getElementById('cancel-policy-modal').remove();_doCancel('${bookingId}')" style="flex:1;padding:14px;background:#EF4444;border:none;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;color:#fff">Confirmer l'annulation</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+};
+
+window._doCancel = async function(bookingId) {
+    const b = DB.bookings.find(x=>x.id===bookingId);
+    if (!b) return;
+    const pol = cancellationPolicy(b.date, b.time);
+    const refund = Math.round(b.amount * pol.pct / 100);
     await sb.from('bookings').update({ status:'cancelled', cancelled_by:'student', refund_amount:refund, cancelled_at:new Date().toISOString() }).eq('id', bookingId);
-    // SUPPRIMER le créneau (pas le remettre disponible)
     if (b.slot_id) await sb.from('slots').delete().eq('id', b.slot_id);
     DB.slots = DB.slots.filter(s => s.id !== b.slot_id);
-
-    const cancelledBooking = DB.bookings.find(x=>x.id===bookingId);
-    if (cancelledBooking) {
-        sendNotification('cancellation', {
-            studentEmail: currentUser.email,
-            studentName: currentUser.name,
-            instructorName: cancelledBooking.instructor_name,
-            date: cancelledBooking.date,
-            time: cancelledBooking.time
-        });
-        sendPushToUser(cancelledBooking.instructor_id, '❌ Cours annulé', `${currentUser.name} a annulé le cours du ${cancelledBooking.date} à ${cancelledBooking.time}. Créneau supprimé.`);
-    }
-
+    sendPushToUser(b.instructor_id, '❌ Cours annulé', `${currentUser.name} a annulé le cours du ${b.date} à ${b.time}.`);
     await loadData();
-    notif('Réservation annulée',`Remboursement de ${refund} XPF (${pol.pct}%)`,pol.pct===100?'green':pol.pct===50?'yellow':'red');
+    notif('Réservation annulée', `Remboursement de ${refund.toLocaleString()} XPF (${pol.pct}%)`, pol.pct===100?'green':pol.pct===50?'yellow':'red');
     render();
 };
 
@@ -4643,14 +4771,27 @@ function setupLoginForm(type) {
 document.addEventListener('submit', async function(e){
     if(e.target.id==='settings-form'){
         e.preventDefault();
+        const bioVal = (document.getElementById('s-bio')?.value||'').trim().slice(0,300);
         await sb.from('instructors').update({
             location: document.getElementById('s-loc').value,
-            phone_number: document.getElementById('s-phone').value,
+            phone_number: document.getElementById('s-phone')?.value,
             hourly_rate: parseInt(document.getElementById('s-rate').value),
-            experience: parseInt(document.getElementById('s-exp').value)
+            experience: parseInt(document.getElementById('s-exp').value),
+            bio: bioVal || null
         }).eq('id', currentUser.id);
+        const idx = DB.instructors.findIndex(i=>i.id===currentUser.id);
+        if (idx>=0) DB.instructors[idx].bio = bioVal;
         await loadData();
         notif('✅ Profil sauvegardé','','green');
+    }
+});
+
+// Compteur caractères bio
+document.addEventListener('input', function(e){
+    if (e.target.id==='s-bio') {
+        const counter = document.getElementById('bio-counter');
+        if (counter) counter.textContent = Math.min(e.target.value.length,300)+'/300 caractères';
+        if (e.target.value.length > 300) e.target.value = e.target.value.slice(0,300);
     }
 });
 
@@ -5543,6 +5684,19 @@ GRANT EXECUTE ON FUNCTION admin_reset_all_gps TO authenticated;</div>
     if (tab === 'danger') {
         return `
         <div style="display:flex;flex-direction:column;gap:16px;max-width:600px">
+
+            <!-- Exports CSV -->
+            <div style="background:rgba(52,211,153,0.05);border:1px solid rgba(52,211,153,0.2);border-radius:16px;padding:20px">
+                <p style="font-weight:800;font-size:15px;color:#34D399;margin-bottom:4px">📥 Exports de données</p>
+                <p style="font-size:13px;color:#6B7280;margin-bottom:16px">Téléchargez les données en format CSV pour analyse.</p>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <button onclick="adminExportCSV('users')" style="padding:10px 20px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);color:#34D399;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left">📊 Exporter les utilisateurs (${adminData.users.length})</button>
+                    <button onclick="adminExportCSV('bookings')" style="padding:10px 20px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);color:#34D399;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left">📋 Exporter les réservations (${adminData.bookings.length})</button>
+                    <button onclick="adminExportCSV('instructors')" style="padding:10px 20px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);color:#34D399;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left">🚗 Exporter les moniteurs (${adminData.instructors.length})</button>
+                    <button onclick="adminExportCSV('revenue')" style="padding:10px 20px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);color:#34D399;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left">💰 Exporter les revenus (paiements confirmés)</button>
+                </div>
+            </div>
+
             <div style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.2);border-radius:16px;padding:20px">
                 <p style="font-weight:800;font-size:15px;color:#FBBF24;margin-bottom:4px">🧹 Nettoyer les créneaux passés</p>
                 <p style="font-size:13px;color:#6B7280;margin-bottom:14px">Supprime tous les créneaux dont la date est dépassée.</p>
@@ -5759,6 +5913,63 @@ window.adminResetRevenueCounters = async () => {
     } finally {
         if (btn) { btn.textContent = '🔄 Remettre les compteurs à 0'; btn.disabled = false; }
     }
+};
+
+window.adminExportCSV = function(type) {
+    let rows = [], filename = '';
+    const esc = v => '"' + String(v||'').replace(/"/g,'""') + '"';
+
+    if (type === 'users') {
+        filename = 'driveconnect-utilisateurs.csv';
+        rows = [['ID','Nom','Email','Type','Date inscription']];
+        adminData.users.forEach(u => rows.push([
+            esc(u.id), esc(u.name), esc(u.email),
+            esc(u.user_type==='student'?'Élève':'Moniteur'),
+            esc(u.created_at?.split('T')[0]||'')
+        ]));
+    } else if (type === 'bookings') {
+        filename = 'driveconnect-reservations.csv';
+        rows = [['ID','Date','Heure','Durée','Élève','Moniteur','Montant XPF','Commission XPF','Net XPF','Statut','Paiement','Créé le']];
+        adminData.bookings.forEach(b => rows.push([
+            esc(b.id), esc(b.date), esc(b.time), esc(b.duration),
+            esc(b.student_name), esc(b.instructor_name),
+            esc(b.amount||0), esc(b.commission||0), esc(b.net||0),
+            esc(b.status), esc(b.payment_status),
+            esc(b.created_at?.split('T')[0]||'')
+        ]));
+    } else if (type === 'instructors') {
+        filename = 'driveconnect-moniteurs.csv';
+        rows = [['ID','Nom','Email','Localisation','Tarif XPF/h','Exp. ans','Note','Avis','Statut','Vérifié','En ligne','Inscription']];
+        adminData.instructors.forEach(i => {
+            const u = adminData.users.find(u=>u.id===i.id||u.id===i.user_id);
+            rows.push([
+                esc(i.id), esc(i.name), esc(u?.email||i.email),
+                esc(i.location), esc(i.hourly_rate||0), esc(i.experience||0),
+                esc(i.rating||''), esc(i.total_reviews||0),
+                esc(i.approval_status), esc(i.verified?'Oui':'Non'),
+                esc(i.is_online?'Oui':'Non'),
+                esc(u?.created_at?.split('T')[0]||'')
+            ]);
+        });
+    } else if (type === 'revenue') {
+        filename = 'driveconnect-revenus.csv';
+        rows = [['Date','Élève','Moniteur','Montant XPF','Commission XPF','Net XPF']];
+        adminData.bookings
+            .filter(b=>b.status==='confirmed'&&b.payment_status==='paid')
+            .sort((a,b)=>new Date(b.date)-new Date(a.date))
+            .forEach(b => rows.push([
+                esc(b.date), esc(b.student_name), esc(b.instructor_name),
+                esc(b.amount||0), esc(b.commission||0), esc(b.net||0)
+            ]));
+    }
+
+    const csv = rows.map(r=>r.join(',')).join('\n');
+    const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8' }); // BOM pour Excel
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    notif('📥 Export téléchargé !', filename, 'green');
 };
 
 window.adminCleanSlots = async () => {
